@@ -161,6 +161,7 @@ import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.theme.GlassmorphismTokens
+import com.jabook.app.jabook.compose.core.theme.LocalJabookMotionScheme
 import com.jabook.app.jabook.compose.core.theme.PlayerThemeColors
 import com.jabook.app.jabook.compose.core.theme.SurfaceElevationTokens
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
@@ -839,19 +840,11 @@ public fun PlayerScreen(
                                 },
                     ) {
                         val overlayHazeState = rememberHazeState()
-                        // ponytail: M3 1.4 fallback — motionScheme not in 1.4, use MotionTokens / tween fallback
-                        val spatialSpec =
-                            androidx.compose.animation.core
-                                .tween<Float>(durationMillis = 400)
-                        val effectsSpec =
-                            androidx.compose.animation.core
-                                .tween<Float>(durationMillis = 300)
-                        val fastEffectsSpec =
-                            androidx.compose.animation.core
-                                .tween<Float>(durationMillis = 200)
-                        val fastSpatialSpec =
-                            androidx.compose.animation.core
-                                .tween<Float>(durationMillis = 250)
+                        val motionScheme = LocalJabookMotionScheme.current
+                        val spatialSpec = motionScheme.defaultSpatialSpec<Float>()
+                        val effectsSpec = motionScheme.defaultEffectsSpec<Float>()
+                        val fastEffectsSpec = motionScheme.fastEffectsSpec<Float>()
+                        val fastSpatialSpec = motionScheme.fastSpatialSpec<Float>()
                         AnimatedContent(
                             targetState = uiState,
                             transitionSpec = {
@@ -1761,12 +1754,10 @@ private fun PlayerContent(
     // Dynamic Theme Background with Glassmorphism Effect
     // Background is now handled by PremiumPlayerBackground wrapping this content
     val themeColors = state.themeColors
-    // ponytail: M3 1.4 fallback — motionScheme not in 1.4
+    val motionScheme = LocalJabookMotionScheme.current
     val animatedPrimary by animateColorAsState(
         targetValue = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
-        animationSpec =
-            androidx.compose.animation.core
-                .tween(durationMillis = 300),
+        animationSpec = motionScheme.defaultEffectsSpec(),
         label = "playerPalettePrimary",
     )
     val contrastBackground = themeColors?.surfaceColor ?: MaterialTheme.colorScheme.surface

@@ -15,7 +15,6 @@
 package com.jabook.app.jabook.compose.feature.settings
 
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
@@ -86,6 +85,7 @@ import com.jabook.app.jabook.audio.processors.EqualizerPreset
 import com.jabook.app.jabook.audio.processors.NoiseGateLevel
 import com.jabook.app.jabook.audio.processors.SpeechCompressorLevel
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
+import com.jabook.app.jabook.compose.core.theme.LocalJabookMotionScheme
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
 import java.util.Locale
@@ -317,6 +317,7 @@ private fun EQCurveVisualizer(
     preampDb: Float,
     modifier: Modifier = Modifier,
 ) {
+    val motionScheme = LocalJabookMotionScheme.current
     val frequencies = remember { floatArrayOf(31f, 62f, 125f, 250f, 500f, 1000f, 2000f, 4000f, 8000f, 16000f) }
     val bandX =
         remember {
@@ -332,7 +333,11 @@ private fun EQCurveVisualizer(
 
     val animatedDbs =
         targetDbs.mapIndexed { i, target ->
-            animateFloatAsState(targetValue = target, animationSpec = tween(400), label = "eq_band_$i").value
+            animateFloatAsState(
+                targetValue = target,
+                animationSpec = motionScheme.defaultEffectsSpec(),
+                label = "eq_band_$i",
+            ).value
         }
 
     val accentColor = MaterialTheme.colorScheme.primary

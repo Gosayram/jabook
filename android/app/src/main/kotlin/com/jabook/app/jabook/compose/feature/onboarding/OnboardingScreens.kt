@@ -61,7 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.jabook.R
-import com.jabook.app.jabook.compose.core.theme.MotionTokens
+import com.jabook.app.jabook.compose.core.theme.LocalJabookMotionScheme
 import com.jabook.app.jabook.compose.feature.permissions.PermissionScreen
 import kotlinx.coroutines.launch
 import kotlin.math.absoluteValue
@@ -86,6 +86,7 @@ public fun OnboardingScreen(
 
     // Respect reduced-motion settings
     val context = androidx.compose.ui.platform.LocalContext.current
+    val motionScheme = LocalJabookMotionScheme.current
     val reducedMotion =
         remember {
             val resolver = context.contentResolver
@@ -106,10 +107,7 @@ public fun OnboardingScreen(
                 androidx.compose.animation.core
                     .snap()
             } else {
-                tween(
-                    durationMillis = MotionTokens.LONG2,
-                    easing = MotionTokens.EmphasizedDecelerate,
-                )
+                motionScheme.defaultEffectsSpec()
             },
     ) { step ->
         Surface(

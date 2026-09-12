@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.size.Scale
+import com.jabook.app.jabook.compose.core.theme.LocalJabookMotionScheme
 import com.jabook.app.jabook.compose.core.theme.PlayerThemeColors
 import com.jabook.app.jabook.compose.feature.player.components.HypnoticBackground
 import dev.chrisbanes.haze.HazeState
@@ -52,18 +53,16 @@ public fun PremiumPlayerBackground(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
+    val motionScheme = LocalJabookMotionScheme.current
     val rawBackgroundColors =
         themeColors?.let { colors ->
             colors.gradientColors.ifEmpty {
                 listOf(colors.containerColor, colors.surfaceColor)
             }
         } ?: emptyList()
-    // ponytail: M3 1.4 fallback — motionScheme not in 1.4
     val animatedPrimary by animateColorAsState(
         targetValue = themeColors?.primaryColor ?: Color.Transparent,
-        animationSpec =
-            androidx.compose.animation.core
-                .tween(durationMillis = 300),
+        animationSpec = motionScheme.defaultEffectsSpec(),
         label = "palettePrimary",
     )
     val backgroundColors =

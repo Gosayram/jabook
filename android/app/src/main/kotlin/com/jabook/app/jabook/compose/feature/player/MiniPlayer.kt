@@ -23,7 +23,6 @@ import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -77,7 +76,7 @@ import coil3.request.placeholder
 import coil3.request.transformations
 import coil3.transform.RoundedCornersTransformation
 import com.jabook.app.jabook.R
-import com.jabook.app.jabook.compose.core.theme.MotionTokens
+import com.jabook.app.jabook.compose.core.theme.LocalJabookMotionScheme
 import com.jabook.app.jabook.compose.core.theme.SurfaceElevationTokens
 import com.jabook.app.jabook.compose.core.util.rememberReduceMotion
 import com.jabook.app.jabook.compose.designsystem.component.CircularIconButton
@@ -133,6 +132,7 @@ public fun MiniPlayer(
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
 ) {
+    val motionScheme = LocalJabookMotionScheme.current
     val currentPosition by currentPositionMs.collectAsStateWithLifecycle()
     val duration by durationMs.collectAsStateWithLifecycle()
     val progress = if (duration > 0) currentPosition.toFloat() / duration else 0f
@@ -149,12 +149,12 @@ public fun MiniPlayer(
     // Smooth spring animation for drag
     val animatedOffsetX by animateFloatAsState(
         targetValue = offsetX,
-        animationSpec = spring(dampingRatio = 0.8f, stiffness = 300f),
+        animationSpec = motionScheme.defaultSpatialSpec(),
         label = "miniPlayerOffset",
     )
     val animatedOffsetY by animateFloatAsState(
         targetValue = offsetY,
-        animationSpec = spring(dampingRatio = 0.8f, stiffness = 300f),
+        animationSpec = motionScheme.defaultSpatialSpec(),
         label = "miniPlayerOffsetY",
     )
 
@@ -413,6 +413,7 @@ public fun AnimatedMiniPlayer(
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
 ) {
     val reduceMotion = rememberReduceMotion()
+    val motionScheme = LocalJabookMotionScheme.current
     AnimatedVisibility(
         visible = visible,
         enter =
@@ -421,7 +422,7 @@ public fun AnimatedMiniPlayer(
             } else {
                 slideInVertically(
                     initialOffsetY = { it },
-                    animationSpec = spring(dampingRatio = 0.8f, stiffness = 300f),
+                    animationSpec = motionScheme.defaultSpatialSpec(),
                 )
             },
         exit =
@@ -430,11 +431,7 @@ public fun AnimatedMiniPlayer(
             } else {
                 slideOutVertically(
                     targetOffsetY = { it },
-                    animationSpec =
-                        tween(
-                            durationMillis = MotionTokens.MEDIUM1,
-                            easing = MotionTokens.EmphasizedAccelerate,
-                        ),
+                    animationSpec = motionScheme.defaultSpatialSpec(),
                 )
             },
         modifier = modifier,

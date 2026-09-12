@@ -15,7 +15,6 @@
 package com.jabook.app.jabook.compose.feature.player
 
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -36,7 +35,7 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.jabook.app.jabook.compose.core.theme.MotionTokens
+import com.jabook.app.jabook.compose.core.theme.LocalJabookMotionScheme
 import kotlin.math.abs
 
 /**
@@ -77,10 +76,11 @@ public fun AudioVisualizer(
     secondaryColor: Color = MaterialTheme.colorScheme.secondary,
     modifier: Modifier = Modifier,
 ) {
+    val motionScheme = LocalJabookMotionScheme.current
     // Animate visibility based on playback state
     val alpha by animateFloatAsState(
         targetValue = if (isPlaying) 1f else 0.3f,
-        animationSpec = tween(durationMillis = MotionTokens.MEDIUM2, easing = MotionTokens.Emphasized),
+        animationSpec = motionScheme.defaultEffectsSpec(),
         label = "visualizerAlpha",
     )
 
