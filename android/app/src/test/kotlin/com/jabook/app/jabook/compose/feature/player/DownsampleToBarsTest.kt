@@ -31,20 +31,20 @@ class DownsampleToBarsTest {
     }
 
     @Test
-    fun `bar value is max of its bucket`() {
+    fun `bar value is mean of its bucket`() {
         val peaks = FloatArray(10) { 0.1f }
         peaks[7] = 0.9f
         val bars = downsampleToBars(peaks, 5)
-        // 10 peaks / 5 bars → bucket 3 covers peaks[6..7] → picks the 0.9 spike
-        assertEquals(0.9f, bars[3], 0.0001f)
+        // 10 peaks / 5 bars → bucket 3 covers peaks[6..7].
+        assertEquals(0.5f, bars[3], 0.0001f)
         assertEquals(0.1f, bars[0], 0.0001f)
     }
 
     @Test
-    fun `more peaks than bars still covers every bucket with at least one sample`() {
+    fun `fewer peaks than bars does not duplicate samples`() {
         val peaks = FloatArray(2) { 1f }
         val bars = downsampleToBars(peaks, 72)
-        assertEquals(72, bars.size)
+        assertEquals(2, bars.size)
         assertTrue(bars.all { it > 0f })
     }
 }

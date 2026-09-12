@@ -22,12 +22,12 @@ import org.junit.Test
 
 class WaveformBarsAndCacheCodecTest {
     @Test
-    fun `downsampleToBars max-pools into bar count`() {
+    fun `downsampleToBars averages into bar count`() {
         val peaks = FloatArray(100) { index -> if (index == 55) 1f else 0.1f }
         val bars = downsampleToBars(peaks, bars = 10)
 
         assertEquals(10, bars.size)
-        assertEquals(1f, bars[5], 0.0001f)
+        assertEquals(0.19f, bars[5], 0.0001f)
         assertEquals(0.1f, bars[0], 0.0001f)
     }
 

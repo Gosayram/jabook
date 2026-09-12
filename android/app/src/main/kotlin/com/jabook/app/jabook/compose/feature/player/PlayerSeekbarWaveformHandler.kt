@@ -106,7 +106,7 @@ internal class PlayerSeekbarWaveformHandler(
 }
 
 /**
- * Max-pools per-second [peaks] into [bars] buckets (0..1). Empty input yields an
+ * Averages per-second [peaks] into [bars] buckets (0..1). Empty input yields an
  * empty array so the slider keeps its squiggle fallback.
  */
 internal fun downsampleToBars(
@@ -114,16 +114,17 @@ internal fun downsampleToBars(
     bars: Int,
 ): FloatArray {
     if (peaks.isEmpty() || bars <= 0) return FloatArray(0)
-    val result = FloatArray(bars)
-    val bucketSize = peaks.size.toFloat() / bars
-    for (bar in 0 until bars) {
+    val outputBars = minOf(bars, peaks.size)
+    val result = FloatArray(outputBars)
+    val bucketSize = peaks.size.toFloat() / outputBars
+    for (bar in 0 until outputBars) {
         val start = (bar * bucketSize).toInt()
         val end = (((bar + 1) * bucketSize).toInt().coerceAtMost(peaks.size)).coerceAtLeast(start + 1)
-        var max = 0f
+        var sum = 0f
         for (index in start until end) {
-            if (peaks[index] > max) max = peaks[index]
+            sum += peaks[index]
         }
-        result[bar] = max.coerceIn(0f, 1f)
+        result[bar] = (sum / (end - start)).coerceIn(0f, 1f)
     }
     return result
 }

@@ -90,9 +90,9 @@ public object MediaControllerExtensions {
         val command =
             SessionCommand(
                 AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_SET_PLAYLIST,
-                args,
+                Bundle.EMPTY,
             )
-        return controller.sendCustomCommand(command, Bundle.EMPTY)
+        return controller.sendCustomCommand(command, args)
     }
 
     private const val CLIP_POSITION_UNSET = Long.MIN_VALUE
