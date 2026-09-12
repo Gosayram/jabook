@@ -14,7 +14,6 @@
 
 package com.jabook.app.jabook.compose.feature.onboarding
 
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -534,6 +533,6 @@ public fun animateDpAsState(
 ): State<androidx.compose.ui.unit.Dp> =
     androidx.compose.animation.core.animateDpAsState(
         targetValue = targetValue,
-        animationSpec = tween(300),
+        animationSpec = LocalJabookMotionScheme.current.fastSpatialSpec(),
         label = label,
     )

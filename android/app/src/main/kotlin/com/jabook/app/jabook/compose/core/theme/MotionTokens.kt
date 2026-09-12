@@ -23,8 +23,8 @@ import androidx.compose.animation.core.spring
 /**
  * Shared motion tokens for Compose animations.
  *
- * Keep all canonical durations/easings/springs here to avoid hardcoded animation values
- * spread across screens.
+ * Keep fixed-rate and infinite animation tokens here. Interruptible UI transitions use
+ * [JabookMotionScheme] from [LocalJabookMotionScheme].
  * ponytail: m3 1.4 motionScheme/ExpressiveMotionTokens are internal — expressive springs vendored here as public tokens
  */
 public object MotionTokens {

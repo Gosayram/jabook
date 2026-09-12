@@ -136,7 +136,7 @@ public fun MiniPlayer(
     val currentPosition by currentPositionMs.collectAsStateWithLifecycle()
     val duration by durationMs.collectAsStateWithLifecycle()
     val progress = if (duration > 0) currentPosition.toFloat() / duration else 0f
-    // Position ticks arrive ~every 250ms; glide between them instead of stepping
+    // ponytail: playback time must progress linearly; a spring would overshoot timestamps.
     val animatedProgress by animateFloatAsState(
         targetValue = progress,
         animationSpec = tween(durationMillis = 250, easing = LinearEasing),

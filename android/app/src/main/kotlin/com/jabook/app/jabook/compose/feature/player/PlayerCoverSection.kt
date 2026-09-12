@@ -96,10 +96,10 @@ internal fun PlayerCoverSection(
             val scale by infiniteTransition.animateFloat(
                 initialValue = 1f,
                 targetValue = 1.03f,
+                // ponytail: deliberate infinite breathing, not an interruptible transition.
                 animationSpec =
                     infiniteRepeatable(
-                        animation =
-                            tween(4000, easing = FastOutSlowInEasing),
+                        animation = tween(4000, easing = FastOutSlowInEasing),
                         repeatMode = RepeatMode.Reverse,
                     ),
                 label = "scale",
