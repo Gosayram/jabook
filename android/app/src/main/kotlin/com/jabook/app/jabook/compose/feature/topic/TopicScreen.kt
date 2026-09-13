@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -39,14 +40,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.AudioFile
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -56,7 +55,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
@@ -67,16 +65,16 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
-import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -92,8 +90,14 @@ import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.HtmlToAnnotatedString
+import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
+import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.RemoteImage
 import com.jabook.app.jabook.compose.domain.model.RutrackerTopicDetails
+import com.jabook.app.jabook.ui.theme.LeecherOrange
+import com.jabook.app.jabook.ui.theme.SeederGreen
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 
 /**
  * Topic Screen - displays detailed information about a RuTracker topic.
@@ -115,7 +119,6 @@ public fun TopicScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val authStatus by viewModel.authStatus.collectAsStateWithLifecycle()
-    val message by viewModel.message.collectAsStateWithLifecycle()
     val isLoadingMoreComments by viewModel.isLoadingMoreComments.collectAsStateWithLifecycle()
     val navigationClickGuard = remember { NavigationClickGuard() }
     val safeNavigateBack = dropUnlessResumed { navigationClickGuard.run(onNavigateBack) }
@@ -124,16 +127,16 @@ public fun TopicScreen(
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
-    var commentsExpanded by remember { mutableStateOf(false) }
+    var commentsExpanded by rememberSaveable { mutableStateOf(false) }
 
     // Show messages
-    LaunchedEffect(message) {
-        message?.let {
-            snackbarHostState.showSnackbar(it)
-        }
+    LaunchedEffect(viewModel) {
+        viewModel.messages.collect { snackbarHostState.showSnackbar(it) }
     }
 
     Scaffold(
+        // TopAppBar applies statusBars insets itself; zeroed to avoid double inset under NavigationSuiteScaffold.
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
                 title = {
@@ -211,6 +214,7 @@ public fun TopicScreen(
             is TopicUiState.Success -> {
                 TopicDetailsContent(
                     details = state.details,
+                    hasMorePages = state.hasMorePages,
                     viewModel = viewModel,
                     isRefreshing = isRefreshing,
                     isLoadingMoreComments = isLoadingMoreComments,
@@ -223,7 +227,7 @@ public fun TopicScreen(
             }
 
             is TopicUiState.Error -> {
-                ErrorContent(
+                ErrorScreen(
                     message = state.message,
                     onRetry = viewModel::retry,
                     modifier =
@@ -243,6 +247,7 @@ public fun TopicScreen(
 @Composable
 private fun TopicDetailsContent(
     details: RutrackerTopicDetails,
+    hasMorePages: Boolean,
     viewModel: TopicViewModel,
     isRefreshing: Boolean,
     isLoadingMoreComments: Boolean,
@@ -252,12 +257,7 @@ private fun TopicDetailsContent(
     onCommentsExpandedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
-    val activity =
-        context as? android.app.Activity
-            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-    val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
-    val windowSizeClass = AdaptiveUtils.resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
+    val windowSizeClass = LocalWindowSizeClass.current
     val isCompact = windowSizeClass?.widthSizeClass == WindowWidthSizeClass.Compact
     val isMediumOrExpanded = windowSizeClass?.widthSizeClass != WindowWidthSizeClass.Compact
 
@@ -265,7 +265,24 @@ private fun TopicDetailsContent(
     val itemSpacing = AdaptiveUtils.getItemSpacingOrDefault(windowSizeClass)
 
     var showDownloadMenu by remember { mutableStateOf(false) }
+    val listState = rememberLazyListState()
+
+    // Auto-load more comments when the outer list is scrolled to the bottom.
+    // Comments are flattened into this list (a nested LazyColumn inside an item would
+    // be measured with infinite max height and crash — see ExpandableComments).
+    LaunchedEffect(listState, commentsExpanded, isLoadingMoreComments, hasMorePages) {
+        snapshotFlow { listState.canScrollForward to listState.isScrollInProgress }
+            .distinctUntilChanged()
+            .filter { (canScrollForward, isScrolling) -> !canScrollForward && !isScrolling }
+            .collect {
+                if (commentsExpanded && hasMorePages && !isLoadingMoreComments) {
+                    viewModel.loadMoreComments()
+                }
+            }
+    }
+
     LazyColumn(
+        state = listState,
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = contentPadding, vertical = itemSpacing),
         verticalArrangement = Arrangement.spacedBy(itemSpacing),
@@ -380,7 +397,7 @@ private fun TopicDetailsContent(
                             Icon(
                                 Icons.Filled.ArrowUpward,
                                 contentDescription = stringResource(R.string.seeders),
-                                tint = Color(0xFF4CAF50), // Green
+                                tint = SeederGreen,
                             )
                         },
                     )
@@ -392,7 +409,7 @@ private fun TopicDetailsContent(
                             Icon(
                                 Icons.Filled.ArrowDownward,
                                 contentDescription = stringResource(R.string.leechers),
-                                tint = Color(0xFFFF9800), // Orange
+                                tint = LeecherOrange,
                             )
                         },
                     )
@@ -420,8 +437,10 @@ private fun TopicDetailsContent(
                         expanded = showDownloadMenu,
                         onDismissRequest = { showDownloadMenu = false },
                     ) {
-                        // 1. Download torrent release (content) - highest priority
-                        if (details.magnetUrl != null || details.torrentUrl.isNotBlank()) {
+                        // 1. Download torrent release (content) - requires a magnet URI;
+                        // with only an https .torrent URL this would always fail validation
+                        // (item #3 below covers that path).
+                        if (details.magnetUrl != null) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.downloadTorrentRelease)) },
                                 leadingIcon = {
@@ -512,12 +531,46 @@ private fun TopicDetailsContent(
                     onRefresh = onRefresh,
                     currentPage = details.currentPage,
                     totalPages = details.totalPages,
-                    isLoadingMore = isLoadingMoreComments,
-                    onLoadMore = { viewModel.loadMoreComments() },
                     onNavigateToTopic = onNavigateToTopic,
                     commentsExpanded = commentsExpanded,
                     onCommentsExpandedChange = onCommentsExpandedChange,
                 )
+            }
+        }
+
+        // Expanded comments rendered as items of this (outer) list. Nesting a LazyColumn
+        // inside the section item above crashes: the inner list is measured with infinite
+        // max height (weight bounds width, not height on wide layouts).
+        if (commentsExpanded) {
+            itemsIndexed(
+                items = details.comments,
+                key = { _, comment -> comment.id },
+                contentType = { _, _ -> "comment" },
+            ) { _, comment ->
+                CommentItem(
+                    comment = comment,
+                    onNavigateToTopic = onNavigateToTopic,
+                )
+            }
+
+            // Loading indicator at bottom
+            if (isLoadingMoreComments || hasMorePages) {
+                item(contentType = { "commentsFooter" }) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 16.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (isLoadingMoreComments) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.height(24.dp).width(24.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        }
+                    }
+                }
             }
         }
 
@@ -629,43 +682,13 @@ private fun TopicDetailsContent(
 }
 
 /**
- * Seeders and Leechers chips.
- */
-@Composable
-private fun SeedersLeechersChip(
-    seeders: Int,
-    leechers: Int,
-) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        AssistChip(
-            onClick = {},
-            label = { Text(seeders.toString()) },
-            leadingIcon = {
-                Icon(
-                    Icons.Filled.ArrowUpward,
-                    contentDescription = stringResource(R.string.seeders),
-                    tint = Color(0xFF4CAF50), // Green
-                )
-            },
-        )
-
-        AssistChip(
-            onClick = {},
-            label = { Text(leechers.toString()) },
-            leadingIcon = {
-                Icon(
-                    Icons.Filled.ArrowDownward,
-                    contentDescription = stringResource(R.string.leechers),
-                    tint = Color(0xFFFF9800), // Orange
-                )
-            },
-        )
-    }
-}
-
-/**
  * Description and Comments section with adaptive layout.
  * Shows side by side on larger screens, stacked on smaller screens.
+ *
+ * Comments themselves are NOT hosted here — they are flattened into the outer
+ * LazyList in [TopicDetailsContent] (a nested scrollable inside an item is measured
+ * with infinite max height and crashes). This composable only hosts the header,
+ * expand/collapse toggle and the description.
  */
 @Composable
 @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
@@ -677,19 +700,12 @@ private fun DescriptionAndCommentsSection(
     onRefresh: () -> Unit,
     currentPage: Int = 1,
     totalPages: Int = 1,
-    isLoadingMore: Boolean = false,
-    onLoadMore: (() -> Unit)? = null,
     onNavigateToTopic: (String) -> Unit = {},
     commentsExpanded: Boolean,
     onCommentsExpandedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
-    val activity =
-        context as? android.app.Activity
-            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-    val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
-    val windowSizeClass = AdaptiveUtils.resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
+    val windowSizeClass = LocalWindowSizeClass.current
     val isNarrow = windowSizeClass?.widthSizeClass == WindowWidthSizeClass.Compact
 
     val itemSpacing = AdaptiveUtils.getItemSpacingOrDefault(windowSizeClass)
@@ -708,11 +724,8 @@ private fun DescriptionAndCommentsSection(
                     comments = comments,
                     isRefreshing = isRefreshing,
                     onRefresh = onRefresh,
-                    onNavigateToTopic = onNavigateToTopic,
                     currentPage = currentPage,
                     totalPages = totalPages,
-                    isLoadingMore = isLoadingMore,
-                    onLoadMore = onLoadMore,
                     expanded = commentsExpanded,
                     onExpandedChange = onCommentsExpandedChange,
                 )
@@ -741,11 +754,8 @@ private fun DescriptionAndCommentsSection(
                     comments = comments,
                     isRefreshing = isRefreshing,
                     onRefresh = onRefresh,
-                    onNavigateToTopic = onNavigateToTopic,
                     currentPage = currentPage,
                     totalPages = totalPages,
-                    isLoadingMore = isLoadingMore,
-                    onLoadMore = onLoadMore,
                     expanded = commentsExpanded,
                     onExpandedChange = onCommentsExpandedChange,
                 )
@@ -765,18 +775,10 @@ private fun ExpandableDescription(
     onNavigateToTopic: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    val context = LocalContext.current
-    val activity =
-        context as? android.app.Activity
-            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
+    var expanded by rememberSaveable { mutableStateOf(false) }
 
     // Get window size class for adaptive sizing
-    val rawWindowSizeClass =
-        activity?.let {
-            calculateWindowSizeClass(it)
-        }
-    val windowSizeClass = AdaptiveUtils.resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
+    val windowSizeClass = LocalWindowSizeClass.current
     val isCompact =
         windowSizeClass?.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Compact
 
@@ -813,16 +815,8 @@ private fun ExpandableDescription(
             val linkColor = MaterialTheme.colorScheme.primary
             val blocks =
                 remember(descriptionHtml, linkColor) {
-                    // Clean HTML description before parsing
-                    val cleanedHtml =
-                        descriptionHtml
-                            .replace(
-                                Regex("<span[^>]*class=\"post-br\"[^>]*>.*?</span>", RegexOption.DOT_MATCHES_ALL),
-                                "<br>",
-                            ).replace(Regex("<br\\s*/?>\\s*<br\\s*/?>+"), "<br><br>") // Normalize multiple <br> tags
-                            .trim()
                     com.jabook.app.jabook.compose.core.util.HtmlBlockParser
-                        .parse(cleanedHtml, linkColor)
+                        .parse(descriptionHtml, linkColor)
                 }
 
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -852,61 +846,30 @@ private fun ExpandableDescription(
 }
 
 /**
- * File list item showing file name and size.
- */
-@Composable
-private fun FileListItem(
-    file: String,
-    modifier: Modifier = Modifier,
-) {
-    ListItem(
-        headlineContent = { Text(file) },
-        leadingContent = {
-            Icon(
-                Icons.Filled.AudioFile,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-            )
-        },
-        modifier = modifier,
-    )
-}
-
-/**
- * Expandable comments section with infinite scroll.
+ * Expandable comments section header.
+ *
+ * Only hosts the comments count, page indicator, refresh spinner and the
+ * expand/collapse toggle. The comment items themselves are flattened into the
+ * outer LazyList in [TopicDetailsContent] — see the note in the body below.
  */
 @Composable
 private fun ExpandableComments(
     comments: List<com.jabook.app.jabook.compose.domain.model.RutrackerComment>,
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
-    onNavigateToTopic: (String) -> Unit,
     currentPage: Int = 1,
     totalPages: Int = 1,
-    isLoadingMore: Boolean = false,
-    onLoadMore: (() -> Unit)? = null,
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Refresh when expanded
+    // Refresh only on the FIRST expand — re-running onRefresh resets loadedComments
+    // to page 1 and wipes accumulated reverse-pagination pages.
+    var hasTriggeredInitialRefresh by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(expanded) {
-        if (expanded) {
+        if (expanded && !hasTriggeredInitialRefresh) {
+            hasTriggeredInitialRefresh = true
             onRefresh()
-        }
-    }
-
-    // LazyListState for tracking scroll position
-    val listState = rememberLazyListState()
-
-    // Auto-load more when scrolled near bottom
-    LaunchedEffect(listState.canScrollForward, listState.isScrollInProgress) {
-        if (!listState.canScrollForward &&
-            !listState.isScrollInProgress &&
-            !isLoadingMore &&
-            currentPage < totalPages
-        ) {
-            onLoadMore?.invoke()
         }
     }
 
@@ -953,46 +916,12 @@ private fun ExpandableComments(
             }
         }
 
-        if (expanded) {
-            Spacer(Modifier.height(8.dp))
-            // Use LazyColumn for better performance with many comments
-            LazyColumn(
-                state = listState,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                // Comments (newest to oldest)
-                itemsIndexed(
-                    items = comments,
-                    key = { _, comment -> comment.id },
-                ) { _, comment ->
-                    CommentItem(
-                        comment = comment,
-                        onNavigateToTopic = onNavigateToTopic,
-                    )
-                }
-
-                // Loading indicator at bottom
-                if (isLoadingMore || currentPage < totalPages) {
-                    item {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 16.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            if (isLoadingMore) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.height(24.dp).width(24.dp),
-                                    strokeWidth = 2.dp,
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        // No scrollable content here by design: expanded comments are rendered as items
+        // of the outer LazyColumn in TopicDetailsContent. A nested LazyColumn inside an
+        // item of another LazyColumn is measured with infinite max height and throws
+        // IllegalStateException ("Vertically scrollable component was measured with an
+        // infinity maximum height constraint") — also under Row weight, which bounds
+        // width but not height.
     }
 }
 
@@ -1124,34 +1053,6 @@ private fun CommentItem(
                             },
                 )
             }
-        }
-    }
-}
-
-/**
- * Error content with retry button.
- */
-@Composable
-private fun ErrorContent(
-    message: String,
-    onRetry: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text(
-            text = message.ifEmpty { stringResource(R.string.anErrorOccurred) },
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.error,
-        )
-
-        Spacer(Modifier.height(16.dp))
-
-        Button(onClick = onRetry) {
-            Text(stringResource(R.string.retry))
         }
     }
 }

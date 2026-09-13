@@ -37,6 +37,7 @@ import org.robolectric.RobolectricTestRunner
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class PlayerStateSyncTest {
     private lateinit var context: android.content.Context
     private lateinit var exoPlayer: ExoPlayer

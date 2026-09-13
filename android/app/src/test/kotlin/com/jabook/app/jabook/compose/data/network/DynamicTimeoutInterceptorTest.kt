@@ -82,7 +82,7 @@ class DynamicTimeoutInterceptorTest {
     @Test
     fun `request with RequestTimeout annotation applies specified timeouts`() {
         val method = StubApi::class.java.getDeclaredMethod("annotatedEndpoint", String::class.java)
-        val invocation = Invocation.of(method, listOf("test"))
+        val invocation = Invocation.of(StubApi::class.java, mock<StubApi>(), method, listOf("test"))
         val request =
             Request
                 .Builder()
@@ -102,7 +102,7 @@ class DynamicTimeoutInterceptorTest {
     @Test
     fun `negative and zero timeout values do not crash and overflow is clamped`() {
         val method = StubApi::class.java.getDeclaredMethod("edgeCaseTimeouts")
-        val invocation = Invocation.of(method, emptyList<Any>())
+        val invocation = Invocation.of(StubApi::class.java, mock<StubApi>(), method, emptyList<Any>())
         val request =
             Request
                 .Builder()

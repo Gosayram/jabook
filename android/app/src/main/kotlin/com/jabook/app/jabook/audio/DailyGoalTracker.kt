@@ -15,7 +15,7 @@
 package com.jabook.app.jabook.audio
 
 import com.jabook.app.jabook.util.LogUtils
-import java.util.Calendar
+import java.time.LocalDate
 import javax.inject.Inject
 
 /**
@@ -111,14 +111,13 @@ public class DailyGoalTracker
         public fun getPreferredListeningHour(analyzer: ListeningHabitAnalyzer): Int = analyzer.getMostCommonListeningHour()
 
         private fun todayDateString(): String {
-            val cal = Calendar.getInstance()
-            return "${cal.get(Calendar.YEAR)}-${cal.get(Calendar.DAY_OF_YEAR)}"
+            val today = LocalDate.now()
+            return "${today.year}-${today.dayOfYear}"
         }
 
         private fun yesterdayDateString(): String {
-            val cal = Calendar.getInstance()
-            cal.add(Calendar.DAY_OF_YEAR, -1)
-            return "${cal.get(Calendar.YEAR)}-${cal.get(Calendar.DAY_OF_YEAR)}"
+            val yesterday = LocalDate.now().minusDays(1)
+            return "${yesterday.year}-${yesterday.dayOfYear}"
         }
 
         public companion object {

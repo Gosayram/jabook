@@ -51,7 +51,6 @@ public class PlayerScreenStateAndHapticsPolicyTest {
                             ),
                     chapters = persistentListOf(),
                     isPlaying = false,
-                    currentPosition = 0L,
                     currentChapterIndex = 0,
                     currentChapter = null,
                     rewindInterval = 10,

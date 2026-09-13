@@ -17,13 +17,17 @@ package com.jabook.app.jabook.compose.feature.miniplayer
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.domain.model.Book
+import com.jabook.app.jabook.compose.feature.player.PlayerIntentGuardPolicy
 import com.jabook.app.jabook.compose.feature.player.controller.AudioPlayerController
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -63,6 +67,12 @@ public class MiniPlayerViewModel
          */
         public val currentChapterIndex: StateFlow<Int> = audioPlayerController.currentChapterIndex
 
+        /** Whether the current playlist has a following chapter that can be selected. */
+        public val hasNextChapter: StateFlow<Boolean> = audioPlayerController.hasNextChapter
+
+        /** Whether the current playlist has a preceding chapter that can be selected. */
+        public val hasPreviousChapter: StateFlow<Boolean> = audioPlayerController.hasPreviousChapter
+
         /**
          * Current book being played (from PlayerPersistenceManager + BooksRepository).
          * This is the last played book from persistence.
@@ -81,6 +91,42 @@ public class MiniPlayerViewModel
                     started = SharingStarted.WhileSubscribed(5000),
                     initialValue = null,
                 )
+
+        /** Set on terminal playback errors, cleared once playback actually (re)starts. */
+        private val hasTerminalError = MutableStateFlow(false)
+
+        init {
+            viewModelScope.launch {
+                audioPlayerController.terminalPlaybackErrors.collect { hasTerminalError.value = true }
+            }
+            viewModelScope.launch {
+                audioPlayerController.isPlaying.collect { playing ->
+                    if (playing) hasTerminalError.value = false
+                }
+            }
+        }
+
+        /**
+         * Whether the mini player should be shown at all.
+         *
+         * Visible only when the player session is real: the persisted current book is
+         * actually loaded into the player (controller [AudioPlayerController.currentBookId]
+         * matches) and playback has not terminally failed. A stale "last played" entry
+         * alone is NOT enough — that used to pin the bar on screen even when playback
+         * never started or errored out.
+         */
+        public val isVisible: StateFlow<Boolean> =
+            combine(
+                currentBook,
+                audioPlayerController.currentBookId,
+                hasTerminalError,
+            ) { book, loadedBookId, errored ->
+                !errored && book != null && loadedBookId == book.id
+            }.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = false,
+            )
 
         /**
          * Play current track.
@@ -119,5 +165,18 @@ public class MiniPlayerViewModel
          */
         public fun skipToPrevious() {
             audioPlayerController.skipToPrevious()
+        }
+
+        /**
+         * Seeks relative to the current position (global arrow-key seek from the app shell).
+         * Clamped with the same policy as PlayerScreen seeks.
+         */
+        public fun seekBy(deltaMs: Long) {
+            audioPlayerController.seekTo(
+                PlayerIntentGuardPolicy.clampSeekPosition(
+                    requestedPositionMs = currentPosition.value + deltaMs,
+                    chapterDurationMs = duration.value,
+                ),
+            )
         }
     }

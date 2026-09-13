@@ -23,7 +23,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.jabook.app.jabook.R
 import java.time.DayOfWeek
 import java.time.LocalDate
 import kotlin.math.max
@@ -39,11 +43,16 @@ public fun ListeningHeatmap(
     val maxMinutes = max(data.values.maxOrNull() ?: 0, 1)
     val primaryColor = MaterialTheme.colorScheme.primary
 
+    val totalMinutes = data.values.sum()
+    val accessibilityDesc =
+        stringResource(R.string.heatmapAccessibilityDescription, totalMinutes, weeks)
+
     Canvas(
         modifier =
             modifier
                 .fillMaxWidth()
-                .height(100.dp),
+                .height(100.dp)
+                .semantics { contentDescription = accessibilityDesc },
     ) {
         val gap = 2.dp.toPx()
         val cellWidth = ((size.width - gap * (weeks - 1)) / weeks).coerceAtLeast(2.dp.toPx())

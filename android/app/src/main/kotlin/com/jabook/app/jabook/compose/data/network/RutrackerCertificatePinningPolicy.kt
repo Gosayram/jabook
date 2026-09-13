@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.network
 
+import com.jabook.app.jabook.BuildConfig
 import okhttp3.CertificatePinner
 
 /**
@@ -26,24 +27,36 @@ import okhttp3.CertificatePinner
  * This keeps validation strict while reducing breakage during routine leaf renewals.
  */
 public object RutrackerCertificatePinningPolicy {
-    private const val MIRROR_ORG: String = "rutracker.org"
-    private const val MIRROR_NET: String = "rutracker.net"
-    private const val MIRROR_ME: String = "rutracker.me"
-
-    // Leaf SPKI pins (captured on 2026-04-10).
+    // Leaf SPKI pins (captured on 2026-04-10), keyed by mirror TLD — NOT by
+    // list position: reordering RUTRACKER_DEFAULT_MIRRORS in .env must never
+    // re-pair hosts with the wrong pin.
     private const val PIN_LEAF_ORG: String = "sha256/q9Z3qXo6SZEcRaCl+/dSuiMZXX8dSrZDQC7+pZugV5U="
     private const val PIN_LEAF_NET: String = "sha256/tOFeRzloarPYX5mQ9ksIypCp36vLupuTvOo8sF4Ka2I="
-    private const val PIN_LEAF_ME: String = "sha256/ZuCuZ21OXRQ25WiUEaFMVGLLtfQCStXSLfkrpRn5fX8="
+
+    private val leafPinByTld: Map<String, String> =
+        mapOf(
+            "org" to PIN_LEAF_ORG,
+            "net" to PIN_LEAF_NET,
+        )
 
     // Google Trust Services WE1 intermediate SPKI pin (backup for renewals).
     private const val PIN_INTERMEDIATE_WE1: String = "sha256/kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4="
 
+    // Canonical mirrors, supplied at build time from .env — never hardcoded.
+    // Hosts whose TLD has no captured leaf pin fall back to standard validation.
+    private val canonicalMirrors: List<String> =
+        BuildConfig.RUTRACKER_DEFAULT_MIRRORS
+            .split(',')
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+
     public val hostPins: Map<String, Set<String>> =
-        mapOf(
-            MIRROR_ORG to setOf(PIN_LEAF_ORG, PIN_INTERMEDIATE_WE1),
-            MIRROR_NET to setOf(PIN_LEAF_NET, PIN_INTERMEDIATE_WE1),
-            MIRROR_ME to setOf(PIN_LEAF_ME, PIN_INTERMEDIATE_WE1),
-        )
+        canonicalMirrors
+            .mapNotNull { host ->
+                val tld = host.substringAfterLast('.', "").lowercase()
+                val leaf = leafPinByTld[tld] ?: return@mapNotNull null
+                host to setOf(leaf, PIN_INTERMEDIATE_WE1)
+            }.toMap()
 
     public val pinnedHosts: Set<String> = hostPins.keys
 

@@ -1,14 +1,45 @@
 version: 2
 updates:
-  # Gradle dependencies
+  # Gradle dependencies (libs.versions.toml + build.gradle.kts)
   - package-ecosystem: "gradle"
     directory: "/android"
     schedule:
       interval: "daily"
     open-pull-requests-limit: 10
+    ignore:
+      # Stable-only: Maven ordering sorts pre-release qualifiers (-beta1 < 1.0.0)
+      # so Dependabot proposes them only when no newer stable exists — but
+      # JetBrains/KotlinX actively publish -Beta/-RC/-EAP to Maven Central.
+      # Wildcard version strings are best-effort (documented Dependabot
+      # limitation); for stragglers comment `@dependabot ignore this
+      # dependency` or `@dependabot ignore versions <v>` on the PR.
+      - dependency-name: "*"
+        versions:
+          - "*-alpha*"
+          - "*-beta*"
+          - "*-rc*"
+          - "*-Alpha*"
+          - "*-Beta*"
+          - "*-RC*"
+          - "*-EAP*"
+          - "*-dev*"
 
   # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "daily"
+    ignore:
+      # Stable-only for action tags (v4-beta, v5-rc, …). Tags WITHOUT a
+      # pre-release suffix cannot be distinguished from stable — known open
+      # GitHub problem; suppress those manually via
+      # `@dependabot ignore this dependency` on the PR.
+      - dependency-name: "*"
+        versions:
+          - "*-alpha*"
+          - "*-beta*"
+          - "*-rc*"
+          - "*-pre*"
+          - "*-Alpha*"
+          - "*-Beta*"
+          - "*-RC*"

@@ -69,7 +69,9 @@ internal class PlayerFacade(
 
     /** Triggers crossfade transition via [CrossfadeHandler]. */
     fun triggerCrossfadeTransition() {
-        getCrossfadeHandler()?.triggerCrossfadeTransition()
+        if (getPlayerConfigurator()?.audioProcessingSettings?.isCrossfadeEnabled == true) {
+            getCrossfadeHandler()?.triggerCrossfadeTransition()
+        }
     }
 
     private companion object {

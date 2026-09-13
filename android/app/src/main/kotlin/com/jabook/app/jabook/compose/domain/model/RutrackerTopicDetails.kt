@@ -27,6 +27,7 @@ import androidx.compose.runtime.Immutable
  * - Independent of data source (network, database, cache)
  * - Validated and normalized
  */
+@Immutable
 public data class RutrackerTopicDetails(
     /** Topic ID */
     val topicId: String,

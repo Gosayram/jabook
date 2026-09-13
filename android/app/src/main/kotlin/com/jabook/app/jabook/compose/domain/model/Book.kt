@@ -50,6 +50,8 @@ public data class Book(
     val id: String,
     val title: String,
     val author: String,
+    val narrator: String? = null,
+    val narratorMeta: String? = null,
     val coverUrl: String?,
     val description: String?,
     val totalDuration: Duration,
@@ -65,6 +67,13 @@ public data class Book(
     val sourceUrl: String?,
     val rewindDuration: Int? = null,
     val forwardDuration: Int? = null,
+    val year: String? = null,
+    /** Series info if book belongs to a series (runtime-enriched) */
+    val series: SeriesInfo? = null,
+    /** Rating value suitable for partial-star rendering (0.0–5.0) */
+    val rating: Float? = null,
+    /** Vote count for localization at display boundary */
+    val votes: Int? = null,
 ) {
     /**
      * Calculated remaining duration to complete the book.
@@ -137,6 +146,8 @@ public fun BookEntity.toBook(): Book =
         id = id,
         title = title,
         author = author,
+        narrator = narrator,
+        narratorMeta = narratorMeta,
         coverUrl = coverUrl,
         description = description,
         totalDuration = totalDuration.milliseconds,
@@ -152,6 +163,7 @@ public fun BookEntity.toBook(): Book =
         sourceUrl = sourceUrl,
         rewindDuration = rewindDuration,
         forwardDuration = forwardDuration,
+        year = year,
     )
 
 /**
@@ -162,6 +174,7 @@ public fun Book.toEntity(): BookEntity =
         id = id,
         title = title,
         author = author,
+        narrator = narrator,
         coverUrl = coverUrl,
         description = description,
         totalDuration = totalDuration.inWholeMilliseconds,
@@ -177,7 +190,7 @@ public fun Book.toEntity(): BookEntity =
         sourceUrl = sourceUrl,
         rewindDuration = rewindDuration,
         forwardDuration = forwardDuration,
-        isDownloaded = downloadStatus == DownloadStatus.DOWNLOADED,
+        year = year,
     )
 
 /**

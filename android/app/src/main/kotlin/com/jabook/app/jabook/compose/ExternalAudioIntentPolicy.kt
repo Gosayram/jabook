@@ -39,16 +39,26 @@ internal object ExternalAudioIntentPolicy {
                 if (!isAudioMime(intent.type)) {
                     return emptyList()
                 }
-                @Suppress("DEPRECATION")
-                listOfNotNull(intent.getParcelableExtra(Intent.EXTRA_STREAM))
+                val uri =
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableExtra(Intent.EXTRA_STREAM)
+                    }
+                listOfNotNull(uri)
             }
 
             Intent.ACTION_SEND_MULTIPLE -> {
                 if (!isAudioMime(intent.type)) {
                     return emptyList()
                 }
-                @Suppress("DEPRECATION")
-                intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM).orEmpty()
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java).orEmpty()
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM).orEmpty()
+                }
             }
 
             else -> emptyList()

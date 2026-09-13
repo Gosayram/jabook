@@ -32,6 +32,8 @@ public sealed class ScanProgress {
     public data class Completed(
         val booksAdded: Int,
         val durationMs: Long,
+        /** Scan paths skipped as unavailable (content://, missing, or not a folder). */
+        val skippedPaths: Int = 0,
     ) : ScanProgress()
 
     public data class Error(

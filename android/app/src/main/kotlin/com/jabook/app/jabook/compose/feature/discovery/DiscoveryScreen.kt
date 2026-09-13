@@ -26,14 +26,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
+import androidx.compose.material3.carousel.rememberCarouselState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
@@ -43,30 +47,41 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.invisibleToUser
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.theme.SurfaceElevationTokens
+import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
+import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
 import com.jabook.app.jabook.compose.domain.model.Book
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
 import java.time.LocalTime
 
 @Immutable
 public data class DiscoveryUiState(
-    val continueListening: List<Book> = emptyList(),
-    val trending: List<Book> = emptyList(),
-    val personalized: List<Book> = emptyList(),
-    val genres: List<DiscoveryGenre> = emptyList(),
+    val continueListening: ImmutableList<Book> = persistentListOf(),
+    val trending: ImmutableList<Book> = persistentListOf(),
+    val personalized: ImmutableList<Book> = persistentListOf(),
+    val genres: ImmutableList<DiscoveryGenre> = persistentListOf(),
 )
 
 public enum class ListeningMood(
     public val emoji: String,
-    public val label: String,
+    @param:androidx.annotation.StringRes public val labelRes: Int,
 ) {
-    WALKING("🚶", "Иду пешком"),
-    DRIVING("🚗", "В машине"),
-    SLEEPING("🛌", "Перед сном"),
-    WORKOUT("🏃", "Тренировка"),
-    RELAXING("☕", "Отдыхаю"),
-    WORKING("💼", "Фоном за работой"),
+    WALKING("🚶", R.string.moodWalking),
+    DRIVING("🚗", R.string.moodDriving),
+    SLEEPING("🛌", R.string.moodSleeping),
+    WORKOUT("🏃", R.string.moodWorkout),
+    RELAXING("☕", R.string.moodRelaxing),
+    WORKING("💼", R.string.moodWorking),
 }
 
 @Immutable
@@ -74,7 +89,7 @@ public data class DiscoveryGenre(
     val id: String,
     val title: String,
     val color: Color,
-    val coverHints: List<String> = emptyList(),
+    val coverHints: ImmutableList<String> = persistentListOf(),
 )
 
 @Composable
@@ -87,7 +102,14 @@ public fun DiscoveryScreen(
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
-        modifier = modifier,
+        modifier =
+            modifier.then(
+                run {
+                    val wsc = LocalWindowSizeClass.current
+                    val maxW = wsc?.let { AdaptiveUtils.getMaxContentWidth(it) }
+                    if (maxW != null) Modifier.widthIn(max = maxW) else Modifier
+                },
+            ),
         contentPadding = PaddingValues(vertical = 12.dp),
     ) {
         item {
@@ -101,21 +123,22 @@ public fun DiscoveryScreen(
         }
         item {
             DiscoveryShelf(
-                title = "Продолжить",
+                title = stringResource(R.string.continueListening),
                 books = uiState.continueListening,
                 onBookClick = onBookClick,
             )
         }
         item {
             DiscoveryShelf(
-                title = "Популярное",
+                title = stringResource(R.string.discoveryTrending),
                 books = uiState.trending,
                 onBookClick = onBookClick,
+                useCarousel = true,
             )
         }
         item {
             DiscoveryShelf(
-                title = "Для вас",
+                title = stringResource(R.string.discoveryForYou),
                 books = uiState.personalized,
                 onBookClick = onBookClick,
             )
@@ -123,12 +146,12 @@ public fun DiscoveryScreen(
         if (uiState.genres.isNotEmpty()) {
             item {
                 Text(
-                    text = "Жанры",
+                    text = stringResource(R.string.discoveryGenres),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
             }
-            items(uiState.genres, key = { it.id }) { genre ->
+            items(uiState.genres, key = { it.id }, contentType = { "genre_tile" }) { genre ->
                 GenreTile(
                     genre = genre,
                     modifier =
@@ -151,11 +174,11 @@ private fun ListeningMoodChips(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
     ) {
-        items(ListeningMood.entries, key = { it.name }) { mood ->
+        items(ListeningMood.entries, key = { it.name }, contentType = { "mood_chip" }) { mood ->
             FilterChip(
                 selected = selectedMood == mood,
                 onClick = { onMoodChange(mood) },
-                label = { Text("${mood.emoji} ${mood.label}") },
+                label = { Text("${mood.emoji} ${stringResource(mood.labelRes)}") },
                 colors =
                     FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -169,10 +192,10 @@ private fun ListeningMoodChips(
 private fun GreetingHeader() {
     val greeting =
         when (LocalTime.now().hour) {
-            in 5..11 -> "Доброе утро"
-            in 12..17 -> "Добрый день"
-            in 18..22 -> "Добрый вечер"
-            else -> "Доброй ночи"
+            in 5..11 -> stringResource(R.string.greetingMorning)
+            in 12..17 -> stringResource(R.string.greetingAfternoon)
+            in 18..22 -> stringResource(R.string.greetingEvening)
+            else -> stringResource(R.string.greetingNight)
         }
     Text(
         text = greeting,
@@ -181,26 +204,48 @@ private fun GreetingHeader() {
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DiscoveryShelf(
     title: String,
     books: List<Book>,
     onBookClick: (Book) -> Unit,
+    useCarousel: Boolean = false,
 ) {
     Text(
         text = title,
         style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier =
+            Modifier
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .semantics { heading() },
     )
-    LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        contentPadding = PaddingValues(horizontal = 16.dp),
-    ) {
-        items(books, key = { it.id }) { book ->
+    if (useCarousel) {
+        HorizontalMultiBrowseCarousel(
+            state = rememberCarouselState(itemCount = { books.size }),
+            preferredItemWidth = 148.dp,
+            itemSpacing = 10.dp,
+            contentPadding = PaddingValues(horizontal = 16.dp),
+        ) { index ->
+            val book = books[index]
             DiscoveryBookCard(
                 book = book,
                 onClick = { onBookClick(book) },
+                modifier = Modifier.fillMaxWidth(),
             )
+        }
+    } else {
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp),
+        ) {
+            items(books, key = { it.id }, contentType = { "discovery_book" }) { book ->
+                DiscoveryBookCard(
+                    book = book,
+                    onClick = { onBookClick(book) },
+                    modifier = Modifier.width(148.dp),
+                )
+            }
         }
     }
     Spacer(modifier = Modifier.height(10.dp))
@@ -210,12 +255,10 @@ private fun DiscoveryShelf(
 private fun DiscoveryBookCard(
     book: Book,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier =
-            Modifier
-                .width(148.dp)
-                .clickable(onClick = onClick),
+        modifier = modifier.clickable(role = Role.Button, onClickLabel = stringResource(R.string.open_book_details), onClick = onClick),
     ) {
         Box(
             modifier =
@@ -262,7 +305,7 @@ private fun GenreTile(
             modifier
                 .height(84.dp)
                 .background(genre.color, RoundedCornerShape(14.dp))
-                .clickable(onClick = onClick),
+                .clickable(role = Role.Button, onClickLabel = stringResource(R.string.browse_genre), onClick = onClick),
     ) {
         Row(
             modifier =
@@ -301,7 +344,7 @@ private fun GenreTiltedCovers(
                         .padding(end = (22 * index).dp, bottom = 4.dp)
                         .width(46.dp)
                         .height(62.dp)
-                        .shadow(4.dp, RoundedCornerShape(6.dp))
+                        .shadow(SurfaceElevationTokens.Level2, RoundedCornerShape(6.dp))
                         .clip(RoundedCornerShape(6.dp))
                         .background(Color.White.copy(alpha = 0.92f))
                         .rotate(15f - index * 8f),
@@ -312,6 +355,7 @@ private fun GenreTiltedCovers(
                     style = MaterialTheme.typography.titleSmall,
                     color = Color.Black,
                     fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.semantics { invisibleToUser() },
                 )
             }
         }

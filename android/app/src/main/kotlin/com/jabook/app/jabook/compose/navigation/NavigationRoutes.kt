@@ -31,6 +31,8 @@ import kotlinx.serialization.Serializable
 @Serializable
 public data class PlayerRoute(
     val bookId: String,
+    /** Null resumes playback; a value, including zero, starts that chapter. */
+    val chapterIndex: Int? = null,
 )
 
 /**
@@ -41,6 +43,7 @@ public data class PlayerRoute(
 @Serializable
 public data class WebViewRoute(
     val url: String,
+    val isAuthentication: Boolean = false,
 )
 
 /**
@@ -102,16 +105,14 @@ public data class TopicRoute(
 )
 
 /**
- * Download History screen route - displays download history.
- */
-@Serializable
-public object DownloadHistoryRoute
-
-/**
  * RuTracker Search screen route - search audiobooks on RuTracker.
+ *
+ * @param query Optional initial search query, pre-filled and executed on entry
  */
 @Serializable
-public object RutrackerSearchRoute
+public data class RutrackerSearchRoute(
+    val query: String? = null,
+)
 
 @Serializable
 public object ScanSettingsRoute
@@ -121,15 +122,3 @@ public object ScanSettingsRoute
  */
 @Serializable
 public object AudioSettingsRoute
-
-/**
- * Migration screen route - shows data migration progress.
- */
-@Serializable
-public object MigrationRoute
-
-/**
- * Onboarding screen route - introduces the app to new users.
- */
-@Serializable
-public object OnboardingRoute

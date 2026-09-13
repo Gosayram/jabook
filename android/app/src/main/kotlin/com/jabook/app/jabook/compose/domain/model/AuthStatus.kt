@@ -14,9 +14,12 @@
 
 package com.jabook.app.jabook.compose.domain.model
 
+import androidx.compose.runtime.Immutable
+
 /**
  * Represents the current authentication status.
  */
+@Immutable
 public sealed interface AuthStatus {
     /**
      * User is not logged in.
@@ -26,6 +29,7 @@ public sealed interface AuthStatus {
     /**
      * User is successfully authenticated.
      */
+    @Immutable
     public data class Authenticated(
         val username: String,
     ) : AuthStatus
@@ -33,6 +37,7 @@ public sealed interface AuthStatus {
     /**
      * Authentication failed or error occurred.
      */
+    @Immutable
     public data class Error(
         val message: String,
     ) : AuthStatus

@@ -27,18 +27,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 public val MIGRATION_16_17: Migration =
     object : Migration(16, 17) {
         override fun migrate(db: SupportSQLiteDatabase) {
-            // Idempotent check: skip if column already exists (e.g., fresh install at v17)
-            val cursor = db.query("PRAGMA table_info(scan_paths)")
-            val columnExists =
-                cursor.use {
-                    val nameIndex = it.getColumnIndex("name")
-                    generateSequence { if (it.moveToNext()) it.getString(nameIndex) else null }
-                        .any { it == "last_scan_timestamp" }
-                }
-            if (!columnExists) {
-                db.execSQL(
-                    "ALTER TABLE scan_paths ADD COLUMN last_scan_timestamp INTEGER NOT NULL DEFAULT 0",
-                )
+            if (!db.hasColumn("scan_paths", "last_scan_timestamp")) {
+                db.addColumn("scan_paths", "last_scan_timestamp", "INTEGER", default = "0")
             }
         }
     }

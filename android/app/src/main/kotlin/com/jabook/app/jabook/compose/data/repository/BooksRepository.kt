@@ -133,16 +133,6 @@ public interface BooksRepository {
     public suspend fun normalizeAllChapters()
 
     /**
-     * Update the order of chapters for a specific book.
-     * @param bookId The ID of the book.
-     * @param newOrderedIds List of chapter IDs in the desired order.
-     */
-    public suspend fun updateChapterOrder(
-        bookId: String,
-        newOrderedIds: List<String>,
-    )
-
-    /**
      * Resolves effective playback speed for [bookId] using hierarchy:
      * per-book -> per-author -> global.
      */
@@ -160,9 +150,40 @@ public interface BooksRepository {
     )
 
     /**
+     * Gets the pre-computed LUFS loudness value for a chapter, or null if not yet analyzed.
+     */
+    public suspend fun getChapterLufsValue(
+        bookId: String,
+        chapterIndex: Int,
+    ): Double?
+
+    /**
      * Checks if a book exists by its source URL.
      */
     public fun getBookBySourceUrlFlow(sourceUrl: String): Flow<Book?>
 
     public suspend fun getBookBySourceUrl(sourceUrl: String): Book?
+
+    /**
+     * Get all favorite books as a Flow.
+     */
+    public fun getFavoriteBooks(): Flow<List<Book>>
+
+    /**
+     * Get books that are currently in progress as a Flow.
+     */
+    public fun getInProgressBooks(): Flow<List<Book>>
+
+    /**
+     * Get recently played books as a Flow.
+     */
+    public fun getRecentlyPlayedBooks(limit: Int = 10): Flow<List<Book>>
+
+    /**
+     * Update favorite status for a book.
+     */
+    public suspend fun setFavorite(
+        bookId: String,
+        isFavorite: Boolean,
+    )
 }

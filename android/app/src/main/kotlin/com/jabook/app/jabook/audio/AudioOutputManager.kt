@@ -88,11 +88,14 @@ public class AudioOutputManager
         public fun stopMonitoring() {
             if (!isMonitoring) return
 
-            sensorManager.unregisterListener(this)
+            runCatching { sensorManager.unregisterListener(this) }
+            val wasAtEar = isAtEar
             isMonitoring = false
+            isAtEar = false
 
-            // Reset state
-            setAudioOutput(false) // Force speaker
+            // Only undo a route this manager applied. Resetting the communication mode on every
+            // pause can interfere with an active call or another app's communication route.
+            if (wasAtEar) setAudioOutput(false)
             releaseWakeLock()
 
             LogUtils.d("AudioOutputManager", "Proximity monitoring stopped")
@@ -133,12 +136,9 @@ public class AudioOutputManager
 
         private fun setAudioOutput(toEarpiece: Boolean) {
             if (toEarpiece) {
-                // Switch to Earpiece
-                // MODE_IN_COMMUNICATION is required to route audio to earpiece on modern Android
-                audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
-
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                    // API 31+ (Android 12+)
+                    // API 31+: use setCommunicationDevice alone — don't touch audioManager.mode
+                    // (MODE_IN_COMMUNICATION with USAGE_MEDIA steals focus from calls/nav).
                     val devices = audioManager.availableCommunicationDevices
                     val earpiece =
                         devices.firstOrNull {
@@ -160,23 +160,20 @@ public class AudioOutputManager
                         LogUtils.w("AudioOutputManager", "No built-in earpiece found")
                     }
                 } else {
-                    // Deprecated method for older Android versions
                     @Suppress("DEPRECATION")
                     audioManager.isSpeakerphoneOn = false
+                    // MODE_IN_COMMUNICATION required on pre-S to route to earpiece
+                    audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
                 }
 
                 LogUtils.i("AudioOutputManager", "Switched to EARPIECE")
             } else {
-                // Switch to Speaker
-                audioManager.mode = AudioManager.MODE_NORMAL
-
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                    // API 31+: clearCommunicationDevice() resets to default routing (usually speaker or connected headset)
                     audioManager.clearCommunicationDevice()
                 } else {
-                    // Deprecated method for older Android versions
                     @Suppress("DEPRECATION")
                     audioManager.isSpeakerphoneOn = true
+                    audioManager.mode = AudioManager.MODE_NORMAL
                 }
 
                 LogUtils.i("AudioOutputManager", "Switched to SPEAKER")
@@ -184,15 +181,17 @@ public class AudioOutputManager
         }
 
         private fun acquireWakeLock() {
-            if (proximityWakeLock?.isHeld == false) {
+            val wakeLock = proximityWakeLock ?: return
+            if (!wakeLock.isHeld) {
                 // 4 hours timeout safety
-                proximityWakeLock.acquire(4 * 60 * 60 * 1000L)
+                runCatching { wakeLock.acquire(4 * 60 * 60 * 1000L) }
             }
         }
 
         private fun releaseWakeLock() {
-            if (proximityWakeLock?.isHeld == true) {
-                proximityWakeLock.release()
+            val wakeLock = proximityWakeLock ?: return
+            if (wakeLock.isHeld) {
+                runCatching { wakeLock.release() }
             }
         }
     }

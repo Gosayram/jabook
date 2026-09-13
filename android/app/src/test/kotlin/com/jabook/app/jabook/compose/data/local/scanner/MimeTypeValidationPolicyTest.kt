@@ -155,6 +155,19 @@ class MimeTypeValidationPolicyTest {
     }
 
     @Test
+    fun `isExtensionSupported returns true for newly covered audio extensions`() {
+        assertTrue(MimeTypeValidationPolicy.isExtensionSupported("book.mka"))
+        assertTrue(MimeTypeValidationPolicy.isExtensionSupported("track.ape"))
+        assertTrue(MimeTypeValidationPolicy.isExtensionSupported("book.aax"))
+        assertTrue(MimeTypeValidationPolicy.isExtensionSupported("book.aaxc"))
+    }
+
+    @Test
+    fun `oga extension maps to audio ogg`() {
+        assertEquals("audio/ogg", MimeTypeValidationPolicy.getMimeTypeForExtension("oga"))
+    }
+
+    @Test
     fun `isExtensionSupported returns false for txt`() {
         assertFalse(MimeTypeValidationPolicy.isExtensionSupported("readme.txt"))
     }

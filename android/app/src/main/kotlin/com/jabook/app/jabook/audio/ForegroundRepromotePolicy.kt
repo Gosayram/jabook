@@ -21,7 +21,7 @@ internal class ForegroundRepromotePolicy(
     private val nowMsProvider: () -> Long = { System.nanoTime() / 1_000_000L },
     private val minIntervalMs: Long = DEFAULT_MIN_INTERVAL_MS,
 ) {
-    private val lastSuccessAtMsByNotificationId = mutableMapOf<Int, Long>()
+    private val lastSuccessAtMsByNotificationId = java.util.concurrent.ConcurrentHashMap<Int, Long>()
 
     internal fun shouldAttempt(notificationId: Int): Boolean {
         val lastSuccessAtMs = lastSuccessAtMsByNotificationId[notificationId] ?: return true

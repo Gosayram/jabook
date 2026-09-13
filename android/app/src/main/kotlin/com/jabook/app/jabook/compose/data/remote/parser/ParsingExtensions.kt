@@ -14,9 +14,25 @@
 
 package com.jabook.app.jabook.compose.data.remote.parser
 
+import com.google.re2j.Matcher
+import com.google.re2j.Pattern
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.jsoup.nodes.Element
 import org.jsoup.select.Elements
-import java.net.URI
+
+/**
+ * re2j helpers: linear-time regex matching so attacker-controlled RuTracker
+ * HTML text never reaches java.util.regex backtracking (ReDoS guard).
+ */
+
+/** Find-first as a nullable Matcher (mirrors Kotlin `Regex.find`), or null. */
+internal fun Pattern.findFirst(input: String): Matcher? = matcher(input).takeIf { it.find() }
+
+/** Mirror of `String.replace(Regex, replacement)` for re2j patterns (replacement is literal here). */
+internal fun String.replace(
+    re2: Pattern,
+    replacement: String,
+): String = re2.matcher(this).replaceAll(replacement)
 
 /**
  * Safe parsing extensions for Jsoup Elements.
@@ -60,7 +76,7 @@ internal fun Element?.url(): String = requireNotNull(urlOrNull()) { "url not fou
 /**
  * Get query parameter from Element's href URL, or null if not found.
  */
-internal fun Element?.queryParamOrNull(key: String): String? = urlOrNull()?.let { parseUrl(it) }?.get(key)?.firstOrNull()
+internal fun Element?.queryParamOrNull(key: String): String? = urlOrNull()?.toHttpUrlOrNull()?.queryParameter(key)
 
 /**
  * Get query parameter from Element's href URL, or throw if not found.
@@ -98,7 +114,7 @@ internal fun Elements?.url(): String = requireNotNull(urlOrNull()) { "url not fo
 /**
  * Get query parameter from Elements' href URL, or null if not found.
  */
-internal fun Elements?.queryParamOrNull(key: String): String? = urlOrNull()?.let { parseUrl(it) }?.get(key)?.firstOrNull()
+internal fun Elements?.queryParamOrNull(key: String): String? = urlOrNull()?.toHttpUrlOrNull()?.queryParameter(key)
 
 /**
  * Get query parameter from Elements' href URL, or throw if not found.
@@ -107,22 +123,3 @@ internal fun Elements?.queryParam(key: String): String =
     requireNotNull(queryParamOrNull(key)) {
         "query param '$key' not found in $this"
     }
-
-/**
- * Parse URL query parameters.
- *
- * @param url URL string to parse
- * @return Map of query parameters
- */
-private fun parseUrl(url: String): Map<String, List<String>> =
-    runCatching {
-        URI
-            .create(url)
-            .query
-            ?.split("&")
-            ?.associate { queryParam ->
-                val split = queryParam.split("=")
-                split[0] to split.drop(1)
-            }
-            ?: emptyMap()
-    }.getOrDefault(emptyMap())

@@ -17,15 +17,21 @@ package com.jabook.app.jabook.compose.feature.debug
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.compose.data.cache.CacheManager
+import com.jabook.app.jabook.compose.data.cache.CacheStatistics
+import com.jabook.app.jabook.compose.data.cache.CacheType
 import com.jabook.app.jabook.compose.data.debug.DebugAudioFocusSimulator
 import com.jabook.app.jabook.compose.data.debug.DebugLogService
 import com.jabook.app.jabook.compose.data.debug.DebugNetworkOverrideMode
 import com.jabook.app.jabook.compose.data.debug.DebugRuntimeOverrides
 import com.jabook.app.jabook.compose.data.local.JabookDatabase
+import com.jabook.app.jabook.compose.data.network.MirrorHealth
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.network.NetworkMonitor
 import com.jabook.app.jabook.compose.data.network.NetworkType
+import com.jabook.app.jabook.compose.data.remote.network.PersistentCookieJar
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,6 +43,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withTimeout
+import java.io.File
 import javax.inject.Inject
 
 /**
@@ -50,11 +57,13 @@ public class DebugViewModel
         private val debugLogService: DebugLogService,
         private val mirrorManager: MirrorManager,
         private val authService: com.jabook.app.jabook.compose.data.auth.RutrackerAuthService,
-        private val rutrackerRepository: com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository,
         private val debugRuntimeOverrides: DebugRuntimeOverrides,
         private val debugAudioFocusSimulator: DebugAudioFocusSimulator,
         private val networkMonitor: NetworkMonitor,
         private val database: JabookDatabase,
+        private val cacheManager: CacheManager,
+        private val cookieJar: PersistentCookieJar,
+        @ApplicationContext private val context: android.content.Context,
         private val loggerFactory: LoggerFactory,
     ) : ViewModel() {
         private val logger = loggerFactory.get("DebugViewModel")
@@ -83,29 +92,25 @@ public class DebugViewModel
         private val _recentSearchPreview = MutableStateFlow<List<String>>(emptyList())
         public val recentSearchPreview: StateFlow<List<String>> = _recentSearchPreview.asStateFlow()
 
+        // Declared BEFORE the init block below: the init coroutine runs eagerly on
+        // Dispatchers.Main.immediate during <init>. Declaring it after the init
+        // block left it null at the first write (crash on build 142).
+        private val _cacheSnapshot = MutableStateFlow(DebugCacheSnapshot())
+        public val cacheSnapshot: StateFlow<DebugCacheSnapshot> = _cacheSnapshot.asStateFlow()
+
         init {
-            // Delay initialization until viewModelScope is fully ready
-            // Post initialization to ensure ViewModel is fully constructed
-            // Use Handler to post initialization to the next message loop iteration
-            try {
-                android.os.Handler(android.os.Looper.getMainLooper()).post {
-                    try {
-                        // Now viewModelScope should be ready
-                        loadLogs()
-                        loadCacheStats()
-                        refreshAuthDebugInfo()
-                        observeDebugRuntimeState()
-                        observeRecentSearchHistory()
-                        refreshDbInspector()
-                    } catch (e: Exception) {
-                        logger.e({ "Failed to initialize debug data" }, e)
-                        _uiState.value = DebugUiState.Error("Initialization failed: ${e.message ?: "Unknown error"}")
-                    }
+            viewModelScope.launch {
+                try {
+                    loadLogs()
+                    loadCacheStats()
+                    refreshAuthDebugInfo()
+                    observeDebugRuntimeState()
+                    observeRecentSearchHistory()
+                    refreshDbInspector()
+                } catch (e: Exception) {
+                    logger.e({ "Failed to initialize debug data" }, e)
+                    _uiState.value = DebugUiState.Error("Initialization failed: ${e.message ?: "Unknown error"}")
                 }
-            } catch (e: Exception) {
-                // Handle case when initialization fails
-                logger.e({ "Failed to post initialization" }, e)
-                _uiState.value = DebugUiState.Error("Initialization failed: ${e.message ?: "Unknown error"}")
             }
         }
 
@@ -120,6 +125,8 @@ public class DebugViewModel
                             val logContent = debugLogService.collectLogs()
                             _logs.value = logContent
                             _uiState.value = DebugUiState.Success
+                        } catch (e: kotlinx.coroutines.CancellationException) {
+                            throw e
                         } catch (e: Exception) {
                             logger.e(e) { "Failed to load logs (Op: $operationId)" }
                             _uiState.value = DebugUiState.Error(e.message ?: "Failed to load logs")
@@ -249,6 +256,8 @@ public class DebugViewModel
                                 )
                             _authDebugInfo.value = info
                             logger.i { "Auth debug info refreshed (Op: $operationId)" }
+                        } catch (e: kotlinx.coroutines.CancellationException) {
+                            throw e
                         } catch (e: Exception) {
                             // Handle errors gracefully - update authDebugInfo with error state
                             // Use WARNING for individual failures, not ERROR
@@ -264,6 +273,8 @@ public class DebugViewModel
                                 )
                             _authDebugInfo.value = errorInfo
                         }
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         // Handle case when logger.withOperation itself throws an exception
                         logger.e({ "Failed to initialize auth debug info operation" }, e)
@@ -320,7 +331,10 @@ public class DebugViewModel
                                     .map { mirror ->
                                         async {
                                             try {
-                                                val isHealthy = mirrorManager.checkMirrorHealth(mirror)
+                                                val health = mirrorManager.checkMirrorHealth(mirror)
+                                                val isHealthy =
+                                                    health is MirrorHealth.Healthy ||
+                                                        health is MirrorHealth.CloudflareProtected
                                                 mirror to isHealthy
                                             } catch (e: kotlinx.coroutines.CancellationException) {
                                                 // Re-throw cancellation to propagate timeout
@@ -360,42 +374,39 @@ public class DebugViewModel
                 emptyMap()
             }
 
-        private val _cacheStats =
-            MutableStateFlow<com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache.CacheStatistics?>(null)
-        public val cacheStats: StateFlow<com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache.CacheStatistics?> =
-            _cacheStats
-                .asStateFlow()
-
         public fun loadCacheStats() {
-            try {
-                viewModelScope.launch {
-                    try {
-                        val stats = rutrackerRepository.getCacheStatistics()
-                        _cacheStats.value = stats
-                    } catch (e: NullPointerException) {
-                        logger.e(
-                            {
-                                "NullPointerException while loading cache stats - repository or cache may not be initialized"
-                            },
-                            e,
+            viewModelScope.launch {
+                try {
+                    // CacheManager hops to Dispatchers.IO internally
+                    val stats = cacheManager.getCacheStatistics()
+                    var coversCount = 0
+                    var coversBytes = 0L
+                    File(context.filesDir, "covers")
+                        .listFiles()
+                        ?.forEach { file ->
+                            coversCount++
+                            coversBytes += file.length()
+                        }
+                    _cacheSnapshot.value =
+                        DebugCacheSnapshot(
+                            stats = stats,
+                            coversCount = coversCount,
+                            coversBytes = coversBytes,
+                            cookieCount = cookieJar.size(),
                         )
-                        _cacheStats.value = null
-                    } catch (e: Exception) {
-                        logger.e({ "Failed to load cache stats" }, e)
-                        _cacheStats.value = null
-                    }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    logger.e({ "Failed to load cache stats" }, e)
+                    _cacheSnapshot.value = DebugCacheSnapshot()
                 }
-            } catch (e: Exception) {
-                // Handle case when viewModelScope.launch fails (e.g., viewModelScope not ready)
-                logger.e({ "Failed to launch loadCacheStats coroutine" }, e)
-                _cacheStats.value = null
             }
         }
 
         public fun clearCache() {
             viewModelScope.launch {
                 try {
-                    rutrackerRepository.clearSearchCache()
+                    cacheManager.clearCacheType(CacheType.SEARCH)
                     loadCacheStats()
                 } catch (e: Exception) {
                     logger.e({ "Failed to clear cache" }, e)
@@ -410,12 +421,14 @@ public class DebugViewModel
                     val favoritesCount = database.favoriteDao().getFavoritesCount()
                     val indexedTopicsCount = database.offlineSearchDao().getTopicCount()
                     val downloadHistoryCount = database.downloadHistoryDao().getCount()
+                    val chaptersCount = database.chaptersDao().getTotalChapterCount()
                     _dbInspectorSnapshot.value =
                         DebugDbInspectorSnapshot(
                             booksCount = booksCount,
                             favoritesCount = favoritesCount,
                             indexedTopicsCount = indexedTopicsCount,
                             downloadHistoryCount = downloadHistoryCount,
+                            chaptersCount = chaptersCount,
                         )
                 } catch (e: Exception) {
                     logger.e({ "Failed to refresh DB inspector snapshot" }, e)
@@ -474,4 +487,16 @@ public data class DebugDbInspectorSnapshot(
     val favoritesCount: Int = 0,
     val indexedTopicsCount: Int = 0,
     val downloadHistoryCount: Int = 0,
+    val chaptersCount: Int = 0,
+)
+
+/**
+ * Everything the Cache tab renders: [CacheManager] statistics plus sizes the
+ * manager does not track (covers directory, persistent cookie count).
+ */
+public data class DebugCacheSnapshot(
+    val stats: CacheStatistics? = null,
+    val coversCount: Int = 0,
+    val coversBytes: Long = 0L,
+    val cookieCount: Int = 0,
 )

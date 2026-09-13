@@ -15,7 +15,6 @@
 package com.jabook.app.jabook.compose.feature.player
 
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -26,5 +25,5 @@ import kotlinx.coroutines.flow.StateFlow
  * Command: execution pipeline from intents to side-effect handlers.
  */
 public typealias PlayerStateFlowContract = StateFlow<PlayerState>
-public typealias PlayerEventFlowContract = SharedFlow<PlayerEffect>
+public typealias PlayerEventFlowContract = Flow<PlayerEffect>
 internal typealias PlayerCommandFlowContract = Flow<PlayerCommand>

@@ -58,4 +58,24 @@ class PositionPublishPolicyTest {
             ),
         )
     }
+
+    @Test
+    fun `offloaded epsilon is 500ms so seek feedback lands within stale-seek timeout`() {
+        assertFalse(
+            PositionPublishPolicy.shouldPublish(
+                previousPositionMs = 10_000L,
+                incomingPositionMs = 10_400L,
+                force = false,
+                isAudioOffloaded = true,
+            ),
+        )
+        assertTrue(
+            PositionPublishPolicy.shouldPublish(
+                previousPositionMs = 10_000L,
+                incomingPositionMs = 10_500L,
+                force = false,
+                isAudioOffloaded = true,
+            ),
+        )
+    }
 }

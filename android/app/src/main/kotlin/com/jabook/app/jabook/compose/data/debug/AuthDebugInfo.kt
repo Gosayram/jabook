@@ -26,7 +26,7 @@ public data class AuthDebugInfo(
 )
 
 /**
- * Results of 3-tier validation logic from Flutter implementation.
+ * Results of 3-tier validation logic.
  */
 public data class ValidationResults(
     val profilePageCheck: Boolean,

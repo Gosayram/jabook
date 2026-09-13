@@ -44,16 +44,37 @@ public class BookmarkRepository
             positionMs: Long,
             noteText: String? = null,
             noteAudioPath: String? = null,
+            chapterDurationMs: Long = 0L,
         ): Result<BookmarkItem> =
             withContext(Dispatchers.IO) {
                 try {
+                    val duplicateThresholdMs = 5000L
+                    val existing = bookmarkDao.getBookmarksForBookSync(bookId)
+                    val isDuplicate =
+                        existing.any { bm ->
+                            bm.chapterIndex == chapterIndex.coerceAtLeast(0) &&
+                                kotlin.math.abs(bm.positionMs - positionMs.coerceAtLeast(0L)) < duplicateThresholdMs
+                        }
+                    if (isDuplicate) {
+                        return@withContext Result.failure(
+                            IllegalStateException("Duplicate bookmark within $duplicateThresholdMs ms"),
+                        )
+                    }
                     val now = System.currentTimeMillis()
+                    val safePositionMs = positionMs.coerceAtLeast(0L)
+                    val normalizedPosition =
+                        if (chapterDurationMs > 0L) {
+                            (safePositionMs.toFloat() / chapterDurationMs.toFloat()).coerceIn(0f, 1f)
+                        } else {
+                            0f
+                        }
                     val bookmark =
                         BookmarkItem(
                             id = UUID.randomUUID().toString(),
                             bookId = bookId,
                             chapterIndex = chapterIndex.coerceAtLeast(0),
-                            positionMs = positionMs.coerceAtLeast(0L),
+                            positionMs = safePositionMs,
+                            normalizedPosition = normalizedPosition,
                             noteText = noteText?.takeIf { it.isNotBlank() },
                             noteAudioPath = noteAudioPath,
                             createdAt = now,
@@ -86,6 +107,18 @@ public class BookmarkRepository
             withContext(Dispatchers.IO) {
                 try {
                     bookmarkDao.deleteBookmarkById(bookmarkId)
+                    Result.success(Unit)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Result.failure(e)
+                }
+            }
+
+        public suspend fun restoreBookmark(bookmark: BookmarkItem): Result<Unit> =
+            withContext(Dispatchers.IO) {
+                try {
+                    bookmarkDao.upsertBookmark(bookmark.toBookmarkEntity())
                     Result.success(Unit)
                 } catch (e: CancellationException) {
                     throw e

@@ -21,31 +21,38 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.util.HapticManager
+import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
 import com.jabook.app.jabook.compose.domain.model.SleepTimerState
 import java.time.LocalDateTime
 
@@ -70,31 +77,25 @@ public fun SleepTimerSheet(
     onStartTimerEndOfTrack: () -> Unit,
     onCancelTimer: () -> Unit,
     onDismiss: () -> Unit,
+    autoSleepEnabled: Boolean = false,
+    autoSleepMinutes: Int = 30,
+    onAutoSleepToggle: (Boolean) -> Unit = {},
+    onAutoSleepMinutesChange: (Int) -> Unit = {},
     presetDurations: List<Int> = DEFAULT_SLEEP_TIMER_PRESET_DURATIONS,
     modifier: Modifier = Modifier,
-    sheetState: SheetState =
-        androidx.compose.material3.rememberModalBottomSheetState(),
 ) {
-    ModalBottomSheet(
+    JabookModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
         modifier = modifier,
+        title = stringResource(R.string.sleepTimerTitle),
     ) {
         val context = LocalContext.current
+        val hapticFeedback = LocalHapticFeedback.current
         Column(
             modifier =
                 Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
+                    .fillMaxWidth(),
         ) {
-            Text(
-                text = stringResource(R.string.sleepTimerTitle),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
-
-            Spacer(Modifier.height(16.dp))
-
             when (currentState) {
                 is SleepTimerState.Idle -> {
                     lastUsedDurationMinutes?.let { minutes ->
@@ -123,7 +124,11 @@ public fun SleepTimerSheet(
                                 )
                             },
                             modifier =
-                                Modifier.clickable {
+                                Modifier.clickable(
+                                    onClickLabel = stringResource(R.string.sleepTimerTitle),
+                                    role = Role.Button,
+                                ) {
+                                    HapticManager.performTap(hapticFeedback)
                                     onStartTimer(minutes)
                                     onDismiss()
                                 },
@@ -142,7 +147,11 @@ public fun SleepTimerSheet(
                             )
                         },
                         modifier =
-                            Modifier.clickable {
+                            Modifier.clickable(
+                                onClickLabel = stringResource(R.string.endOfChapterLabel),
+                                role = Role.Button,
+                            ) {
+                                HapticManager.performTap(hapticFeedback)
                                 onStartTimerEndOfChapter()
                                 onDismiss()
                             },
@@ -159,7 +168,11 @@ public fun SleepTimerSheet(
                             )
                         },
                         modifier =
-                            Modifier.clickable {
+                            Modifier.clickable(
+                                onClickLabel = stringResource(R.string.endOfTrackLabel),
+                                role = Role.Button,
+                            ) {
+                                HapticManager.performTap(hapticFeedback)
                                 onStartTimerEndOfTrack()
                                 onDismiss()
                             },
@@ -179,7 +192,10 @@ public fun SleepTimerSheet(
                             )
                         },
                         modifier =
-                            Modifier.clickable {
+                            Modifier.clickable(
+                                onClickLabel = stringResource(R.string.stopAtSpecificTime),
+                                role = Role.Button,
+                            ) {
                                 val now = LocalDateTime.now()
                                 TimePickerDialog(
                                     context,
@@ -191,6 +207,7 @@ public fun SleepTimerSheet(
                                                 now = LocalDateTime.now(),
                                             )
                                         onStartTimer(minutesUntilStop)
+                                        HapticManager.performTap(hapticFeedback)
                                         onDismiss()
                                     },
                                     now.hour,
@@ -203,8 +220,80 @@ public fun SleepTimerSheet(
                     // Timer options
                     SleepTimerPresetChips(
                         durations = presetDurations,
-                        onPresetClick = { minutes -> handleSleepTimerPresetSelection(minutes, onStartTimer, onDismiss) },
+                        onPresetClick = { minutes ->
+                            HapticManager.performTap(hapticFeedback)
+                            handleSleepTimerPresetSelection(minutes, onStartTimer, onDismiss)
+                        },
                     )
+
+                    Spacer(Modifier.height(16.dp))
+                    HorizontalDivider()
+                    Spacer(Modifier.height(8.dp))
+
+                    // Auto-sleep timer section
+                    Row(
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable { onAutoSleepToggle(!autoSleepEnabled) }
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                    ) {
+                        Icon(
+                            Icons.Filled.Bedtime,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.auto_sleep_timer_title),
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                            Text(
+                                text = stringResource(R.string.auto_sleep_timer_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Switch(
+                            checked = autoSleepEnabled,
+                            onCheckedChange = onAutoSleepToggle,
+                        )
+                    }
+
+                    if (autoSleepEnabled) {
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            listOf(15, 30, 45, 60, 90).forEach { minutes ->
+                                AssistChip(
+                                    onClick = {
+                                        HapticManager.performTap(hapticFeedback)
+                                        onAutoSleepMinutesChange(minutes)
+                                    },
+                                    label = {
+                                        Text(
+                                            pluralStringResource(
+                                                R.plurals.durationMinutesFull,
+                                                minutes,
+                                                minutes,
+                                            ),
+                                        )
+                                    },
+                                    modifier =
+                                        if (minutes == autoSleepMinutes) {
+                                            Modifier
+                                        } else {
+                                            Modifier
+                                        },
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                    }
                 }
 
                 is SleepTimerState.Active -> {

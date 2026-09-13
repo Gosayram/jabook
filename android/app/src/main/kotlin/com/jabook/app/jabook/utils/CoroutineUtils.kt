@@ -14,92 +14,18 @@
 
 package com.jabook.app.jabook.utils
 
+import com.jabook.app.jabook.crash.CrashDiagnostics
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CoroutineExceptionHandler
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancelChildren
-import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.launch
 
 /**
- * CoroutineScope extension utilities (inspired by Flow pattern).
- *
- * Provides useful extension functions for managing coroutine lifecycle
- * and simplifying common coroutine operations.
- */
-
-/**
- * Creates a new cancelable scope from the current scope's context.
- * Useful for creating child scopes that can be cancelled independently.
- *
- * @return A new CoroutineScope with SupervisorJob for independent cancellation
- *
- * Example:
- * ```kotlin
- * val childScope = parentScope.newCancelableScope()
- * childScope.launch { /* work */ }
- * // Later: childScope.cancel() // Only cancels child scope, not parent
- * ```
- */
-public fun CoroutineScope.newCancelableScope(): CoroutineScope = CoroutineScope(coroutineContext + SupervisorJob())
-
-/**
- * Relaunches a coroutine, cancelling all existing children first.
- * Useful for restarting operations when state changes.
- *
- * @param block The coroutine block to execute
- *
- * Example:
- * ```kotlin
- * scope.relaunch {
- *     // This will cancel any existing work in scope and start fresh
- *     loadData()
- * }
- * ```
- */
-public fun CoroutineScope.relaunch(block: suspend CoroutineScope.() -> Unit) {
-    coroutineContext.cancelChildren()
-    launch(block = block)
-}
-
-/**
- * Creates a MutableSharedFlow that keeps only the latest value (inspired by Flow pattern).
- *
- * Useful for state that should only retain the most recent value, such as:
- * - Current settings
- * - Latest error message
- * - Current user preference
- *
- * When a new value is emitted and the buffer is full, the oldest value is dropped.
- * This ensures subscribers always get the latest state without missing updates.
- *
- * @return A MutableSharedFlow with buffer capacity of 1 and DROP_OLDEST strategy
- *
- * Example:
- * ```kotlin
- * private val mutableSettings = SingleItemMutableSharedFlow<Settings>()
- * val settings: SharedFlow<Settings> = mutableSettings.asSharedFlow()
- *
- * // Later:
- * mutableSettings.emit(newSettings) // Old value is automatically dropped
- * ```
- */
-@Suppress("FunctionName")
-public fun <T : Any> SingleItemMutableSharedFlow(): MutableSharedFlow<T> =
-    MutableSharedFlow(
-        extraBufferCapacity = 1,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST,
-    )
-
-/**
- * Creates a [CoroutineExceptionHandler] that logs uncaught exceptions via [LogUtils].
+ * Creates a [CoroutineExceptionHandler] that logs uncaught exceptions via [LogUtils]
+ * and reports them to [CrashDiagnostics].
  *
  * Without an explicit handler, exceptions that escape a `SupervisorJob`-based scope
  * are silently dropped on Android (no crash, no log). This handler guarantees that
- * every uncaught exception is at least logged at ERROR level — making production
- * debugging significantly easier.
+ * every uncaught exception is at least logged at ERROR level — and surfaced as a
+ * non-fatal in production — making debugging significantly easier.
  *
  * @param tag Log tag used in [LogUtils.e]. Defaults to "CoroutineException".
  * @return A [CoroutineExceptionHandler] suitable for inclusion in a scope context.
@@ -114,4 +40,5 @@ public fun <T : Any> SingleItemMutableSharedFlow(): MutableSharedFlow<T> =
 public fun loggingCoroutineExceptionHandler(tag: String = "CoroutineException"): CoroutineExceptionHandler =
     CoroutineExceptionHandler { _, throwable ->
         LogUtils.e(tag, "Uncaught coroutine exception", throwable)
+        CrashDiagnostics.reportNonFatal(tag, throwable, mapOf("scope" to tag))
     }

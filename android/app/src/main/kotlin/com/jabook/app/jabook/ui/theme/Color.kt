@@ -16,6 +16,16 @@ package com.jabook.app.jabook.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
+// ponytail: vibrant ceiling — SchemeVibrant/SchemeExpressive (styles/color/system page.md, building-with-m3-expressive vibrant tactic)
+// requires com.google.android.material:material-color-utilities (MCU) — SchemeVibrant/SchemeExpressive via HCT.
+// Checked: ~/.gradle/caches/modules-2/files-2.1/com.google.android.material/material-color-utilities = missing (find ~/.gradle -name "*color-util*" = 0 hits).
+// Checked: androidx.compose.material3:material3:1.5.0-alpha19 POM/module = no MCU transitive dep (grep material-color = 0).
+// Keeping static Beta/Prod schemes; adding MCU needs network + verification-metadata SHA. Upgrade path:
+//   1. libs.versions.toml: materialColorUtilities = "0.3.0", material-color-utilities = { group="com.google.android.material", name="material-color-utilities", version.ref="materialColorUtilities" }
+//   2. app/build.gradle.kts: implementation(libs.material.color.utilities)
+//   3. Color.kt: fun vibrantScheme(seed: Int, isDark: Boolean) = SchemeVibrant(Hct.fromInt(seed), isDark, 0.0).toColorScheme()
+//      Theme.kt: val scheme = if (isBetaFlavor) vibrantScheme(BetaPrimaryColor) else vibrantScheme(ProdPrimaryColor)
+
 // ====================
 // NEUTRAL COLORS (Based on Material 3 Guidelines)
 // Used for backgrounds & surfaces across all themes
@@ -131,3 +141,33 @@ public val prod_dark_onTertiary: Color = Color(0xFF402D00)
 public val prod_dark_error: Color = Color(0xFFFFB4AB)
 public val prod_dark_onError: Color = Color(0xFF690005)
 public val prod_dark_outline: Color = Color(0xFF948F99)
+
+// ====================
+// GENRE ACCENT COLORS (Discovery genre chips)
+// Mid-luminance accents, legible on both light and dark surfaces.
+// ====================
+
+public val GenreAccentColors: List<Color> =
+    listOf(
+        Color(0xFF0D6EFD), // Blue
+        Color(0xFF00A884), // Teal
+        Color(0xFFFF7A00), // Orange
+        Color(0xFFE91E63), // Pink
+        Color(0xFF6F42C1), // Purple
+        Color(0xFF0099CC), // Cyan
+    )
+
+// ====================
+// MIRROR HEALTH INDICATOR COLORS
+// ====================
+
+public val MirrorHealthGreen: Color = Color(0xFF4CAF50)
+public val MirrorHealthYellow: Color = Color(0xFFFFC107)
+public val MirrorHealthRed: Color = Color(0xFFF44336)
+
+// ====================
+// TORRENT STATS COLORS
+// ====================
+
+public val SeederGreen: Color = Color(0xFF4CAF50)
+public val LeecherOrange: Color = Color(0xFFFF9800)

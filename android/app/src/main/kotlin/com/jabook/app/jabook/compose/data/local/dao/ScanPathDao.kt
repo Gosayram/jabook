@@ -21,6 +21,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.jabook.app.jabook.compose.data.local.entity.ScanPathEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
  * Data Access Object for custom scan paths.
@@ -28,7 +29,9 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 public interface ScanPathDao {
     @Query("SELECT * FROM scan_paths ORDER BY added_date DESC")
-    public fun getAllPaths(): Flow<List<ScanPathEntity>>
+    public fun getAllPathsInternal(): Flow<List<ScanPathEntity>>
+
+    public fun getAllPaths(): Flow<List<ScanPathEntity>> = getAllPathsInternal().distinctUntilChanged()
 
     @Query("SELECT * FROM scan_paths")
     public suspend fun getAllPathsList(): List<ScanPathEntity>

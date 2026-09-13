@@ -21,6 +21,17 @@ internal data class PlaylistResolvedUri(
     val shouldWarnMissingLocalPath: Boolean,
 )
 
+/**
+ * Resolves a playlist file path into a playback [Uri].
+ *
+ * Spotube-style pre-resolution/warming of the first remote stream before
+ * `player.prepare()` is NOT needed here: resolution is synchronous and local-only.
+ * [buildPlaybackUri] maps file/http/content strings to a [Uri] with no network I/O,
+ * and both playlist load paths fully build the first MediaSource before calling
+ * `prepare()` (PlaylistManager.preparePlaybackSynchronous / preparePlaybackAsync).
+ * There is no async remote-URL resolution stage that could leave the player
+ * preparing against an unresolved URI.
+ */
 internal object PlaylistUriResolutionPolicy {
     internal fun resolve(
         path: String,

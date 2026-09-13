@@ -22,12 +22,22 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.OptIn
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.cache.Cache
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.ComposeMainActivity
 import com.jabook.app.jabook.util.LogUtils
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
+import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Activity for managing app storage space.
@@ -38,7 +48,12 @@ import java.io.File
  *
  * The activity shows storage information and allows clearing cache.
  */
+@AndroidEntryPoint
+@OptIn(UnstableApi::class)
 public class DataManagementActivity : AppCompatActivity() {
+    @Inject
+    public lateinit var mediaCache: Cache
+
     private lateinit var cacheSizeText: TextView
     private lateinit var dataSizeText: TextView
     private lateinit var totalSizeText: TextView
@@ -78,28 +93,43 @@ public class DataManagementActivity : AppCompatActivity() {
      * Loads storage information asynchronously.
      */
     private fun loadStorageInfo() {
-        Thread {
-            try {
-                val cacheSize = calculateCacheSize()
-                val dataSize = calculateDataSize()
-                val totalSize = cacheSize + dataSize
-
-                runOnUiThread {
-                    cacheSizeText.text = getString(R.string.cacheSizeLabel, formatSize(cacheSize))
-                    dataSizeText.text = getString(R.string.dataSizeLabel, formatSize(dataSize))
-                    totalSizeText.text = getString(R.string.totalSizeLabel, formatSize(totalSize))
-                    progressBar.visibility = View.GONE
+        lifecycleScope.launch {
+            val result =
+                try {
+                    withContext(Dispatchers.IO) {
+                        Triple(calculateCacheSize(), calculateDataSize(), null as Exception?)
+                    }
+                } catch (e: Exception) {
+                    LogUtils.e("DataManagementActivity", "Error loading storage info", e)
+                    Triple(0L, 0L, e)
                 }
-            } catch (e: Exception) {
-                LogUtils.e("DataManagementActivity", "Error loading storage info", e)
-                runOnUiThread {
-                    cacheSizeText.text = getString(R.string.cacheError)
-                    dataSizeText.text = getString(R.string.dataError)
-                    totalSizeText.text = getString(R.string.totalError)
-                    progressBar.visibility = View.GONE
-                }
+            val (cacheSize, dataSize, error) = result
+            if (error == null) {
+                cacheSizeText.text =
+                    getString(
+                        R.string.cacheSizeLabel,
+                        com.jabook.app.jabook.compose.core.util.UiFormatters
+                            .formatFileSize(cacheSize),
+                    )
+                dataSizeText.text =
+                    getString(
+                        R.string.dataSizeLabel,
+                        com.jabook.app.jabook.compose.core.util.UiFormatters
+                            .formatFileSize(dataSize),
+                    )
+                totalSizeText.text =
+                    getString(
+                        R.string.totalSizeLabel,
+                        com.jabook.app.jabook.compose.core.util.UiFormatters
+                            .formatFileSize(cacheSize + dataSize),
+                    )
+            } else {
+                cacheSizeText.text = getString(R.string.cacheError)
+                dataSizeText.text = getString(R.string.dataError)
+                totalSizeText.text = getString(R.string.totalError)
             }
-        }.start()
+            progressBar.visibility = View.GONE
+        }
     }
 
     /**
@@ -150,41 +180,11 @@ public class DataManagementActivity : AppCompatActivity() {
 
     /**
      * Recursively calculates directory size.
+     * Delegates to FileUtils (okio listRecursively) instead of hand-rolled recursion.
      */
-    private fun getDirectorySize(directory: File): Long {
-        var size = 0L
-        try {
-            if (directory.exists() && directory.isDirectory) {
-                val files = directory.listFiles()
-                if (files != null) {
-                    for (file in files) {
-                        size +=
-                            if (file.isDirectory) {
-                                getDirectorySize(file)
-                            } else {
-                                file.length()
-                            }
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            LogUtils.w("DataManagementActivity", "Error calculating size for ${directory.path}", e)
-        }
-        return size
-    }
-
-    /**
-     * Formats size in bytes to human-readable string.
-     */
-    private fun formatSize(bytes: Long): String {
-        if (bytes < 1024) return "$bytes B"
-        val kb = bytes / 1024.0
-        if (kb < 1024) return String.format("%.2f KB", kb)
-        val mb = kb / 1024.0
-        if (mb < 1024) return String.format("%.2f MB", mb)
-        val gb = mb / 1024.0
-        return String.format("%.2f GB", gb)
-    }
+    private fun getDirectorySize(directory: File): Long =
+        com.jabook.app.jabook.util.FileUtils
+            .getDirectorySize(directory)
 
     /**
      * Shows dialog to confirm cache clearing.
@@ -207,64 +207,68 @@ public class DataManagementActivity : AppCompatActivity() {
         progressBar.visibility = View.VISIBLE
         clearCacheButton.isEnabled = false
 
-        Thread {
+        lifecycleScope.launch {
             try {
-                var clearedSize = 0L
+                withContext(Dispatchers.IO) {
+                    // Clear internal cache
+                    val internalCache = cacheDir
+                    clearMediaCache()
+                    deleteDirectory(internalCache, preservePlaybackCache = true)
 
-                // Clear internal cache
-                val internalCache = cacheDir
-                clearedSize += getDirectorySize(internalCache)
-                deleteDirectory(internalCache)
-
-                // Clear external cache
-                externalCacheDir?.let {
-                    if (it.exists()) {
-                        clearedSize += getDirectorySize(it)
-                        deleteDirectory(it)
+                    // Clear external cache
+                    externalCacheDir?.let {
+                        if (it.exists()) {
+                            deleteDirectory(it)
+                        }
                     }
                 }
 
-                runOnUiThread {
-                    progressBar.visibility = View.GONE
-                    clearCacheButton.isEnabled = true
-                    Toast
-                        .makeText(
-                            this@DataManagementActivity,
-                            getString(R.string.cacheClearedSuccessMessage),
-                            Toast.LENGTH_SHORT,
-                        ).show()
+                progressBar.visibility = View.GONE
+                clearCacheButton.isEnabled = true
+                Toast
+                    .makeText(
+                        this@DataManagementActivity,
+                        getString(R.string.cacheClearedSuccessMessage),
+                        Toast.LENGTH_SHORT,
+                    ).show()
 
-                    // Reload storage info
-                    loadStorageInfo()
-                }
+                // Reload storage info
+                loadStorageInfo()
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 LogUtils.e("DataManagementActivity", "Error clearing cache", e)
-                runOnUiThread {
-                    progressBar.visibility = View.GONE
-                    clearCacheButton.isEnabled = true
-                    Toast
-                        .makeText(
-                            this@DataManagementActivity,
-                            getString(
-                                R.string.cacheClearErrorMessage,
-                                e.message ?: getString(R.string.unknownError),
-                            ),
-                            Toast.LENGTH_SHORT,
-                        ).show()
-                }
+                progressBar.visibility = View.GONE
+                clearCacheButton.isEnabled = true
+                Toast
+                    .makeText(
+                        this@DataManagementActivity,
+                        getString(
+                            R.string.cacheClearErrorMessage,
+                            e.message ?: getString(R.string.unknownError),
+                        ),
+                        Toast.LENGTH_SHORT,
+                    ).show()
             }
-        }.start()
+        }
     }
 
     /**
      * Recursively deletes directory.
      */
-    private fun deleteDirectory(directory: File) {
+    private fun clearMediaCache() {
+        mediaCache.keys.forEach(mediaCache::removeResource)
+    }
+
+    private fun deleteDirectory(
+        directory: File,
+        preservePlaybackCache: Boolean = false,
+    ) {
         try {
             if (directory.exists() && directory.isDirectory) {
                 val files = directory.listFiles()
                 if (files != null) {
                     for (file in files) {
+                        if (preservePlaybackCache && file.name == PLAYBACK_CACHE_DIRECTORY) continue
                         if (file.isDirectory) {
                             deleteDirectory(file)
                         } else {
@@ -278,5 +282,9 @@ public class DataManagementActivity : AppCompatActivity() {
         } catch (e: Exception) {
             LogUtils.w("DataManagementActivity", "Error deleting ${directory.path}", e)
         }
+    }
+
+    private companion object {
+        private const val PLAYBACK_CACHE_DIRECTORY = "playback_cache"
     }
 }

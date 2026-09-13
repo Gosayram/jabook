@@ -81,14 +81,6 @@ public interface RutrackerApi {
     /**
      * Login to Rutracker.
      *
-     * @param username Username
-     * @param password Password
-     * @return HTML response (will set cookies on success)
-     */
-
-    /**
-     * Login to Rutracker.
-     *
      * @param body Form-url-encoded body with CP1251 encoded credentials
      * @return Response body (raw bytes for CP1251 decoding)
      */

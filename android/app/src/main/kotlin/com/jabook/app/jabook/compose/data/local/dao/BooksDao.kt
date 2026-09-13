@@ -26,6 +26,7 @@ import androidx.sqlite.db.SupportSQLiteQuery
 import com.jabook.app.jabook.compose.data.local.entity.BookEntity
 import com.jabook.app.jabook.compose.data.local.entity.ChapterEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
  * Data Access Object for books and chapters.
@@ -49,13 +50,17 @@ public interface BooksDao {
             added_date DESC
     """,
     )
-    public fun getAllBooksFlow(): Flow<List<BookEntity>>
+    public fun getAllBooksFlowInternal(): Flow<List<BookEntity>>
+
+    public fun getAllBooksFlow(): Flow<List<BookEntity>> = getAllBooksFlowInternal().distinctUntilChanged()
 
     /**
      * Get a single book by ID.
      */
     @Query("SELECT * FROM books WHERE id = :bookId")
-    public fun getBookFlow(bookId: String): Flow<BookEntity?>
+    public fun getBookFlowInternal(bookId: String): Flow<BookEntity?>
+
+    public fun getBookFlow(bookId: String): Flow<BookEntity?> = getBookFlowInternal(bookId).distinctUntilChanged()
 
     /**
      * Gets a book by ID (one-shot, not Flow).
@@ -73,13 +78,18 @@ public interface BooksDao {
      * Get all chapters for a book, ordered by chapter index.
      */
     @Query("SELECT * FROM chapters WHERE book_id = :bookId ORDER BY chapter_index ASC")
-    public fun getChaptersForBookFlow(bookId: String): Flow<List<ChapterEntity>>
+    public fun getChaptersForBookFlowInternal(bookId: String): Flow<List<ChapterEntity>>
+
+    public fun getChaptersForBookFlow(bookId: String): Flow<List<ChapterEntity>> =
+        getChaptersForBookFlowInternal(bookId).distinctUntilChanged()
 
     /**
      * Observes favorite books, ordered by title.
      */
     @Query("SELECT * FROM books WHERE is_favorite = 1 ORDER BY title ASC")
-    public fun getFavoriteBooksFlow(): Flow<List<BookEntity>>
+    public fun getFavoriteBooksFlowInternal(): Flow<List<BookEntity>>
+
+    public fun getFavoriteBooksFlow(): Flow<List<BookEntity>> = getFavoriteBooksFlowInternal().distinctUntilChanged()
 
     /**
      * Observes books by download status.
@@ -87,7 +97,10 @@ public interface BooksDao {
      * @param status Download status string (e.g., "DOWNLOADED", "DOWNLOADING")
      */
     @Query("SELECT * FROM books WHERE download_status = :status ORDER BY title ASC")
-    public fun getBooksByDownloadStatusFlow(status: String): Flow<List<BookEntity>>
+    public fun getBooksByDownloadStatusFlowInternal(status: String): Flow<List<BookEntity>>
+
+    public fun getBooksByDownloadStatusFlow(status: String): Flow<List<BookEntity>> =
+        getBooksByDownloadStatusFlowInternal(status).distinctUntilChanged()
 
     /**
      * Observes recently played books, ordered by last played date (most recent first).
@@ -102,7 +115,10 @@ public interface BooksDao {
         LIMIT :limit
         """,
     )
-    public fun getRecentlyPlayedBooksFlow(limit: Int = 10): Flow<List<BookEntity>>
+    public fun getRecentlyPlayedBooksFlowInternal(limit: Int = 10): Flow<List<BookEntity>>
+
+    public fun getRecentlyPlayedBooksFlow(limit: Int = 10): Flow<List<BookEntity>> =
+        getRecentlyPlayedBooksFlowInternal(limit).distinctUntilChanged()
 
     /**
      * Observes books that have been started but not completed.
@@ -114,7 +130,9 @@ public interface BooksDao {
         ORDER BY last_played_date DESC
         """,
     )
-    public fun getInProgressBooksFlow(): Flow<List<BookEntity>>
+    public fun getInProgressBooksFlowInternal(): Flow<List<BookEntity>>
+
+    public fun getInProgressBooksFlow(): Flow<List<BookEntity>> = getInProgressBooksFlowInternal().distinctUntilChanged()
 
     /**
      * Updates the favorite status of a book.
@@ -149,25 +167,25 @@ public interface BooksDao {
     /**
      * Insert or replace a book.
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     public suspend fun insertBook(book: BookEntity)
 
     /**
      * Insert or replace multiple books.
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     public suspend fun insertBooks(books: List<BookEntity>)
 
     /**
      * Insert or replace a chapter.
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     public suspend fun insertChapter(chapter: ChapterEntity)
 
     /**
      * Insert or replace multiple chapters.
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     public suspend fun insertChapters(chapters: List<ChapterEntity>)
 
     /**
@@ -211,6 +229,192 @@ public interface BooksDao {
     }
 
     /**
+     * Persists filesystem metadata found by a library scan without overwriting playback
+     * progress or per-book settings.
+     */
+    @Transaction
+    public suspend fun upsertScannedBooksWithChapters(
+        books: List<BookEntity>,
+        chapters: List<ChapterEntity>,
+    ) {
+        insertScannedBooks(books)
+
+        // Bulk-update book metadata (title, author, duration, etc.)
+        books.forEach { book ->
+            updateScannedBook(
+                id = book.id,
+                title = book.title,
+                author = book.author,
+                totalDuration = book.totalDuration,
+                downloadStatus = book.downloadStatus,
+                isDownloaded = book.isDownloaded,
+                localPath = book.localPath,
+            )
+        }
+
+        val bookIds = books.map(BookEntity::id)
+        val chaptersByBook = chapters.groupBy(ChapterEntity::bookId)
+
+        // Pre-load ALL existing chapters for the entire batch in one query
+        val allExistingChapters = getChaptersForScanBatch(bookIds)
+        val existingByBook = allExistingChapters.groupBy(ChapterEntity::bookId)
+
+        // Merge + collect bookmark/index operations in memory
+        val allMergedChapters = mutableListOf<ChapterEntity>()
+        val bookmarkOps = mutableListOf<BookmarkReindexOp>()
+
+        for (scannedBook in books) {
+            val existingChapters = existingByBook[scannedBook.id].orEmpty()
+            val existingByKey =
+                existingChapters
+                    .filter { !it.fileUrl.isNullOrBlank() }
+                    .associateBy { chapterMergeKey(it.fileUrl, it.startPositionMs) }
+            val scannedChapters = chaptersByBook[scannedBook.id].orEmpty()
+            val newIndexByKey =
+                scannedChapters
+                    .filter { !it.fileUrl.isNullOrBlank() }
+                    .associate { chapterMergeKey(it.fileUrl, it.startPositionMs) to it.chapterIndex }
+            val indexMapping =
+                existingChapters
+                    .mapNotNull { existing ->
+                        newIndexByKey[chapterMergeKey(existing.fileUrl, existing.startPositionMs)]
+                            ?.let { newIndex -> existing.chapterIndex to newIndex }
+                    }.toMap()
+            val obsoleteChapterIndexes =
+                existingChapters
+                    .filter { chapterMergeKey(it.fileUrl, it.startPositionMs) !in newIndexByKey }
+                    .map(ChapterEntity::chapterIndex)
+            val mergedChapters =
+                scannedChapters.map { scanned ->
+                    existingByKey[chapterMergeKey(scanned.fileUrl, scanned.startPositionMs)]?.let { existing ->
+                        scanned.copy(
+                            id = existing.id,
+                            position = existing.position,
+                            isCompleted = existing.isCompleted,
+                            lufsValue = existing.lufsValue,
+                            startPositionMs = scanned.startPositionMs,
+                            endPositionMs = scanned.endPositionMs,
+                        )
+                    } ?: scanned
+                }
+
+            allMergedChapters.addAll(mergedChapters)
+
+            if (obsoleteChapterIndexes.isNotEmpty() || indexMapping.isNotEmpty()) {
+                bookmarkOps.add(
+                    BookmarkReindexOp(
+                        bookId = scannedBook.id,
+                        obsoleteChapterIndexes = obsoleteChapterIndexes,
+                        indexMapping = indexMapping,
+                    ),
+                )
+            }
+        }
+
+        // Bulk delete + insert chapters for ALL books in the batch
+        deleteScannedChaptersBatch(bookIds)
+        insertScannedChapters(allMergedChapters)
+
+        // Process bookmark reindex per-book (must be sequential per book)
+        for (op in bookmarkOps) {
+            if (op.obsoleteChapterIndexes.isNotEmpty()) {
+                deleteBookmarksForChapterIndexes(op.bookId, op.obsoleteChapterIndexes)
+            }
+
+            val currentChapterIndex = getBookById(op.bookId)?.currentChapterIndex
+            op.indexMapping[currentChapterIndex]?.let { updateCurrentChapterIndex(op.bookId, it) }
+                ?: resetPlaybackProgress(op.bookId)
+            op.indexMapping.forEach { (oldIndex, _) ->
+                updateBookmarkChapterIndex(op.bookId, oldIndex, -oldIndex - 1)
+            }
+            op.indexMapping.forEach { (oldIndex, newIndex) ->
+                updateBookmarkChapterIndex(op.bookId, -oldIndex - 1, newIndex)
+            }
+        }
+    }
+
+    /** Ponytail: holds per-book bookmark reindex data to batch chapter ops. */
+    private data class BookmarkReindexOp(
+        val bookId: String,
+        val obsoleteChapterIndexes: List<Int>,
+        val indexMapping: Map<Int, Int>,
+    )
+
+    private fun chapterMergeKey(
+        fileUrl: String?,
+        startPositionMs: Long?,
+    ): String = "$fileUrl#${startPositionMs ?: -1L}"
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    public suspend fun insertScannedBooks(books: List<BookEntity>)
+
+    @Query(
+        """
+        UPDATE books
+        SET title = :title,
+            author = :author,
+            total_duration = :totalDuration,
+            download_status = :downloadStatus,
+            download_progress = CASE WHEN :isDownloaded THEN 1.0 ELSE download_progress END,
+            local_path = :localPath,
+            is_downloaded = :isDownloaded
+        WHERE id = :id
+        """,
+    )
+    public suspend fun updateScannedBook(
+        id: String,
+        title: String,
+        author: String,
+        totalDuration: Long,
+        downloadStatus: String,
+        isDownloaded: Boolean,
+        localPath: String?,
+    )
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    public suspend fun insertScannedChapters(chapters: List<ChapterEntity>)
+
+    @Query(
+        "SELECT * FROM chapters WHERE book_id = :bookId",
+    )
+    public suspend fun getChaptersForScan(bookId: String): List<ChapterEntity>
+
+    @Query(
+        "SELECT * FROM chapters WHERE book_id IN (:bookIds)",
+    )
+    public suspend fun getChaptersForScanBatch(bookIds: List<String>): List<ChapterEntity>
+
+    @Query("DELETE FROM chapters WHERE book_id = :bookId")
+    public suspend fun deleteScannedChapters(bookId: String)
+
+    @Query("DELETE FROM chapters WHERE book_id IN (:bookIds)")
+    public suspend fun deleteScannedChaptersBatch(bookIds: List<String>)
+
+    @Query("UPDATE books SET current_chapter_index = :chapterIndex WHERE id = :bookId")
+    public suspend fun updateCurrentChapterIndex(
+        bookId: String,
+        chapterIndex: Int,
+    )
+
+    @Query(
+        "UPDATE books SET current_position = 0, total_progress = 0, current_chapter_index = 0 WHERE id = :bookId",
+    )
+    public suspend fun resetPlaybackProgress(bookId: String)
+
+    @Query("UPDATE bookmarks SET chapter_index = :newIndex WHERE book_id = :bookId AND chapter_index = :oldIndex")
+    public suspend fun updateBookmarkChapterIndex(
+        bookId: String,
+        oldIndex: Int,
+        newIndex: Int,
+    )
+
+    @Query("DELETE FROM bookmarks WHERE book_id = :bookId AND chapter_index IN (:chapterIndexes)")
+    public suspend fun deleteBookmarksForChapterIndexes(
+        bookId: String,
+        chapterIndexes: List<Int>,
+    )
+
+    /**
      * Update a book.
      */
     @Update
@@ -235,6 +439,45 @@ public interface BooksDao {
         progress: Float,
         chapterIndex: Int,
         timestamp: Long,
+    )
+
+    /**
+     * Atomically updates the book's playback progress AND the current chapter's
+     * progress in a single transaction — the hot 5-second save path must not
+     * issue two separate commits.
+     */
+    @Transaction
+    public suspend fun updatePlaybackPositionAtomic(
+        bookId: String,
+        position: Long,
+        progress: Float,
+        chapterIndex: Int,
+        timestamp: Long,
+        chapterId: String?,
+        chapterPosition: Long,
+        chapterCompleted: Boolean,
+    ) {
+        updatePlaybackProgress(
+            bookId = bookId,
+            position = position,
+            progress = progress,
+            chapterIndex = chapterIndex,
+            timestamp = timestamp,
+        )
+        if (chapterId != null) {
+            updateChapterProgressForBook(
+                chapterId = chapterId,
+                position = chapterPosition,
+                isCompleted = chapterCompleted,
+            )
+        }
+    }
+
+    @Query("UPDATE chapters SET position = :position, is_completed = :isCompleted WHERE id = :chapterId")
+    public suspend fun updateChapterProgressForBook(
+        chapterId: String,
+        position: Long,
+        isCompleted: Boolean,
     )
 
     /**
@@ -282,7 +525,9 @@ public interface BooksDao {
         ORDER BY title ASC
         """,
     )
-    public fun searchBooksFlow(query: String): Flow<List<BookEntity>>
+    public fun searchBooksFlowInternal(query: String): Flow<List<BookEntity>>
+
+    public fun searchBooksFlow(query: String): Flow<List<BookEntity>> = searchBooksFlowInternal(query).distinctUntilChanged()
 
     /**
      * Searches books by title or author with optional transliterated fallback query.
@@ -297,10 +542,15 @@ public interface BooksDao {
         ORDER BY title ASC
         """,
     )
-    public fun searchBooksFlowWithFallback(
+    public fun searchBooksFlowWithFallbackInternal(
         query: String,
         fallbackQuery: String,
     ): Flow<List<BookEntity>>
+
+    public fun searchBooksFlowWithFallback(
+        query: String,
+        fallbackQuery: String,
+    ): Flow<List<BookEntity>> = searchBooksFlowWithFallbackInternal(query, fallbackQuery).distinctUntilChanged()
 
     /**
      * Searches books via FTS5 index.
@@ -308,7 +558,10 @@ public interface BooksDao {
      * @param ftsQuery Query in SQLite FTS5 MATCH format
      */
     @RawQuery(observedEntities = [BookEntity::class])
-    public fun searchBooksByFtsFlow(query: SupportSQLiteQuery): Flow<List<BookEntity>>
+    public fun searchBooksByFtsFlowInternal(query: SupportSQLiteQuery): Flow<List<BookEntity>>
+
+    public fun searchBooksByFtsFlow(query: SupportSQLiteQuery): Flow<List<BookEntity>> =
+        searchBooksByFtsFlowInternal(query).distinctUntilChanged()
 
     /**
      * Updates per-book playback settings.
@@ -334,6 +587,14 @@ public interface BooksDao {
     public suspend fun getAllBookPaths(): List<BookPathInfo>
 
     /**
+     * All non-null book directories (local_path) as a lightweight projection.
+     * Passed into the scanner so incremental scans force-scan directories that
+     * are not yet known books (their old mtimes would otherwise skip them forever).
+     */
+    @Query("SELECT local_path FROM books WHERE local_path IS NOT NULL")
+    public suspend fun getAllBookDirectories(): List<String>
+
+    /**
      * Deletes a book by ID.
      * Chapters will be cascade deleted due to foreign key constraint.
      */
@@ -344,7 +605,10 @@ public interface BooksDao {
      * Finds a book by its source URL (e.g. RuTracker topic link).
      */
     @Query("SELECT * FROM books WHERE source_url = :sourceUrl LIMIT 1")
-    public fun getBookBySourceUrlFlow(sourceUrl: String): Flow<BookEntity?>
+    public fun getBookBySourceUrlFlowInternal(sourceUrl: String): Flow<BookEntity?>
+
+    public fun getBookBySourceUrlFlow(sourceUrl: String): Flow<BookEntity?> =
+        getBookBySourceUrlFlowInternal(sourceUrl).distinctUntilChanged()
 
     /**
      * Finds a book by its source URL (one-shot).
@@ -362,12 +626,44 @@ public interface BooksDao {
     )
 
     /**
+     * Books missing a cover (embedded-artwork pseudo URLs are non-null and thus excluded).
+     */
+    @Query("SELECT id, title, author FROM books WHERE cover_url IS NULL OR cover_url = ''")
+    public suspend fun getBooksWithoutCovers(): List<CoverLookupCandidate>
+
+    /**
      * Updates cover local path.
      */
     @Query("UPDATE books SET cover_path = :path WHERE id = :bookId")
     public suspend fun updateCoverPath(
         bookId: String,
         path: String,
+    )
+
+    /**
+     * Applies a batch of metadata-sync updates (cover URL, author, description,
+     * cover path) in a single transaction — avoids one Room transaction per book
+     * during library sync with a large number of books.
+     */
+    @Transaction
+    public suspend fun applyMetadataSync(updates: List<BookMetadataUpdate>) {
+        updates.forEach { update ->
+            update.coverUrl?.let { updateCoverUrl(update.bookId, it) }
+            update.author?.let { updateAuthor(update.bookId, it) }
+            update.description?.let { updateDescription(update.bookId, it) }
+            update.coverPath?.let { updateCoverPath(update.bookId, it) }
+        }
+    }
+
+    /**
+     * Pending field-level update for [applyMetadataSync].
+     */
+    public data class BookMetadataUpdate(
+        public val bookId: String,
+        public val coverUrl: String? = null,
+        public val author: String? = null,
+        public val description: String? = null,
+        public val coverPath: String? = null,
     )
 
     /**
@@ -447,6 +743,30 @@ public interface BooksDao {
      */
     @Query("SELECT local_path FROM books WHERE id = :bookId LIMIT 1")
     public suspend fun getBookLocalPath(bookId: String): String?
+
+    /**
+     * Updates the per-book EQ preset override.
+     *
+     * When set, this overrides the global EQ preset for this specific book.
+     * Set to null to clear the override and use the global preset.
+     *
+     * @param bookId target book ID
+     * @param preset EQ preset name (e.g., "MALE_NARRATOR", "NIGHT_LISTENING"), or null to clear
+     */
+    @Query("UPDATE books SET eq_preset_override = :preset WHERE id = :bookId")
+    public suspend fun updateEqPresetOverride(
+        bookId: String,
+        preset: String?,
+    )
+
+    /**
+     * Returns the per-book EQ preset override, or null if not set.
+     *
+     * @param bookId target book ID
+     * @return preset name string, or null if using global default
+     */
+    @Query("SELECT eq_preset_override FROM books WHERE id = :bookId LIMIT 1")
+    public suspend fun getEqPresetOverride(bookId: String): String?
 }
 
 /**
@@ -456,4 +776,13 @@ public interface BooksDao {
 public data class BookPathInfo(
     val id: String,
     @androidx.room.ColumnInfo(name = "local_path") val localPath: String?,
+)
+
+/**
+ * Projection for remote cover lookup: only the fields the lookup needs.
+ */
+public data class CoverLookupCandidate(
+    val id: String,
+    val title: String,
+    @androidx.room.ColumnInfo(name = "author") val author: String,
 )

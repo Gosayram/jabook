@@ -17,6 +17,7 @@ package com.jabook.app.jabook.audio
 import android.app.Notification
 import android.app.Service
 import android.content.pm.ServiceInfo
+import com.jabook.app.jabook.util.LogUtils
 
 /**
  * Centralizes foreground notification promotion with a single fallback attempt,
@@ -63,6 +64,7 @@ internal class ForegroundNotificationCoordinator(
      * @param event                     Human-readable label for log messages.
      * @return The [ForegroundStartResult] describing what happened.
      */
+    @Synchronized
     internal fun startWithFallback(
         service: Service,
         notificationId: Int,
@@ -99,6 +101,7 @@ internal class ForegroundNotificationCoordinator(
             try {
                 fallbackNotificationProvider()
             } catch (e: Exception) {
+                LogUtils.w("ForegroundNotificationCoordinator", "Failed to build fallback notification", e)
                 return ForegroundStartResult.FAILED
             }
 
@@ -125,6 +128,7 @@ internal class ForegroundNotificationCoordinator(
      * Legacy overload for call-sites that have not been migrated to pass [Service].
      * Uses the deprecated lambda-based approach without API 34+ type support.
      */
+    @Synchronized
     internal fun startWithFallback(
         notificationId: Int,
         primaryNotification: Notification,
@@ -141,11 +145,13 @@ internal class ForegroundNotificationCoordinator(
             startCall(notificationId, primaryNotification)
             repromotePolicy.onPromotionSucceeded(notificationId)
             ForegroundStartResult.PRIMARY_STARTED
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            LogUtils.w("ForegroundNotificationCoordinator", "Legacy startForeground failed", e)
             val fallbackNotification =
                 try {
                     fallbackNotificationProvider()
-                } catch (_: Exception) {
+                } catch (e2: Exception) {
+                    LogUtils.w("ForegroundNotificationCoordinator", "Failed to build fallback notification", e2)
                     return ForegroundStartResult.FAILED
                 }
 
@@ -153,7 +159,8 @@ internal class ForegroundNotificationCoordinator(
                 startCall(notificationId, fallbackNotification)
                 repromotePolicy.onPromotionSucceeded(notificationId)
                 ForegroundStartResult.FALLBACK_STARTED
-            } catch (_: Exception) {
+            } catch (e3: Exception) {
+                LogUtils.w("ForegroundNotificationCoordinator", "Legacy fallback startForeground failed", e3)
                 ForegroundStartResult.FAILED
             }
         }

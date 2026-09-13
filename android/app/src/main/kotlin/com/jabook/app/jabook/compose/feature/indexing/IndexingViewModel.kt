@@ -16,15 +16,20 @@ package com.jabook.app.jabook.compose.feature.indexing
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.WorkInfo
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.indexing.ForumIndexer
+import com.jabook.app.jabook.compose.data.indexing.IndexProgress
 import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
 import com.jabook.app.jabook.compose.data.local.dao.IndexMetadata
+import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.remote.RuTrackerError
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
+import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
+import com.jabook.app.jabook.compose.data.worker.IndexingWorkScheduler
+import com.jabook.app.jabook.compose.data.worker.IndexingWorker
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
 import com.jabook.app.jabook.compose.domain.usecase.auth.WithAuthorisedCheckUseCase
-import com.jabook.app.jabook.indexing.IndexingForegroundService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -32,6 +37,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -46,6 +52,9 @@ public class IndexingViewModel
         private val forumIndexer: ForumIndexer,
         private val authRepository: AuthRepository,
         private val withAuthorisedCheckUseCase: WithAuthorisedCheckUseCase,
+        private val indexingWorkScheduler: IndexingWorkScheduler,
+        private val settingsRepository: SettingsRepository,
+        private val userPreferencesRepository: UserPreferencesRepository,
         private val loggerFactory: LoggerFactory,
     ) : ViewModel() {
         private companion object {
@@ -69,10 +78,19 @@ public class IndexingViewModel
         public val isIndexing: StateFlow<Boolean> = _isIndexing.asStateFlow()
         private val _indexSize = MutableStateFlow(0)
         public val indexSize: StateFlow<Int> = _indexSize.asStateFlow()
-        private var serviceMonitorJob: Job? = null
+
+        // Per-forum statuses — collected by UI
+        public val forumStatuses: StateFlow<List<com.jabook.app.jabook.compose.data.indexing.ForumStatus>>
+            get() = forumIndexer.forumStatuses
+        private var indexingMonitorJob: Job? = null
+        private var indexingJob: Job? = null
+
+        /** Set by [pauseIndexing]; consumed by the monitor when the work terminates. */
+        @Volatile
+        private var pauseRequested: Boolean = false
 
         init {
-            startServiceCompletionMonitor()
+            startIndexingWorkMonitor()
             viewModelScope.launch {
                 refreshIndexSize()
             }
@@ -93,12 +111,18 @@ public class IndexingViewModel
 
             // If context is provided, use foreground service for background indexing
             if (context != null) {
-                logger.d { "Starting indexing via Foreground Service (background mode)" }
+                logger.d { "Starting indexing via WorkManager" }
+                pauseRequested = false
                 _isIndexing.value = true
                 _indexingStartTime.value = System.currentTimeMillis()
                 _indexingProgress.value = IndexingProgress.Idle
-                IndexingForegroundService.start(context)
-                startServiceCompletionMonitor()
+                viewModelScope.launch {
+                    indexingWorkScheduler.enqueue(
+                        forumIds = resolveSelectedForumIdsOrNull(),
+                        daysWindow = resolveDaysWindowOrNull(),
+                    )
+                }
+                startIndexingWorkMonitor()
                 // Progress will be updated from service via broadcast or we can observe service state
                 // For now, we'll update state when service completes
                 return
@@ -106,49 +130,70 @@ public class IndexingViewModel
 
             // Fallback: direct indexing (for testing or when context is not available)
             logger.d { "Starting indexing directly (no context provided)" }
-            viewModelScope.launch {
-                _isIndexing.value = true
-                _indexingStartTime.value = System.currentTimeMillis()
-                _indexingProgress.value = IndexingProgress.Idle
+            indexingJob =
+                viewModelScope.launch {
+                    _isIndexing.value = true
+                    _indexingStartTime.value = System.currentTimeMillis()
+                    _indexingProgress.value = IndexingProgress.Idle
 
-                try {
-                    // Use WithAuthorisedCheckUseCase to ensure authentication before indexing
-                    // RuTracker requires authentication to access forum pages
-                    withAuthorisedCheckUseCase(operationId = "indexing") {
-                        forumIndexer.indexForums(
-                            forumIds = RutrackerApi.AUDIOBOOKS_FORUM_IDS,
-                            preloadCovers = true,
-                        ) { progress ->
-                            _indexingProgress.value = progress
+                    try {
+                        // Use WithAuthorisedCheckUseCase to ensure authentication before indexing
+                        // RuTracker requires authentication to access forum pages
+                        val forumIds = resolveSelectedForumIdsOrAll()
+                        val daysWindow = resolveDaysWindowOrZero()
+                        withAuthorisedCheckUseCase(operationId = "indexing") {
+                            forumIndexer.indexForums(
+                                forumIds = forumIds,
+                                daysWindow = daysWindow,
+                            ) { progress ->
+                                _indexingProgress.value = progress
+                            }
                         }
+                    } catch (e: RuTrackerError.Unauthorized) {
+                        logger.w { "Indexing requires authentication" }
+                        _indexingProgress.value =
+                            IndexingProgress.Error(
+                                message = "Требуется авторизация для индексации форумов. Пожалуйста, войдите в аккаунт.",
+                            )
+                    } catch (e: com.jabook.app.jabook.compose.data.indexing.IndexingInProgressException) {
+                        logger.i { "Indexing already in progress elsewhere; direct run skipped" }
+                        _indexingProgress.value = IndexingProgress.Idle
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        logger.e({ "Indexing failed" }, e)
+                        _indexingProgress.value =
+                            IndexingProgress.Error(
+                                message = e.message ?: "Unknown error",
+                            )
+                    } finally {
+                        _isIndexing.value = false
+                        indexingJob = null
                     }
-                } catch (e: RuTrackerError.Unauthorized) {
-                    logger.w { "Indexing requires authentication" }
-                    _indexingProgress.value =
-                        IndexingProgress.Error(
-                            message = "Требуется авторизация для индексации форумов. Пожалуйста, войдите в аккаунт.",
-                        )
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    logger.e({ "Indexing failed" }, e)
-                    _indexingProgress.value =
-                        IndexingProgress.Error(
-                            message = e.message ?: "Unknown error",
-                        )
-                } finally {
-                    _isIndexing.value = false
                 }
-            }
         }
 
         /**
          * Cancel indexing (if possible).
          */
         public fun cancelIndexing() {
-            // Note: Current implementation doesn't support cancellation
-            // This is a placeholder for future implementation
-            logger.d { "Cancel indexing requested (not yet implemented)" }
+            pauseRequested = false
+            indexingWorkScheduler.cancel()
+            _isIndexing.value = false
+            _indexingProgress.value = IndexingProgress.Idle
+        }
+
+        /**
+         * Pause indexing: cancels the WorkManager run; page cursors already
+         * persisted by ForumIndexer survive, so the run is resumable via
+         * [startIndexing]. When the cancelled terminal state arrives and
+         * cursors exist, the progress becomes [IndexingProgress.Paused].
+         */
+        public fun pauseIndexing() {
+            if (!_isIndexing.value) return
+            logger.d { "Pausing indexing (work will be cancelled; cursors preserved)" }
+            pauseRequested = true
+            indexingWorkScheduler.cancel()
         }
 
         /**
@@ -214,20 +259,31 @@ public class IndexingViewModel
          * @param context Context needed to start foreground service
          */
         public fun startIndexingInBackground(context: android.content.Context) {
-            logger.d { "Transferring indexing to foreground service" }
+            logger.d { "Transferring indexing to WorkManager" }
 
             // Stop current indexing in ViewModel if running
             if (_isIndexing.value) {
                 logger.d { "Stopping ViewModel indexing, transferring to service" }
+                indexingJob?.cancel()
+                indexingJob = null
                 _isIndexing.value = false
-                // Note: We can't actually cancel the indexing job, but we stop updating progress
-                // The service will start its own indexing
             }
 
             // Start foreground service
-            IndexingForegroundService.start(context)
+            viewModelScope.launch {
+                indexingWorkScheduler.enqueue(
+                    forumIds = resolveSelectedForumIdsOrNull(),
+                    daysWindow = resolveDaysWindowOrNull(),
+                )
+            }
+            pauseRequested = false
             _isIndexing.value = true
-            startServiceCompletionMonitor()
+            // Hiding the dialog must not restart the clock — only set when unset
+            // (i.e. direct indexing handed over to the background service).
+            if (_indexingStartTime.value == null) {
+                _indexingStartTime.value = System.currentTimeMillis()
+            }
+            startIndexingWorkMonitor()
         }
 
         /**
@@ -255,59 +311,118 @@ public class IndexingViewModel
                 _clearingInProgress.value = false
             }
 
-        private fun startServiceCompletionMonitor() {
-            if (serviceMonitorJob?.isActive == true) {
+        // ponytail: blank selection = all forums; null skips KEY_FORUM_IDS entirely
+        @Suppress("RedundantSuspendModifier") // Flow.first() is suspend; detekt misses generated Proto types.
+        private suspend fun resolveSelectedForumIdsOrNull(): String? {
+            val selected =
+                try {
+                    settingsRepository.userPreferences.first().selectedForumIds
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    ""
+                }
+            return selected.ifBlank { null }
+        }
+
+        private suspend fun resolveSelectedForumIdsOrAll(): String = resolveSelectedForumIdsOrNull() ?: RutrackerApi.AUDIOBOOKS_FORUM_IDS
+
+        // ponytail: window flows via scheduler input or worker's own settings read; 0 = All legacy crawl
+        @Suppress("RedundantSuspendModifier") // Flow.first() is suspend; detekt misses generated Proto types.
+        private suspend fun resolveDaysWindowOrNull(): Int? =
+            try {
+                settingsRepository.userPreferences.first().indexingDaysWindow
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
+
+        private suspend fun resolveDaysWindowOrZero(): Int = resolveDaysWindowOrNull() ?: 0
+
+        private fun startIndexingWorkMonitor() {
+            if (indexingMonitorJob?.isActive == true) {
                 return
             }
-            serviceMonitorJob =
+            indexingMonitorJob =
                 viewModelScope.launch {
-                    var serviceWasRunning = false
-                    var lastIdleIndexRefreshAt = 0L
-                    while (isActive) {
-                        val running = IndexingForegroundService.isRunning()
-                        val serviceProgress = IndexingForegroundService.getCurrentProgress()
-
-                        if (running) {
-                            serviceWasRunning = true
+                    var workWasActive = false
+                    indexingWorkScheduler.observe().collect { workInfos ->
+                        val activeWork = workInfos.firstOrNull { !it.state.isFinished }
+                        if (activeWork != null) {
+                            workWasActive = true
                             _isIndexing.value = true
-                            if (serviceProgress != null) {
-                                _indexingProgress.value = serviceProgress
-                            }
-                        } else {
-                            if (serviceWasRunning) {
-                                serviceWasRunning = false
-                                val sizeAfterFinish = resolveIndexSizeAfterServiceCompletion()
-                                if (
-                                    _indexingProgress.value is IndexingProgress.InProgress ||
-                                    _indexingProgress.value is IndexingProgress.Idle
-                                ) {
-                                    _indexingProgress.value =
-                                        if (sizeAfterFinish > 0) {
-                                            IndexingProgress.Completed(
-                                                totalTopics = sizeAfterFinish,
-                                                durationMs = 0L,
-                                            )
-                                        } else {
-                                            IndexingProgress.Error("Индексация завершилась без данных")
-                                        }
-                                }
-                            } else if (_indexingProgress.value is IndexingProgress.Idle) {
-                                val now = System.currentTimeMillis()
-                                if (now - lastIdleIndexRefreshAt >= 10_000L) {
-                                    refreshIndexSize()
-                                    lastIdleIndexRefreshAt = now
-                                }
-                            }
+                            _indexingProgress.value = activeWork.toIndexingProgress()
+                        } else if (workWasActive) {
+                            workWasActive = false
                             _isIndexing.value = false
+                            // KEEP policy keeps rows from every attempt; any{SUCCEEDED}
+                            // would let a historical success mask a fresh FAILED run.
+                            // DAO returns insertion order (no ORDER BY) — newest last.
+                            val latestTerminal = workInfos.lastOrNull { it.state.isFinished }
+                            if (pauseRequested && latestTerminal?.state == WorkInfo.State.CANCELLED) {
+                                pauseRequested = false
+                                val cursors =
+                                    runCatching { userPreferencesRepository.getIndexingPageCursors() }
+                                        .onFailure { logger.w { "Could not read indexing page cursors: ${it.message}" } }
+                                        .getOrDefault(emptyMap())
+                                if (cursors.isNotEmpty()) {
+                                    logger.d { "Indexing paused with ${cursors.size} forum cursor(s); resumable" }
+                                    _indexingProgress.value = IndexingProgress.Paused
+                                    return@collect
+                                }
+                                logger.d { "Indexing cancelled without persisted cursors; nothing to resume" }
+                            }
+                            pauseRequested = false
+                            val sizeAfterFinish = resolveIndexSizeAfterServiceCompletion()
+                            val durationMs =
+                                _indexingStartTime.value
+                                    ?.let { start -> System.currentTimeMillis() - start }
+                                    ?: 0L
+                            _indexingProgress.value =
+                                when {
+                                    latestTerminal?.state == WorkInfo.State.SUCCEEDED &&
+                                        latestTerminal.outputData.getString(IndexingWorker.KEY_ERROR_REASON) ==
+                                        IndexingWorker.ERROR_REASON_AUTH_EXPIRED -> {
+                                        // Message is resolved to the localized string by
+                                        // IndexingProgressDialog via errorReason.
+                                        IndexingProgress.Error(
+                                            message = "RuTracker session expired",
+                                            errorReason = IndexingProgress.ERROR_REASON_AUTH_EXPIRED,
+                                        )
+                                    }
+                                    latestTerminal?.state == WorkInfo.State.SUCCEEDED && sizeAfterFinish > 0 -> {
+                                        IndexingProgress.Completed(
+                                            totalTopics = sizeAfterFinish,
+                                            durationMs = durationMs,
+                                        )
+                                    }
+                                    latestTerminal?.state == WorkInfo.State.FAILED -> {
+                                        val errorMsg = latestTerminal.outputData.getString("error_message") ?: "Unknown error"
+                                        IndexingProgress.Error(errorMsg)
+                                    }
+                                    else -> {
+                                        IndexingProgress.Error("Индексация не завершилась успешно")
+                                    }
+                                }
                         }
-                        delay(1000L)
                     }
                 }
         }
 
-        override fun onCleared() {
-            super.onCleared()
-            serviceMonitorJob?.cancel()
-            serviceMonitorJob = null
-        }
+        private fun WorkInfo.toIndexingProgress(): IndexingProgress =
+            IndexingProgress.InProgress(
+                IndexProgress(
+                    currentForumName = progress.getString(IndexingWorker.KEY_PROGRESS_MESSAGE).orEmpty(),
+                    phase = progress.getString(IndexingWorker.KEY_PROGRESS_PHASE),
+                    topicsFound = progress.getInt(IndexingWorker.KEY_PROGRESS_TOPICS, 0),
+                    totalForumsCompleted = progress.getInt(IndexingWorker.KEY_PROGRESS_FORUMS_DONE, 0),
+                    totalForums = progress.getInt(IndexingWorker.KEY_PROGRESS_FORUMS_TOTAL, 0),
+                    reportedPercent =
+                        progress
+                            .getInt(IndexingWorker.KEY_PROGRESS_PERCENT, -1)
+                            .takeIf { it >= 0 }
+                            ?.div(100f),
+                ),
+            )
     }

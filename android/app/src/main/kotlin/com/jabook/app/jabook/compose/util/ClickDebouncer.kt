@@ -47,20 +47,6 @@ public class ClickDebouncer(
                 action()
             }
     }
-
-    /**
-     * Executes the action immediately if not debounced, otherwise cancels previous and schedules new.
-     *
-     * @param action Action to execute
-     */
-    public fun debounceImmediate(action: () -> Unit) {
-        lastClickJob?.cancel()
-        action()
-        lastClickJob =
-            scope.launch {
-                delay(debounceTimeMs.toLong())
-            }
-    }
 }
 
 /**

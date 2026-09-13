@@ -24,15 +24,14 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.ArgumentCaptor
-import org.mockito.ArgumentMatchers.any
 import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.ArgumentMatchers.anyLong
-import org.mockito.Mockito.mock
-import org.mockito.Mockito.never
-import org.mockito.Mockito.times
-import org.mockito.Mockito.verify
-import org.mockito.Mockito.`when`
-import org.robolectric.RobolectricTestRunner
+import org.mockito.kotlin.any
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 
 /**
  * Unit tests for [BookCompletionCoordinator].
@@ -40,7 +39,7 @@ import org.robolectric.RobolectricTestRunner
  * Covers all completion sources (STATE_ENDED, DISCONTINUITY, POSITION_CHECK, etc.)
  * and verifies idempotency, index normalization, and side-effect correctness.
  */
-@RunWith(RobolectricTestRunner::class)
+@RunWith(org.robolectric.RobolectricTestRunner::class)
 class BookCompletionCoordinatorTest {
     private lateinit var coordinator: BookCompletionCoordinator
     private lateinit var player: Player
@@ -58,10 +57,10 @@ class BookCompletionCoordinatorTest {
     @Before
     fun setup() {
         context = mock()
-        `when`(context.packageName).thenReturn("com.jabook.app.jabook")
+        whenever(context.packageName).thenReturn("com.jabook.app.jabook")
         player = mock()
-        `when`(player.currentPosition).thenReturn(50_000L)
-        `when`(player.duration).thenReturn(60_000L)
+        whenever(player.currentPosition).thenReturn(50_000L)
+        whenever(player.duration).thenReturn(60_000L)
 
         isBookCompleted = false
         lastCompletedTrackIndex = -1
@@ -100,7 +99,7 @@ class BookCompletionCoordinatorTest {
         assertTrue(positionSaved)
         verify(player).pause()
         verify(player).seekTo(totalTracks - 1, 50_000L)
-        verify(context).sendBroadcast(any(Intent::class.java))
+        verify(context).sendBroadcast(any<Intent>())
     }
 
     @Test
@@ -178,8 +177,8 @@ class BookCompletionCoordinatorTest {
     fun `notifyCompletion normalizes out-of-bounds index to last track`() {
         // Index 0 is out of bounds for completion when it's not the actual last track
         // BookCompletionIndexPolicy should resolve it using saved index or last track
-        `when`(player.currentPosition).thenReturn(59_000L)
-        `when`(player.duration).thenReturn(60_000L)
+        whenever(player.currentPosition).thenReturn(59_000L)
+        whenever(player.duration).thenReturn(60_000L)
 
         val result =
             coordinator.notifyCompletion(
@@ -263,7 +262,7 @@ class BookCompletionCoordinatorTest {
 
     @Test
     fun `notifyCompletion falls back gracefully on seek error`() {
-        `when`(player.seekTo(anyInt(), anyLong())).thenThrow(RuntimeException("seek failed"))
+        whenever(player.seekTo(anyInt(), anyLong())).thenThrow(RuntimeException("seek failed"))
 
         val result =
             coordinator.notifyCompletion(
@@ -301,7 +300,7 @@ class BookCompletionCoordinatorTest {
 
     @Test
     fun `notifyCompletion broadcasts BOOK_COMPLETED intent`() {
-        val intentCaptor = ArgumentCaptor.forClass(Intent::class.java)
+        val captor = ArgumentCaptor.forClass(Intent::class.java)
 
         coordinator.notifyCompletion(
             player = player,
@@ -309,8 +308,8 @@ class BookCompletionCoordinatorTest {
             source = BookCompletionCoordinator.Source.SMART_COMPLETION,
         )
 
-        verify(context).sendBroadcast(intentCaptor.capture())
-        val captured = intentCaptor.value
+        verify(context).sendBroadcast(captor.capture())
+        val captured = captor.value
         assertEquals(
             "com.jabook.app.jabook.BOOK_COMPLETED",
             captured.action,

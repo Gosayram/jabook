@@ -40,24 +40,16 @@ internal object ChapterSeekbarPolicy {
         chapters: List<Chapter>,
         currentChapterIndex: Int,
         currentChapterPositionMs: Long,
+        fallbackDurationMs: Long = 0L,
     ): ChapterSeekbarTimeline {
-        if (chapters.isEmpty()) {
-            return ChapterSeekbarTimeline(
-                totalDurationMs = 0L,
-                globalPositionMs = 0L,
-                chapterMarkersFractions = emptyList(),
-            )
-        }
-
-        val durations = chapters.map { it.duration.inWholeMilliseconds.coerceAtLeast(0L) }
-        val totalDuration = durations.sum().coerceAtLeast(0L)
-        if (totalDuration <= 0L) {
-            return ChapterSeekbarTimeline(
-                totalDurationMs = 0L,
-                globalPositionMs = 0L,
-                chapterMarkersFractions = emptyList(),
-            )
-        }
+        val durations =
+            effectiveDurations(chapters, fallbackDurationMs)
+                ?: return ChapterSeekbarTimeline(
+                    totalDurationMs = 0L,
+                    globalPositionMs = 0L,
+                    chapterMarkersFractions = emptyList(),
+                )
+        val totalDuration = durations.sum()
 
         val safeChapterIndex = currentChapterIndex.coerceIn(0, chapters.lastIndex)
         val chapterOffset = durations.take(safeChapterIndex).sum()
@@ -67,7 +59,7 @@ internal object ChapterSeekbarPolicy {
 
         val markers = mutableListOf<Float>()
         var cumulative = 0L
-        for (i in chapters.indices) {
+        for (i in durations.indices) {
             if (i > 0) {
                 val fraction = (cumulative.toFloat() / totalDuration.toFloat()).coerceIn(0f, 1f)
                 if (fraction > 0f && fraction < 1f) {
@@ -89,18 +81,15 @@ internal object ChapterSeekbarPolicy {
     fun resolveSeekTarget(
         chapters: List<Chapter>,
         progress: Float,
+        fallbackDurationMs: Long = 0L,
     ): ChapterSeekTarget {
-        if (chapters.isEmpty()) {
-            return ChapterSeekTarget(chapterIndex = 0, chapterPositionMs = 0L)
-        }
-        val durations = chapters.map { it.duration.inWholeMilliseconds.coerceAtLeast(0L) }
-        val totalDuration = durations.sum().coerceAtLeast(0L)
-        if (totalDuration <= 0L) {
-            return ChapterSeekTarget(
-                chapterIndex = 0,
-                chapterPositionMs = 0L,
-            )
-        }
+        val durations =
+            effectiveDurations(chapters, fallbackDurationMs)
+                ?: return ChapterSeekTarget(
+                    chapterIndex = 0,
+                    chapterPositionMs = 0L,
+                )
+        val totalDuration = durations.sum()
 
         val clampedProgress = progress.takeIf { it.isFinite() }?.coerceIn(0f, 1f) ?: 0f
         val targetGlobalPosition = (clampedProgress * totalDuration.toFloat()).toLong().coerceIn(0L, totalDuration)
@@ -120,8 +109,25 @@ internal object ChapterSeekbarPolicy {
         }
 
         return ChapterSeekTarget(
-            chapterIndex = durations.lastIndex,
+            chapterIndex = chapters.lastIndex,
             chapterPositionMs = durations.last(),
         )
+    }
+
+    /**
+     * Per-chapter durations aligned with original playlist indices (zero-duration chapters kept as
+     * zero-width segments — the service playlist includes them, so excluding them here would cause
+     * index divergence). When every duration is 0 (failed metadata scans) and a fallback duration is
+     * available, distribute it evenly so the slider remains seekable.
+     */
+    private fun effectiveDurations(
+        chapters: List<Chapter>,
+        fallbackDurationMs: Long,
+    ): List<Long>? {
+        if (chapters.isEmpty()) return null
+        val durations = chapters.map { it.duration.inWholeMilliseconds.coerceAtLeast(0L) }
+        if (durations.sum() > 0L) return durations
+        val each = if (fallbackDurationMs > 0L) fallbackDurationMs / durations.size else 0L
+        return if (each > 0L) List(durations.size) { each } else null
     }
 }

@@ -15,11 +15,11 @@
 package com.jabook.app.jabook.compose.data.local.dao
 
 import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Upsert
 import com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
  * DAO for favorites table operations.
@@ -30,13 +30,17 @@ public interface FavoriteDao {
      * Get all favorites ordered by date added (newest first).
      */
     @Query("SELECT * FROM favorites ORDER BY added_to_favorites DESC")
-    public fun getAllFavorites(): Flow<List<FavoriteEntity>>
+    public fun getAllFavoritesInternal(): Flow<List<FavoriteEntity>>
+
+    public fun getAllFavorites(): Flow<List<FavoriteEntity>> = getAllFavoritesInternal().distinctUntilChanged()
 
     /**
      * Get set of all favorite topic IDs for quick membership checks.
      */
     @Query("SELECT topic_id FROM favorites")
-    public fun getAllFavoriteIds(): Flow<List<String>>
+    public fun getAllFavoriteIdsInternal(): Flow<List<String>>
+
+    public fun getAllFavoriteIds(): Flow<List<String>> = getAllFavoriteIdsInternal().distinctUntilChanged()
 
     /**
      * Get a single favorite by topic ID.
@@ -47,7 +51,7 @@ public interface FavoriteDao {
     /**
      * Insert or replace a favorite.
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     public suspend fun insertFavorite(favorite: FavoriteEntity)
 
     /**

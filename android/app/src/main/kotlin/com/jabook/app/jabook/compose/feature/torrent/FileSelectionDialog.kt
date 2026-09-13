@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -31,12 +32,12 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TriStateCheckbox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -46,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
@@ -84,10 +86,10 @@ public fun FileSelectionDialog(
     val trailingSelectionState = remember { mutableStateMapOf<String, Boolean>() } // For restoring selection when unchecked
     val expansionState = remember { mutableStateMapOf<String, Boolean>() }
 
-    // Initialize selection (select all by default)
+    // Initialize selection from live priorities (isSelected is derived from them)
     remember(files) {
         files.forEach { file ->
-            selectionState[file.path] = true
+            selectionState[file.path] = file.isSelected
         }
         true
     }
@@ -119,6 +121,7 @@ public fun FileSelectionDialog(
                     items(
                         items = rootNodes,
                         key = { node -> node.path },
+                        contentType = { "file_node" },
                     ) { node ->
                         FileNodeItem(
                             node = node,
@@ -194,6 +197,7 @@ private fun FileNodeItem(
         modifier =
             Modifier
                 .fillMaxWidth()
+                .heightIn(min = 48.dp)
                 .clickable {
                     if (node.isDirectory) {
                         onToggleExpansion(node.path)
@@ -217,15 +221,15 @@ private fun FileNodeItem(
             Spacer(Modifier.width(24.dp))
         }
 
-        // Checkbox
-        Checkbox(
-            checked = isSelected == true,
-            onCheckedChange = { checked ->
-                onToggleSelection(node.path, checked)
-            },
+        TriStateCheckbox(
+            state =
+                when (isSelected) {
+                    true -> ToggleableState.On
+                    false -> ToggleableState.Off
+                    null -> ToggleableState.Indeterminate
+                },
+            onClick = { onToggleSelection(node.path, isSelected != true) },
             modifier = Modifier.size(24.dp),
-            // Note: Compose Material3 Checkbox doesn't support tri-state visual natively easily without custom implementation
-            // or TriStateCheckbox. Let's use standard for now, but TriState would be better.
         )
 
         Spacer(Modifier.width(8.dp))
@@ -402,15 +406,8 @@ private fun buildFileTree(files: List<TorrentFile>): List<FileNode> {
 }
 
 @Composable
-private fun formatSize(bytes: Long): String {
-    val kb = bytes / 1024.0
-    val mb = kb / 1024.0
-    val gb = mb / 1024.0
-
-    return when {
-        gb >= 1.0 -> stringResource(R.string.size_gb, gb)
-        mb >= 1.0 -> stringResource(R.string.size_mb, mb)
-        kb >= 1.0 -> stringResource(R.string.size_kb, kb)
-        else -> stringResource(R.string.size_bytes, bytes)
-    }
-}
+private fun formatSize(bytes: Long): String =
+    com.jabook.app.jabook.compose.core.util.UiFormatters.formatFileSize(
+        bytes,
+        androidx.compose.ui.platform.LocalContext.current.resources,
+    )

@@ -19,6 +19,7 @@ import android.os.Bundle
 internal object SetPlaylistCommandArgsParser {
     data class ParsedSetPlaylistArgs(
         val filePaths: List<String>,
+        val playlistItems: List<PlaylistItem>,
         val metadata: Map<String, String>?,
         val initialTrackIndex: Int?,
         val initialPositionMs: Long?,
@@ -34,6 +35,27 @@ internal object SetPlaylistCommandArgsParser {
         if (filePaths.isEmpty()) {
             return null
         }
+        val mediaIds = args.getStringArray(AudioPlayerLibrarySessionCallback.ARG_MEDIA_IDS)
+        val clipStarts = args.getLongArray(AudioPlayerLibrarySessionCallback.ARG_CLIP_STARTS_MS)
+        val clipEnds = args.getLongArray(AudioPlayerLibrarySessionCallback.ARG_CLIP_ENDS_MS)
+        if (
+            (mediaIds != null && mediaIds.size != filePaths.size) ||
+            (clipStarts != null && clipStarts.size != filePaths.size) ||
+            (clipEnds != null && clipEnds.size != filePaths.size)
+        ) {
+            return null
+        }
+        val playlistItems =
+            runCatching {
+                filePaths.mapIndexed { index, path ->
+                    PlaylistItem(
+                        path = path,
+                        mediaId = mediaIds?.get(index)?.takeIf(String::isNotBlank) ?: path,
+                        clipStartPositionMs = clipStarts?.get(index)?.takeUnless { it == CLIP_POSITION_UNSET },
+                        clipEndPositionMs = clipEnds?.get(index)?.takeUnless { it == CLIP_POSITION_UNSET },
+                    )
+                }
+            }.getOrNull() ?: return null
 
         val metadata =
             args.getBundle(AudioPlayerLibrarySessionCallback.ARG_METADATA)?.let { metadataBundle ->
@@ -64,10 +86,13 @@ internal object SetPlaylistCommandArgsParser {
 
         return ParsedSetPlaylistArgs(
             filePaths = filePaths,
+            playlistItems = playlistItems,
             metadata = metadata,
             initialTrackIndex = initialTrackIndex,
             initialPositionMs = initialPositionMs,
             groupPath = args.getString(AudioPlayerLibrarySessionCallback.ARG_GROUP_PATH),
         )
     }
+
+    private const val CLIP_POSITION_UNSET = Long.MIN_VALUE
 }

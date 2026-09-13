@@ -17,6 +17,11 @@ package com.jabook.app.jabook.audio
 import androidx.media3.common.Player
 import androidx.media3.datasource.HttpDataSource
 import com.jabook.app.jabook.util.LogUtils
+import com.jabook.app.jabook.utils.RetryConfig
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.io.File
 
 /**
@@ -35,22 +40,39 @@ import java.io.File
  * @param scheduleNotificationUpdate Schedule notification refresh
  */
 internal class PlayerErrorHandler(
+    private val scope: CoroutineScope,
     private val getActivePlayer: () -> Player,
     private val getActualPlaylistSize: () -> Int,
     private val getCurrentMetadata: () -> Map<String, String>?,
     private val getCurrentBookId: () -> String?,
     private val scheduleNotificationUpdate: () -> Unit = {},
+    private val onTerminalError: (String) -> Unit = {},
+    /**
+     * Graceful fallback for renderer error 5001 (audio sink rejected the input format,
+     * e.g. float PCM reaching the 16-bit processor chain). Returns true when the caller
+     * rebuilt the player without processors; false (or null) falls through to the
+     * regular retry/skip policy. One-shot — the callback guards itself against loops.
+     */
+    private val retryWithoutProcessors: (() -> Boolean)? = null,
 ) {
     private var retryCount = 0
     private var skipCount = 0
+    private var retryJob: Job? = null
     private val maxRetries = 3
     private val maxSkips = 5
-    private val retryDelayMs = 2000L
+    private val retryConfig = RetryConfig(maxRetries = maxRetries, initialDelayMs = 2000L)
 
     /** Resets retry and skip counts on successful playback. */
     fun resetCounts() {
         retryCount = 0
         skipCount = 0
+        cancelPendingRetry()
+    }
+
+    /** Cancels a retry that no longer belongs to the current playback. */
+    fun cancelPendingRetry() {
+        retryJob?.cancel()
+        retryJob = null
     }
 
     /** Logs detailed error context (HTTP, IO, book/track info). */
@@ -62,17 +84,16 @@ internal class PlayerErrorHandler(
         val bookId = getCurrentBookId() ?: "unknown"
         val bookName = metadata?.get("title") ?: "unknown"
 
-        LogUtils.e(TAG, "❌ Playback error: track=$currentIndex, mediaId=$mediaId, code=${error.errorCode}", error)
-        LogUtils.e(TAG, "❌ Error context: bookId=$bookId, bookName=$bookName, chapterIdx=$currentIndex")
+        LogUtils.e(TAG, "Playback error: track=$currentIndex, mediaId=$mediaId, code=${error.errorCode}", error)
+        LogUtils.e(TAG, "Error context: bookId=$bookId, bookName=$bookName, chapterIdx=$currentIndex")
 
         val cause = error.cause
         when {
             cause is HttpDataSource.InvalidResponseCodeException -> {
-                LogUtils.e(TAG, "❌ HTTP error: code=${cause.responseCode}, msg=${cause.responseMessage}")
-                if (!cause.headerFields.isEmpty()) LogUtils.e(TAG, "❌ HTTP headers: ${cause.headerFields}")
+                LogUtils.e(TAG, "HTTP error: code=${cause.responseCode}, msg=${cause.responseMessage}")
             }
-            cause is HttpDataSource.HttpDataSourceException -> LogUtils.e(TAG, "❌ HTTP data source error: type=${cause.type}")
-            cause is java.io.IOException -> LogUtils.e(TAG, "❌ IO error: ${cause.message}")
+            cause is HttpDataSource.HttpDataSourceException -> LogUtils.e(TAG, "HTTP data source error: type=${cause.type}")
+            cause is java.io.IOException -> LogUtils.e(TAG, "IO error: ${cause.message}")
         }
     }
 
@@ -83,6 +104,17 @@ internal class PlayerErrorHandler(
     fun handlePlayerError(error: androidx.media3.common.PlaybackException) {
         ErrorHandler.handlePlaybackError(TAG, error, "Player error during playback")
 
+        // Error 5001 with the processors-enabled player almost always means the
+        // processor chain rejected the input format (UnhandledInputFormatException).
+        // Rebuild once without processors instead of skipping every track.
+        if (error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED &&
+            retryWithoutProcessors?.invoke() == true
+        ) {
+            LogUtils.w(TAG, "Audio sink rejected input format — retrying without processors")
+            scheduleNotificationUpdate()
+            return
+        }
+
         val resolution =
             PlaybackErrorPolicy.resolve(
                 errorCode = error.errorCode,
@@ -91,29 +123,59 @@ internal class PlayerErrorHandler(
                 fallbackMessage = error.message,
             )
 
+        var isTerminal = false
         val userMessage =
             when (resolution.action) {
                 PlaybackRecoveryAction.RETRY -> {
                     retryCount++
                     LogUtils.w(TAG, "${resolution.userMessage} ($retryCount/$maxRetries)")
-                    val backoffDelay = retryDelayMs * retryCount
-                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                        val player = getActivePlayer()
-                        player.prepare()
-                        player.playWhenReady = true
-                        LogUtils.d(TAG, "Retry $retryCount after error (delay: ${backoffDelay}ms)")
-                    }, backoffDelay)
+                    val backoffDelay = retryConfig.calculateDelayWithJitter(retryCount - 1)
+                    val failedPlayer = getActivePlayer()
+                    val failedMediaId = failedPlayer.currentMediaItem?.mediaId
+                    cancelPendingRetry()
+                    retryJob =
+                        scope.launch {
+                            delay(backoffDelay)
+                            if (getActivePlayer() !== failedPlayer ||
+                                !failedPlayer.playWhenReady ||
+                                failedPlayer.currentMediaItem?.mediaId != failedMediaId
+                            ) {
+                                return@launch
+                            }
+                            // spotube refreshStream: HEAD the cached remote URL before
+                            // replaying it — a dead URL would just fail prepare() again.
+                            val failedUri = failedPlayer.currentMediaItem?.localConfiguration?.uri
+                            if (failedUri != null &&
+                                MediaSourceValidator.remoteRevalidator?.revalidate(failedUri) == RemoteSourceStatus.DEAD
+                            ) {
+                                LogUtils.w(TAG, "Cached remote source dead, escalating past retry: $failedUri")
+                                if (!attemptSkipOnError()) {
+                                    onTerminalError("Playback error: Unable to recover automatically.")
+                                }
+                                scheduleNotificationUpdate()
+                                return@launch
+                            }
+                            failedPlayer.prepare()
+                            LogUtils.d(TAG, "Retry $retryCount after error (delay: ${backoffDelay}ms)")
+                        }
                     return
                 }
                 PlaybackRecoveryAction.SKIP_TRACK -> {
                     if (attemptSkipOnError()) {
                         resolution.userMessage
                     } else {
+                        isTerminal = true
                         "Playback error: Unable to recover automatically."
                     }
                 }
-                PlaybackRecoveryAction.RESCAN_LIBRARY -> "${resolution.userMessage} Try re-scanning your library."
-                PlaybackRecoveryAction.NONE -> resolution.userMessage
+                PlaybackRecoveryAction.RESCAN_LIBRARY -> {
+                    isTerminal = true
+                    "${resolution.userMessage} Try re-scanning your library."
+                }
+                PlaybackRecoveryAction.NONE -> {
+                    isTerminal = true
+                    resolution.userMessage
+                }
             }
 
         val player = getActivePlayer()
@@ -122,7 +184,10 @@ internal class PlayerErrorHandler(
         val bookId = getCurrentBookId() ?: "unknown"
         val bookName = getCurrentMetadata()?.get("title") ?: "unknown"
 
-        LogUtils.e(TAG, "❌ $userMessage (track=$currentIndex/$totalTracks, retry=$retryCount/$maxRetries, book=$bookId)")
+        LogUtils.e(TAG, "$userMessage (track=$currentIndex/$totalTracks, retry=$retryCount/$maxRetries, book=$bookId)")
+        if (isTerminal) {
+            onTerminalError(userMessage)
+        }
         scheduleNotificationUpdate()
     }
 
@@ -167,7 +232,8 @@ internal class PlayerErrorHandler(
             LogUtils.w(TAG, "No more tracks, pausing")
             try {
                 player.playWhenReady = false
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                LogUtils.d(TAG, "Failed to pause (no tracks remaining)", e)
             }
         }
     }
@@ -234,7 +300,8 @@ internal class PlayerErrorHandler(
         LogUtils.w(TAG, "No available tracks found, pausing")
         try {
             player.playWhenReady = false
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            LogUtils.d(TAG, "Failed to pause (no available tracks)", e)
         }
     }
 

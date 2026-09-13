@@ -19,50 +19,54 @@ import org.junit.Test
 
 class NotificationChapterSubtitlePolicyTest {
     @Test
-    fun `resolveSubtitle prefers metadata trackTitle when present`() {
+    fun `resolveSubtitle returns Chapter X of Y at beginning`() {
         val subtitle =
             NotificationChapterSubtitlePolicy.resolveSubtitle(
                 path = "/storage/emulated/0/Books/01_intro.mp3",
                 index = 0,
                 metadata = mapOf("trackTitle" to "Chapter One"),
+                totalChapters = 12,
             )
 
-        assertEquals("Chapter One", subtitle)
+        assertEquals("Chapter 1 of 12", subtitle)
     }
 
     @Test
-    fun `resolveSubtitle falls back to local filename without extension`() {
+    fun `resolveSubtitle returns Chapter X of Y at end`() {
         val subtitle =
             NotificationChapterSubtitlePolicy.resolveSubtitle(
-                path = "/storage/emulated/0/Books/02_middle.m4b",
-                index = 1,
+                path = "/storage/emulated/0/Books/12_outro.mp3",
+                index = 11,
                 metadata = emptyMap(),
+                totalChapters = 12,
             )
 
-        assertEquals("02_middle", subtitle)
+        assertEquals("Chapter 12 of 12", subtitle)
     }
 
     @Test
-    fun `resolveSubtitle uses url path segment for remote sources`() {
+    fun `resolveSubtitle works with single track`() {
         val subtitle =
             NotificationChapterSubtitlePolicy.resolveSubtitle(
-                path = "https://cdn.example.com/audio/chapter_03.mp3",
-                index = 2,
+                path = "/storage/emulated/0/Books/only_one.mp3",
+                index = 0,
                 metadata = null,
+                totalChapters = 1,
             )
 
-        assertEquals("chapter_03", subtitle)
+        assertEquals("Chapter 1 of 1", subtitle)
     }
 
     @Test
-    fun `resolveSubtitle falls back to generic track title when path has no name`() {
+    fun `resolveSubtitle ignores trackTitle metadata`() {
         val subtitle =
             NotificationChapterSubtitlePolicy.resolveSubtitle(
                 path = "https://cdn.example.com/",
                 index = 4,
-                metadata = null,
+                metadata = mapOf("trackTitle" to "Some Title"),
+                totalChapters = 10,
             )
 
-        assertEquals("Track 5", subtitle)
+        assertEquals("Chapter 5 of 10", subtitle)
     }
 }

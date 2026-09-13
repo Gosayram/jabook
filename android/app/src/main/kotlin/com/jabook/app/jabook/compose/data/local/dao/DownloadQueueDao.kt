@@ -16,11 +16,11 @@ package com.jabook.app.jabook.compose.data.local.dao
 
 import androidx.room.Dao
 import androidx.room.Delete
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Upsert
 import com.jabook.app.jabook.compose.data.local.entity.DownloadQueueEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
  * DAO for download queue operations.
@@ -37,13 +37,17 @@ public interface DownloadQueueDao {
         ORDER BY priority DESC, queuePosition ASC
         """,
     )
-    public fun getActiveQueue(): Flow<List<DownloadQueueEntity>>
+    public fun getActiveQueueInternal(): Flow<List<DownloadQueueEntity>>
+
+    public fun getActiveQueue(): Flow<List<DownloadQueueEntity>> = getActiveQueueInternal().distinctUntilChanged()
 
     /**
      * Get all queue entries.
      */
     @Query("SELECT * FROM download_queue ORDER BY priority DESC, queuePosition ASC")
-    public fun getAllQueue(): Flow<List<DownloadQueueEntity>>
+    public fun getAllQueueInternal(): Flow<List<DownloadQueueEntity>>
+
+    public fun getAllQueue(): Flow<List<DownloadQueueEntity>> = getAllQueueInternal().distinctUntilChanged()
 
     /**
      * Get queue entry by book ID.
@@ -54,7 +58,7 @@ public interface DownloadQueueDao {
     /**
      * Insert or update queue entry.
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     public suspend fun insert(entity: DownloadQueueEntity)
 
     /**

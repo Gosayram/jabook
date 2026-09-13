@@ -29,18 +29,19 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.jabook.app.jabook.R
 import kotlin.math.roundToInt
 
 @Composable
@@ -55,29 +56,28 @@ public fun LyricsView(
     val density = LocalDensity.current
 
     // Find current line index (last line that started before currentPosition)
-    val currentIndex by remember(currentPosition, lyrics) {
-        derivedStateOf {
-            lyrics.indexOfLast { it.timeMs <= currentPosition }.coerceAtLeast(0)
-        }
-    }
+    val currentIndex = lyrics.indexOfLast { it.timeMs <= currentPosition }.coerceAtLeast(0)
 
     // Auto-scroll logic
-    // We want to scroll so the active item is centered.
+    // We want to scroll so the active item is centered, but never fight an active user scroll
+    // or yank the list when the target line is already on screen.
     LaunchedEffect(currentIndex) {
-        if (lyrics.isNotEmpty()) {
-            try {
-                // Calculate offset to center the item
-                // This is an estimation, precise centering requires item height knowledge
-                // which LazyList doesn't provide easily for non-visible items.
-                // However, animateScrollToItem with generous padding usually works well.
-                listState.animateScrollToItem(
-                    index = currentIndex,
-                    // 150dp offset is roughly half of the container height (300dp-ish usually)
-                    scrollOffset = -with(density) { 100.dp.toPx() }.roundToInt(),
-                )
-            } catch (e: Exception) {
-                // Ignore scroll errors
-            }
+        if (lyrics.isEmpty()) return@LaunchedEffect
+        if (listState.isScrollInProgress) return@LaunchedEffect
+        val alreadyVisible = listState.layoutInfo.visibleItemsInfo.any { it.index == currentIndex }
+        if (alreadyVisible) return@LaunchedEffect
+        try {
+            // Calculate offset to center the item
+            // This is an estimation, precise centering requires item height knowledge
+            // which LazyList doesn't provide easily for non-visible items.
+            // However, animateScrollToItem with generous padding usually works well.
+            listState.animateScrollToItem(
+                index = currentIndex,
+                // 150dp offset is roughly half of the container height (300dp-ish usually)
+                scrollOffset = -with(density) { 100.dp.toPx() }.roundToInt(),
+            )
+        } catch (e: Exception) {
+            // Ignore scroll errors
         }
     }
 
@@ -91,6 +91,7 @@ public fun LyricsView(
             itemsIndexed(
                 items = lyrics,
                 key = { _, line -> "${line.timeMs}_${line.text}" },
+                contentType = { _, _ -> "lyrics_line" },
             ) { index, line ->
                 val isCurrent = index == currentIndex
 
@@ -106,13 +107,17 @@ public fun LyricsView(
 
                 // Highlight color
                 val color = if (isCurrent) Color.White else Color.White.copy(alpha = 0.6f)
+                val seekToLineLabel = stringResource(R.string.lyricsSeekToLine)
 
                 Text(
                     text = line.text,
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .clickable { onSeek(line.timeMs) }
+                            .clickable(
+                                onClickLabel = seekToLineLabel,
+                                role = Role.Button,
+                            ) { onSeek(line.timeMs) }
                             .padding(vertical = 12.dp, horizontal = 16.dp)
                             .graphicsLayer {
                                 this.scaleX = scale

@@ -15,7 +15,6 @@
 package com.jabook.app.jabook.audio
 
 import android.content.Context
-import android.net.Uri
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.test.core.app.ApplicationProvider
@@ -45,6 +44,7 @@ import org.robolectric.RobolectricTestRunner
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class PlaylistManagerTest {
     private lateinit var context: Context
     private lateinit var exoPlayer: ExoPlayer
@@ -105,12 +105,22 @@ class PlaylistManagerTest {
     }
 
     @Test
-    fun `resolveMediaDataSourceRoute maps schemes to expected routes`() {
-        assertEquals(MediaDataSourceRoute.NETWORK_CACHED, resolveMediaDataSourceRoute(Uri.parse("https://a/b.mp3")))
-        assertEquals(MediaDataSourceRoute.NETWORK_CACHED, resolveMediaDataSourceRoute(Uri.parse("http://a/b.mp3")))
-        assertEquals(MediaDataSourceRoute.LOCAL_CONTENT, resolveMediaDataSourceRoute(Uri.parse("content://a/b")))
-        assertEquals(MediaDataSourceRoute.LOCAL_FILE, resolveMediaDataSourceRoute(Uri.parse("file:///a/b.mp3")))
-        assertEquals(MediaDataSourceRoute.DEFAULT, resolveMediaDataSourceRoute(Uri.parse("ftp://a/b.mp3")))
+    fun `createMediaSource preserves active embedded chapter item`() {
+        val chapter =
+            PlaylistItem(
+                path = "/storage/book/book.m4b",
+                mediaId = "chapter-2",
+                clipStartPositionMs = 12_000L,
+                clipEndPositionMs = 24_000L,
+            )
+        playlistManager.currentPlaylistItems = listOf(chapter)
+
+        val source = playlistManager.createMediaSource(listOf(chapter.path), index = 0, metadata = null)
+
+        requireNotNull(source)
+        assertEquals("chapter-2", source.mediaItem.mediaId)
+        assertEquals(12_000L, source.mediaItem.clippingConfiguration.startPositionMs)
+        assertEquals(24_000L, source.mediaItem.clippingConfiguration.endPositionMs)
     }
 
     @Test

@@ -19,6 +19,7 @@ import android.os.SystemClock
 import coil3.SingletonImageLoader
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
+import coil3.size.Scale
 import coil3.size.Size
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CompletableDeferred
@@ -158,6 +159,7 @@ internal class TrackTransitionCoordinator(
                 .memoryCachePolicy(CachePolicy.ENABLED)
                 .diskCachePolicy(CachePolicy.ENABLED)
                 .size(Size(512, 512))
+                .scale(Scale.FILL)
                 .build()
 
         val loader = SingletonImageLoader.get(context)

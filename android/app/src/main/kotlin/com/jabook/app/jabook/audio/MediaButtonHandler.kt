@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.audio
 
+import android.os.SystemClock
 import android.view.KeyEvent
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -27,12 +28,13 @@ import javax.inject.Singleton
 
 /**
  * Handles media button clicks, specifically detecting single, double, and triple clicks
- * on the headset hook or play/pause button.
+ * on the headset hook or play/pause button, plus long press detection.
  *
  * Logic:
  * - 1 click: Play/Pause toggle
  * - 2 clicks: Skip to Next
  * - 3 clicks: Skip to Previous (or Rewind, configurable)
+ * - Long press (500ms hold): Forward 30s (or configurable)
  */
 @Singleton
 public class MediaButtonHandler
@@ -40,7 +42,7 @@ public class MediaButtonHandler
     constructor() {
         public companion object {
             private const val TAB_TIMEOUT_MS = 400L
-            private const val TAG = "MediaButtonHandler"
+            private const val LONG_PRESS_MS = 500L
         }
 
         private val scope =
@@ -49,44 +51,102 @@ public class MediaButtonHandler
             )
         private var clickCount = 0
         private var clickJob: Job? = null
+        private var longPressJob: Job? = null
+        private var longPressFired = false
+        private var downTime: Long = 0L
 
         /**
-         * Handles a media button click.
+         * Handles a media button event (both DOWN and UP).
          *
-         * @param keyCode The key code of the button pressed (e.g. KEYCODE_HEADSETHOOK, KEYCODE_MEDIA_PLAY_PAUSE)
-         * @param onSingleClick Action for single click (Play/Pause)
-         * @param onDoubleClick Action for double click (Next)
-         * @param onTripleClick Action for triple click (Previous)
-         * @return true if the event was handled (always true for relevant keys), false otherwise.
+         * @param keyCode The key code of the button pressed.
+         * @param action KeyEvent.ACTION_DOWN or KeyEvent.ACTION_UP.
+         * @param onSingleClick Action for single click.
+         * @param onDoubleClick Action for double click.
+         * @param onTripleClick Action for triple click.
+         * @param onLongPress Action for long press.
+         * @return true if the event was handled, false otherwise.
          */
         public fun onMediaButtonEvent(
             keyCode: Int,
+            action: Int = KeyEvent.ACTION_DOWN,
             onSingleClick: () -> Unit,
             onDoubleClick: () -> Unit,
             onTripleClick: () -> Unit,
+            onLongPress: () -> Unit,
         ): Boolean {
             if (!isRelevantKey(keyCode)) return false
 
-            clickCount++
+            if (action == KeyEvent.ACTION_DOWN) {
+                clickCount++
+                downTime = SystemClock.uptimeMillis()
 
-            // Cancel existing job to reset timer window
-            clickJob?.cancel()
+                // Cancel existing click timer and long press
+                clickJob?.cancel()
+                longPressJob?.cancel()
+                longPressFired = false
 
-            clickJob =
-                scope.launch {
-                    delay(TAB_TIMEOUT_MS)
-
-                    // Timeout reached, execute action based on accumulated clicks
-                    when (clickCount) {
-                        1 -> onSingleClick()
-                        2 -> onDoubleClick()
-                        else -> onTripleClick() // 3 or more
-                    }
-
-                    // Reset state
-                    clickCount = 0
-                    clickJob = null
+                // Start long press timer (only fires if clickCount is exactly 1)
+                if (clickCount == 1) {
+                    longPressJob =
+                        scope.launch {
+                            delay(LONG_PRESS_MS)
+                            longPressFired = true
+                            onLongPress()
+                            clickCount = 0
+                            clickJob = null
+                        }
                 }
+
+                // Start click timeout timer
+                clickJob =
+                    scope.launch {
+                        delay(TAB_TIMEOUT_MS)
+
+                        // Cancel long press timer first
+                        longPressJob?.cancel()
+                        longPressJob = null
+
+                        if (longPressFired) {
+                            clickCount = 0
+                            clickJob = null
+                            return@launch
+                        }
+
+                        when (clickCount) {
+                            1 -> onSingleClick()
+                            2 -> onDoubleClick()
+                            else -> onTripleClick()
+                        }
+
+                        clickCount = 0
+                        clickJob = null
+                    }
+            } else {
+                // ACTION_UP: cancel long press timer if hold was short enough
+                longPressJob?.cancel()
+                longPressJob = null
+
+                val holdDuration = SystemClock.uptimeMillis() - downTime
+
+                // If long press already fired, reset and ignore UP
+                if (longPressFired) {
+                    return true
+                }
+
+                // If hold was short (< long press threshold), let the multi-click timer handle it
+                if (holdDuration < LONG_PRESS_MS) {
+                    // multi-click job is already running from ACTION_DOWN
+                    return true
+                }
+
+                // Hold duration >= LONG_PRESS_MS but timer hasn't fired yet (edge case)
+                // This can happen if the timer is delayed on main thread
+                longPressFired = true
+                clickJob?.cancel()
+                clickJob = null
+                clickCount = 0
+                onLongPress()
+            }
 
             return true
         }

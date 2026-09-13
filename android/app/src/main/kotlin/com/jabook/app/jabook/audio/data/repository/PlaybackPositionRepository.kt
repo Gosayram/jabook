@@ -76,9 +76,4 @@ public class PlaybackPositionRepository
             } catch (e: Exception) {
                 Result.Error(e)
             }
-
-        /**
-         * Gets all playback positions.
-         */
-        public fun getAllPositions(): Flow<Result<List<PlaybackPositionEntity>>> = positionDao.getAllPositions().asResult()
     }

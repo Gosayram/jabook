@@ -14,7 +14,7 @@
 
 package com.jabook.app.jabook.audio
 
-import android.media.AudioFormat
+import androidx.media3.common.C
 import androidx.media3.common.audio.AudioProcessor
 import com.jabook.app.jabook.audio.processors.AudioProcessingSettings
 import com.jabook.app.jabook.audio.processors.LoudnessNormalizer
@@ -40,7 +40,7 @@ class LoudnessNormalizerTest {
             AudioProcessor.AudioFormat(
                 44_100,
                 1,
-                AudioFormat.ENCODING_PCM_16BIT,
+                C.ENCODING_PCM_16BIT,
             ),
         )
     }
@@ -55,9 +55,27 @@ class LoudnessNormalizerTest {
     }
 
     @Test
+    fun `silent buffer keeps unity gain for following audio`() {
+        normalizer.queueInput(pcm16Buffer(0, 0, 0, 0))
+
+        val silentOutput = normalizer.getOutput().order(ByteOrder.nativeOrder())
+
+        assertEquals(0, silentOutput.short.toInt())
+        assertEquals(0, silentOutput.short.toInt())
+        assertEquals(0, silentOutput.short.toInt())
+        assertEquals(0, silentOutput.short.toInt())
+
+        normalizer.queueInput(pcm16Buffer(1_000))
+
+        val audibleOutput = normalizer.getOutput().order(ByteOrder.nativeOrder())
+
+        assertTrue(audibleOutput.short.toInt() > 0)
+    }
+
+    @Test
     fun `flush clears queued buffers`() {
         normalizer.queueInput(pcm16Buffer(1200, -700))
-        normalizer.flush()
+        normalizer.flush(androidx.media3.common.audio.AudioProcessor.StreamMetadata.DEFAULT)
 
         val output = normalizer.getOutput()
 
@@ -92,7 +110,7 @@ class LoudnessNormalizerTest {
             AudioProcessor.AudioFormat(
                 44_100,
                 1,
-                AudioFormat.ENCODING_PCM_FLOAT,
+                C.ENCODING_PCM_FLOAT,
             )
 
         normalizer.configure(format)
@@ -106,7 +124,7 @@ class LoudnessNormalizerTest {
             AudioProcessor.AudioFormat(
                 44_100,
                 0,
-                AudioFormat.ENCODING_PCM_16BIT,
+                C.ENCODING_PCM_16BIT,
             )
 
         normalizer.configure(format)

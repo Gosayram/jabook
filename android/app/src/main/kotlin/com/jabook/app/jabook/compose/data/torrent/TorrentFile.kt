@@ -14,9 +14,12 @@
 
 package com.jabook.app.jabook.compose.data.torrent
 
+import kotlinx.serialization.Serializable
+
 /**
  * Individual file within a torrent
  */
+@Serializable
 public data class TorrentFile(
     /** File index in torrent */
     val index: Int,

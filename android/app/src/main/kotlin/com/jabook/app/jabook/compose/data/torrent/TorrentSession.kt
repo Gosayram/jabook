@@ -82,15 +82,12 @@ public interface TorrentSession {
     public fun resumeAll()
 
     /**
-     * Move torrent storage to a new path.
+     * Pause the native session and persist its state after critical memory pressure.
      *
-     * @param hash Info-hash of the torrent.
-     * @param newPath Absolute directory path.
+     * This is distinct from [pauseAll]: it guards libtorrent's session-level native
+     * buffers and must be safe to call repeatedly from Android trim callbacks.
      */
-    public fun moveTorrentStorage(
-        hash: String,
-        newPath: String,
-    )
+    public fun pauseForMemoryPressure()
 
     /**
      * Enable or disable sequential download for a torrent.

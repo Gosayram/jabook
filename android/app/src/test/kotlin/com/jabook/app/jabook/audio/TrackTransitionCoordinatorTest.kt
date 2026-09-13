@@ -32,6 +32,7 @@ import org.robolectric.RobolectricTestRunner
  * and edge cases (duplicate events within the dedup window, negative indices).
  */
 @RunWith(RobolectricTestRunner::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class TrackTransitionCoordinatorTest {
     private var lastActualTrackIndex: Int = -1
 

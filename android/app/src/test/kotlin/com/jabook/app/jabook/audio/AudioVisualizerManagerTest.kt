@@ -23,11 +23,15 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class AudioVisualizerManagerTest {
     private lateinit var context: Context
 
@@ -205,6 +209,27 @@ class AudioVisualizerManagerTest {
         manager.setEnabled(enabled = false)
         manager.setSuspendedForAudioOffload(suspended = false)
 
+        assertFalse(manager.isActive.value)
+    }
+
+    @Test
+    fun `late capture callback after release cannot repopulate cleared visualization data`() {
+        val visualizer = mock<Visualizer>()
+        val listenerCaptor = argumentCaptor<Visualizer.OnDataCaptureListener>()
+        val manager =
+            AudioVisualizerManager(
+                context = context,
+                permissionChecker = { true },
+                visualizerFactory = { visualizer },
+            )
+
+        manager.initialize(audioSessionId = 46)
+        verify(visualizer).setDataCaptureListener(listenerCaptor.capture(), any(), eq(true), eq(true))
+
+        manager.release()
+        listenerCaptor.firstValue.onWaveFormDataCapture(visualizer, byteArrayOf(127), 0)
+
+        assertTrue(manager.waveformData.value.all { it == 0f })
         assertFalse(manager.isActive.value)
     }
 }

@@ -29,6 +29,9 @@ public data class MediaItemData(
     val duration: Long? = null,
     val chapterId: String? = null,
     val fileIndex: Int = 0,
+    // In-file clip window for chapters embedded in a single file (null = whole file)
+    val clipStartPositionMs: Long? = null,
+    val clipEndPositionMs: Long? = null,
 ) {
     /**
      * Checks if this media item has valid URI.

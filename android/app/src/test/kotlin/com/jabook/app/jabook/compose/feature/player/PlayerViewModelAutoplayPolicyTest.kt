@@ -14,11 +14,13 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class PlayerViewModelAutoplayPolicyTest {
     @Test
     fun evaluateSeriesAutoplayDecision_triggersOnlyForEndedLastChapterAndNotPlaying() {
@@ -88,14 +90,5 @@ class PlayerViewModelAutoplayPolicyTest {
 
         assertTrue(decision.shouldResetAutoplay)
         assertFalse(decision.shouldTriggerAutoplay)
-    }
-
-    @Test
-    fun resolveDeleteBookmarkFailureReason_mapsFailureToUserFacingMessage() {
-        val failed = resolveDeleteBookmarkFailureReason(Result.failure(IllegalStateException("db")))
-        val success = resolveDeleteBookmarkFailureReason(Result.success(Unit))
-
-        assertEquals("Failed to delete bookmark", failed)
-        assertEquals(null, success)
     }
 }

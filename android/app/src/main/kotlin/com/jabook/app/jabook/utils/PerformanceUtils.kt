@@ -16,7 +16,6 @@ package com.jabook.app.jabook.utils
 
 import android.app.ActivityManager
 import android.content.Context
-import android.os.Build
 
 /**
  * Classifies device performance to optimize app behavior.
@@ -66,8 +65,8 @@ public object PerformanceUtils {
         // High performance check:
         // - At least 6GB RAM
         // - At least 8 cores
-        // - Android 12+ (SDK 31+)
-        if (totalRamGb >= 6.0 && cores >= 8 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        // (minSdk 30 covers Android 11+, so no SDK gate is needed)
+        if (totalRamGb >= 6.0 && cores >= 8) {
             cachedPerformanceClass = PerformanceClass.HIGH
             return PerformanceClass.HIGH
         }
@@ -76,8 +75,4 @@ public object PerformanceUtils {
         cachedPerformanceClass = PerformanceClass.MEDIUM
         return PerformanceClass.MEDIUM
     }
-
-    public fun isLowEndDevice(context: Context): Boolean = getPerformanceClass(context) == PerformanceClass.LOW
-
-    public fun isHighEndDevice(context: Context): Boolean = getPerformanceClass(context) == PerformanceClass.HIGH
 }

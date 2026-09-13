@@ -48,7 +48,7 @@ public class InactivityTimer(
         /**
          * Default inactivity timeout: 60 minutes (3600 seconds).
          * Service will automatically stop after 60 minutes of inactivity.
-         * Can be configured via AudioSettingsManager (Dart) and passed through MethodChannel.
+         * Can be configured via AudioSettingsManager and passed through settings.
          */
         public const val DEFAULT_INACTIVITY_TIMEOUT_SECONDS: Long = 3600L // 60 minutes
 
@@ -59,6 +59,12 @@ public class InactivityTimer(
 
         /**
          * Maximum inactivity timeout: 180 minutes (10800 seconds = 3 hours).
+         *
+         * Ordering invariant: this must stay far below the 7-day threshold in
+         * [com.jabook.app.jabook.compose.feature.player.PlayerResumeAfterLongPauseHandler].
+         * The inactivity unload (which saves position) always fires first, so the
+         * long-pause resume dialog only ever appears for a freshly re-loaded
+         * PlayerState.Active, never for an unloaded player.
          */
         public const val MAX_INACTIVITY_TIMEOUT_SECONDS: Long = 10800L // 180 minutes = 3 hours
         public const val ACTION_INACTIVITY_TIMER_EXPIRED: String = "com.jabook.app.jabook.audio.INACTIVITY_TIMER_EXPIRED"
@@ -296,7 +302,7 @@ public class InactivityTimer(
      * Broadcasts timer expiration event.
      */
     private fun broadcastTimerExpired() {
-        val intent = Intent(ACTION_INACTIVITY_TIMER_EXPIRED)
+        val intent = Intent(ACTION_INACTIVITY_TIMER_EXPIRED).setPackage(context.packageName)
         context.sendBroadcast(intent)
         LogUtils.d("InactivityTimer", "Broadcasted inactivity timer expiration")
     }

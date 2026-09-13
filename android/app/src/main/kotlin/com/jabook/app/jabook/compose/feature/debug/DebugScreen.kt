@@ -19,8 +19,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -65,6 +67,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
+import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.data.debug.DebugNetworkOverrideMode
 import com.jabook.app.jabook.compose.data.debug.toIcon
 import kotlinx.coroutines.launch
@@ -107,6 +110,8 @@ public fun DebugScreen(
     }
 
     Scaffold(
+        // TopAppBar applies statusBars insets itself; zeroed to avoid double inset under NavigationSuiteScaffold.
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.debugToolsTitle)) },
@@ -244,6 +249,7 @@ private fun LogsTab(
         itemsIndexed(
             items = logLines,
             key = { index, line -> "${index}_${line.hashCode()}" },
+            contentType = { _, _ -> "log_line" },
         ) { _, line ->
             Text(
                 text = line,
@@ -280,7 +286,7 @@ private fun MirrorsTab(
                     text = stringResource(R.string.mirrorsHealthTitle),
                     style = MaterialTheme.typography.titleMedium,
                 )
-                Spacer(modifier = Modifier.padding(8.dp))
+                Spacer(Modifier.height(8.dp))
 
                 val mirrorConnectivity = authInfo?.mirrorConnectivity
                 if (mirrorConnectivity != null && mirrorConnectivity.isNotEmpty()) {
@@ -330,14 +336,14 @@ private fun MirrorsTab(
             }
         }
 
-        Spacer(modifier = Modifier.padding(16.dp))
+        Spacer(Modifier.height(16.dp))
 
         Button(
             onClick = { viewModel.testAllMirrors() },
             modifier = Modifier.fillMaxWidth(),
         ) {
             Icon(Icons.Default.Refresh, contentDescription = null)
-            Spacer(modifier = Modifier.padding(4.dp))
+            Spacer(Modifier.height(4.dp))
             Text(stringResource(R.string.startTest))
         }
     }
@@ -348,7 +354,7 @@ private fun CacheTab(
     viewModel: DebugViewModel,
     tabIndex: Int,
 ) {
-    val cacheStats by viewModel.cacheStats.collectAsStateWithLifecycle()
+    val snapshot by viewModel.cacheSnapshot.collectAsStateWithLifecycle()
 
     // Load stats when tab opens
     LaunchedEffect(tabIndex) {
@@ -359,6 +365,7 @@ private fun CacheTab(
         modifier =
             Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
     ) {
         Card(modifier = Modifier.fillMaxWidth()) {
@@ -367,23 +374,59 @@ private fun CacheTab(
                     text = stringResource(R.string.cacheStatisticsTitle),
                     style = MaterialTheme.typography.titleMedium,
                 )
-                Spacer(modifier = Modifier.padding(8.dp))
+                Spacer(Modifier.height(8.dp))
 
-                if (cacheStats != null) {
-                    val stats = cacheStats!!
+                val stats = snapshot.stats
+                if (stats != null) {
                     DebugInfoRow(
-                        label = stringResource(R.string.entriesCount),
-                        value = "${stats.entriesCount}",
+                        label = stringResource(R.string.debugCacheTotalSize),
+                        value = UiFormatters.formatFileSize(stats.totalSize),
                     )
                     DebugInfoRow(
-                        label = stringResource(R.string.totalResults),
-                        value = "${stats.totalResults}",
+                        label = stringResource(R.string.debugCacheSearch),
+                        value = UiFormatters.formatFileSize(stats.searchCacheSize),
                     )
                     DebugInfoRow(
-                        label = stringResource(R.string.estimatedSize),
+                        label = stringResource(R.string.debugCacheTopics),
+                        value = UiFormatters.formatFileSize(stats.topicCacheSize),
+                    )
+                    DebugInfoRow(
+                        label = stringResource(R.string.debugCacheTempDownloads),
+                        value = UiFormatters.formatFileSize(stats.tempDownloadsSize),
+                    )
+                    DebugInfoRow(
+                        label = stringResource(R.string.debugCacheLogs),
+                        value = UiFormatters.formatFileSize(stats.logFilesSize),
+                    )
+                    DebugInfoRow(
+                        label = stringResource(R.string.debugCacheImage),
+                        value = UiFormatters.formatFileSize(stats.imageCacheSize),
+                    )
+                    DebugInfoRow(
+                        label = stringResource(R.string.debugCacheCovers),
                         value =
-                            com.jabook.app.jabook.util.FileUtils
-                                .formatSize(stats.estimatedSize),
+                            stringResource(
+                                R.string.debugCacheCoversValue,
+                                snapshot.coversCount,
+                                UiFormatters.formatFileSize(snapshot.coversBytes),
+                            ),
+                    )
+                    DebugInfoRow(
+                        label = stringResource(R.string.debugCacheCookies),
+                        value = snapshot.cookieCount.toString(),
+                    )
+                    DebugInfoRow(
+                        label = stringResource(R.string.debugCacheLastCleanup),
+                        value =
+                            if (stats.lastCleanup > 0L) {
+                                java.text.DateFormat
+                                    .getDateTimeInstance(
+                                        java.text.DateFormat.SHORT,
+                                        java.text.DateFormat.SHORT,
+                                    ).format(java.util.Date(stats.lastCleanup))
+                            } else {
+                                stringResource(R.string.debugCacheNever)
+                            },
                     )
                 } else {
                     Text(stringResource(R.string.loadingStats))
@@ -391,7 +434,7 @@ private fun CacheTab(
             }
         }
 
-        Spacer(modifier = Modifier.padding(16.dp))
+        Spacer(Modifier.height(16.dp))
 
         Button(
             onClick = { viewModel.clearCache() },
@@ -402,7 +445,7 @@ private fun CacheTab(
                 ),
         ) {
             Icon(androidx.compose.material.icons.Icons.Default.Delete, contentDescription = null)
-            Spacer(modifier = Modifier.padding(4.dp))
+            Spacer(Modifier.height(4.dp))
             Text(stringResource(R.string.clearSearchCache))
         }
     }
@@ -455,7 +498,7 @@ private fun RutrackerTab(
                     text = stringResource(R.string.authStatusTitle),
                     style = MaterialTheme.typography.titleMedium,
                 )
-                Spacer(modifier = Modifier.padding(4.dp))
+                Spacer(Modifier.height(4.dp))
 
                 Text(
                     text =
@@ -467,7 +510,7 @@ private fun RutrackerTab(
                 )
 
                 authInfo?.lastAuthError?.let { error ->
-                    Spacer(modifier = Modifier.padding(4.dp))
+                    Spacer(Modifier.height(4.dp))
                     Text(
                         text = stringResource(R.string.lastErrorPrefix, error),
                         color = MaterialTheme.colorScheme.error,
@@ -476,7 +519,7 @@ private fun RutrackerTab(
             }
         }
 
-        Spacer(modifier = Modifier.padding(8.dp))
+        Spacer(Modifier.height(8.dp))
 
         // Validation Results
         Card(modifier = Modifier.fillMaxWidth()) {
@@ -485,7 +528,7 @@ private fun RutrackerTab(
                     text = stringResource(R.string.validationResultsTitle),
                     style = MaterialTheme.typography.titleMedium,
                 )
-                Spacer(modifier = Modifier.padding(4.dp))
+                Spacer(Modifier.height(4.dp))
 
                 Text(stringResource(R.string.profilePageCheck, authInfo?.validationResults?.profilePageCheck.toIcon()))
                 Text(stringResource(R.string.searchPageCheck, authInfo?.validationResults?.searchPageCheck.toIcon()))
@@ -493,7 +536,7 @@ private fun RutrackerTab(
             }
         }
 
-        Spacer(modifier = Modifier.padding(8.dp))
+        Spacer(Modifier.height(8.dp))
 
         // Mirror Connectivity
         Card(modifier = Modifier.fillMaxWidth()) {
@@ -502,7 +545,7 @@ private fun RutrackerTab(
                     text = stringResource(R.string.mirrorConnectivityTitle),
                     style = MaterialTheme.typography.titleMedium,
                 )
-                Spacer(modifier = Modifier.padding(4.dp))
+                Spacer(Modifier.height(4.dp))
 
                 val mirrorConnectivity = authInfo?.mirrorConnectivity
                 if (mirrorConnectivity != null && mirrorConnectivity.isNotEmpty()) {
@@ -524,7 +567,7 @@ private fun RutrackerTab(
             }
         }
 
-        Spacer(modifier = Modifier.padding(16.dp))
+        Spacer(Modifier.height(16.dp))
 
         // Refresh button
         Button(
@@ -532,7 +575,7 @@ private fun RutrackerTab(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Icon(Icons.Default.Refresh, contentDescription = null)
-            Spacer(modifier = Modifier.padding(4.dp))
+            Spacer(Modifier.height(4.dp))
             Text(stringResource(R.string.refresh))
         }
     }
@@ -564,12 +607,12 @@ private fun SimulatorsTab(
                     text = stringResource(R.string.debugNetworkOverrideTitle),
                     style = MaterialTheme.typography.titleMedium,
                 )
-                Spacer(modifier = Modifier.padding(4.dp))
+                Spacer(Modifier.height(4.dp))
                 Text(
                     text = stringResource(R.string.debugEffectiveNetworkValue, effectiveNetworkType.name),
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                Spacer(modifier = Modifier.padding(8.dp))
+                Spacer(Modifier.height(8.dp))
 
                 NetworkOverrideButton(
                     label = stringResource(R.string.debugNetworkOverrideAuto),
@@ -594,7 +637,7 @@ private fun SimulatorsTab(
             }
         }
 
-        Spacer(modifier = Modifier.padding(8.dp))
+        Spacer(Modifier.height(8.dp))
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -602,7 +645,7 @@ private fun SimulatorsTab(
                     text = stringResource(R.string.debugStorageOverrideTitle),
                     style = MaterialTheme.typography.titleMedium,
                 )
-                Spacer(modifier = Modifier.padding(4.dp))
+                Spacer(Modifier.height(4.dp))
                 Text(
                     text =
                         stringResource(
@@ -614,7 +657,7 @@ private fun SimulatorsTab(
                         ),
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                Spacer(modifier = Modifier.padding(8.dp))
+                Spacer(Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = { viewModel.setForceLowStorage(!forceLowStorage) },
                     modifier = Modifier.fillMaxWidth(),
@@ -633,7 +676,7 @@ private fun SimulatorsTab(
             }
         }
 
-        Spacer(modifier = Modifier.padding(8.dp))
+        Spacer(Modifier.height(8.dp))
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -641,21 +684,21 @@ private fun SimulatorsTab(
                     text = stringResource(R.string.debugAudioFocusSimulatorTitle),
                     style = MaterialTheme.typography.titleMedium,
                 )
-                Spacer(modifier = Modifier.padding(8.dp))
+                Spacer(Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = { viewModel.simulateAudioFocusDuck() },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(stringResource(R.string.debugSimulateDuck))
                 }
-                Spacer(modifier = Modifier.padding(4.dp))
+                Spacer(Modifier.height(4.dp))
                 OutlinedButton(
                     onClick = { viewModel.simulateAudioFocusLossTransient() },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(stringResource(R.string.debugSimulateFocusLossTransient))
                 }
-                Spacer(modifier = Modifier.padding(4.dp))
+                Spacer(Modifier.height(4.dp))
                 OutlinedButton(
                     onClick = { viewModel.simulateAudioFocusGain() },
                     modifier = Modifier.fillMaxWidth(),
@@ -692,9 +735,10 @@ private fun DatabaseInspectorTab(
                     text = stringResource(R.string.debugDbInspectorStatsTitle),
                     style = MaterialTheme.typography.titleMedium,
                 )
-                Spacer(modifier = Modifier.padding(8.dp))
+                Spacer(Modifier.height(8.dp))
                 DebugInfoRow(stringResource(R.string.debugDbBooksCount), dbSnapshot.booksCount.toString())
                 DebugInfoRow(stringResource(R.string.debugDbFavoritesCount), dbSnapshot.favoritesCount.toString())
+                DebugInfoRow(stringResource(R.string.debugDbChaptersCount), dbSnapshot.chaptersCount.toString())
                 DebugInfoRow(stringResource(R.string.debugDbIndexedTopicsCount), dbSnapshot.indexedTopicsCount.toString())
                 DebugInfoRow(
                     stringResource(R.string.debugDbDownloadHistoryCount),
@@ -703,7 +747,7 @@ private fun DatabaseInspectorTab(
             }
         }
 
-        Spacer(modifier = Modifier.padding(8.dp))
+        Spacer(Modifier.height(8.dp))
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -711,7 +755,7 @@ private fun DatabaseInspectorTab(
                     text = stringResource(R.string.debugDbLiveQueryTitle),
                     style = MaterialTheme.typography.titleMedium,
                 )
-                Spacer(modifier = Modifier.padding(8.dp))
+                Spacer(Modifier.height(8.dp))
                 if (recentSearchPreview.isEmpty()) {
                     Text(
                         text = stringResource(R.string.debugDbLiveQueryEmpty),
@@ -728,14 +772,14 @@ private fun DatabaseInspectorTab(
             }
         }
 
-        Spacer(modifier = Modifier.padding(8.dp))
+        Spacer(Modifier.height(8.dp))
 
         Button(
             onClick = { viewModel.refreshDbInspector() },
             modifier = Modifier.fillMaxWidth(),
         ) {
             Icon(Icons.Default.Refresh, contentDescription = null)
-            Spacer(modifier = Modifier.padding(4.dp))
+            Spacer(Modifier.height(4.dp))
             Text(stringResource(R.string.refresh))
         }
     }
@@ -759,5 +803,5 @@ private fun NetworkOverrideButton(
             }
         Text(text = prefix + label)
     }
-    Spacer(modifier = Modifier.padding(2.dp))
+    Spacer(Modifier.height(2.dp))
 }

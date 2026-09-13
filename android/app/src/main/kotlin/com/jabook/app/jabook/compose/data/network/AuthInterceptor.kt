@@ -15,22 +15,22 @@
 package com.jabook.app.jabook.compose.data.network
 
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
-import com.jabook.app.jabook.compose.domain.repository.AuthRepository
-import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
 import okhttp3.Response
 import javax.inject.Inject
-import javax.inject.Provider
 import javax.inject.Singleton
 
 /**
- * Intercepts HTTP responses to detect session expiry and automatically re-authenticate.
+ * Detects expired sessions on HTTP responses and logs them.
+ *
+ * ponytail: no interceptor re-login here — the previous runBlocking re-auth
+ * (up to 10s inside intercept()) starved the OkHttp dispatcher. Session
+ * refresh belongs to AuthRepository flows; this interceptor only reports.
  */
 @Singleton
 public class AuthInterceptor
     @Inject
     constructor(
-        private val authRepository: Provider<AuthRepository>,
         private val loggerFactory: LoggerFactory,
     ) : Interceptor {
         private val logger = loggerFactory.get("AuthInterceptor")
@@ -49,56 +49,30 @@ public class AuthInterceptor
 
             val response = chain.proceed(request)
 
-            // Check if session has expired
+            // Check if session has expired. A 403 from a Cloudflare challenge is
+            // NOT an expired session — re-login would churn against the same wall.
             val sessionExpired =
                 response.code == 401 ||
-                    response.code == 403 ||
+                    (response.code == 403 && !isCloudflareChallenge(response)) ||
                     response.request.url.encodedPath
                         .contains(LOGIN_PAGE_MARKER)
 
             if (sessionExpired) {
                 logger.w { "Session expired detected (code=${response.code}, url=${response.request.url})" }
-                response.close() // Close original response
-
-                // Try to re-authenticate with stored credentials
-                // Note: runBlocking is used here because interceptors are synchronous
-                // This should be fast as it only reads from local storage
-                val retryResponse: Response? =
-                    runBlocking {
-                        try {
-                            val credentials = authRepository.get().getStoredCredentials()
-                            if (credentials != null) {
-                                logger.i { "Attempting automatic re-authentication..." }
-
-                                val loginResult = authRepository.get().login(credentials)
-                                if (loginResult.isSuccess) {
-                                    logger.i { "Automatic re-authentication successful" }
-
-                                    // Retry original request with new session
-                                    chain.proceed(request.newBuilder().build())
-                                } else {
-                                    logger.e { "Automatic re-authentication failed: ${loginResult.exceptionOrNull()}" }
-                                    null
-                                }
-                            } else {
-                                logger.w { "No stored credentials available for re-authentication" }
-                                null
-                            }
-                        } catch (e: Exception) {
-                            logger.e({ "Error during automatic re-authentication" }, e)
-                            null
-                        }
-                    }
-
-                // If re-authentication succeeded, return the retry response
-                if (retryResponse != null) {
-                    return retryResponse
-                }
-
-                // If re-authentication failed, return the error response
-                return chain.proceed(request)
             }
 
             return response
         }
+
+        /**
+         * Cloudflare challenge detection — same markers as MirrorManager health checks
+         * (explicit cf-mitigated header or challenge-page body fragments).
+         */
+        private fun isCloudflareChallenge(response: Response): Boolean =
+            response.header("cf-mitigated")?.equals("challenge", ignoreCase = true) == true ||
+                runCatching { response.peekBody(8192).string() }.getOrDefault("").let { body ->
+                    body.contains("Just a moment", ignoreCase = true) ||
+                        body.contains("Checking your browser", ignoreCase = true) ||
+                        body.contains("cf-chl", ignoreCase = true)
+                }
     }

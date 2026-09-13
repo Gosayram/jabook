@@ -20,12 +20,14 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import coil3.SingletonImageLoader
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.crash.CrashDiagnostics
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.withContext
 
 /**
@@ -53,20 +55,22 @@ public fun rememberCoverPreloader(
     preloadAhead: Int = 5,
 ) {
     val preloader =
-        remember(context, preloadAhead) {
-            CoverPreloader(context, preloadAhead)
+        remember(context) {
+            CoverPreloader(context)
         }
 
-    LaunchedEffect(books, listState.firstVisibleItemIndex, listState.layoutInfo.visibleItemsInfo.size) {
-        val firstVisible = listState.firstVisibleItemIndex
-        val visibleCount = listState.layoutInfo.visibleItemsInfo.size
-        val lastVisible = firstVisible + visibleCount
-
-        // Preload covers for visible items and items ahead
-        val preloadEnd = (lastVisible + preloadAhead).coerceAtMost(books.size)
-        val booksToPreload = books.subList(firstVisible.coerceAtLeast(0), preloadEnd)
-
-        preloader.preloadCovers(booksToPreload)
+    LaunchedEffect(books, listState, preloadAhead) {
+        snapshotFlow {
+            val firstVisible = listState.firstVisibleItemIndex
+            val visibleCount = listState.layoutInfo.visibleItemsInfo.size
+            (firstVisible + visibleCount + preloadAhead).coerceAtMost(books.size) to firstVisible
+        }.distinctUntilChanged().collect { (preloadEnd, firstVisible) ->
+            // Preload covers for visible items and items ahead
+            // Guard against the list shrinking between snapshot and collect
+            val start = firstVisible.coerceIn(0, preloadEnd)
+            val booksToPreload = books.subList(start, preloadEnd)
+            preloader.preloadCovers(booksToPreload)
+        }
     }
 }
 
@@ -86,20 +90,22 @@ public fun rememberCoverPreloaderForGrid(
     preloadAhead: Int = 10,
 ) {
     val preloader =
-        remember(context, preloadAhead) {
-            CoverPreloader(context, preloadAhead)
+        remember(context) {
+            CoverPreloader(context)
         }
 
-    LaunchedEffect(books, gridState.firstVisibleItemIndex, gridState.layoutInfo.visibleItemsInfo.size) {
-        val firstVisible = gridState.firstVisibleItemIndex
-        val visibleCount = gridState.layoutInfo.visibleItemsInfo.size
-        val lastVisible = firstVisible + visibleCount
-
-        // Preload covers for visible items and items ahead
-        val preloadEnd = (lastVisible + preloadAhead).coerceAtMost(books.size)
-        val booksToPreload = books.subList(firstVisible.coerceAtLeast(0), preloadEnd)
-
-        preloader.preloadCovers(booksToPreload)
+    LaunchedEffect(books, gridState, preloadAhead) {
+        snapshotFlow {
+            val firstVisible = gridState.firstVisibleItemIndex
+            val visibleCount = gridState.layoutInfo.visibleItemsInfo.size
+            (firstVisible + visibleCount + preloadAhead).coerceAtMost(books.size) to firstVisible
+        }.distinctUntilChanged().collect { (preloadEnd, firstVisible) ->
+            // Preload covers for visible items and items ahead
+            // Guard against the list shrinking between snapshot and collect
+            val start = firstVisible.coerceIn(0, preloadEnd)
+            val booksToPreload = books.subList(start, preloadEnd)
+            preloader.preloadCovers(booksToPreload)
+        }
     }
 }
 
@@ -108,32 +114,28 @@ public fun rememberCoverPreloaderForGrid(
  */
 private class CoverPreloader(
     private val context: Context,
-    private val preloadAhead: Int,
 ) {
     private val imageLoader by lazy { SingletonImageLoader.get(context) }
-    private val preloadedIds = mutableSetOf<String>()
 
     /**
      * Preloads covers for the given books.
-     * Skips books that have already been preloaded to avoid duplicate requests.
+     * Coil deduplicates identical requests internally.
      */
     public suspend fun preloadCovers(books: List<Book>) =
         withContext(Dispatchers.IO) {
-            val newBooks =
+            val booksToPreload =
                 books.filter { book ->
-                    val coverModel = CoverUtils.getCoverModel(book, context)
-                    coverModel != null && book.id !in preloadedIds
+                    CoverUtils.getCoverModel(book, context) != null
                 }
 
-            if (newBooks.isEmpty()) {
+            if (booksToPreload.isEmpty()) {
                 return@withContext
             }
 
-            newBooks.forEach { book ->
+            booksToPreload.forEach { book ->
                 try {
                     val coverModel = CoverUtils.getCoverModel(book, context) ?: return@forEach
 
-                    // Create ImageRequest for preloading
                     val imageRequest =
                         CoverUtils
                             .createCoverImageRequest(
@@ -149,19 +151,15 @@ private class CoverPreloader(
                                     androidx.compose.ui.graphics
                                         .Color(0xFFE0E0E0),
                                 cornerRadius = 8f,
-                            ).build()
+                            ).size(200, 280)
+                            .build()
 
-                    // Enqueue for background loading
                     imageLoader.enqueue(imageRequest)
-
-                    // Mark as preloaded
-                    preloadedIds.add(book.id)
 
                     coverPreloaderLogger.v { "Preloaded cover for: ${book.title}" }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    // Silently fail - covers will load on demand
                     coverPreloaderLogger.e({ "Failed to preload cover for ${book.title}" }, e)
                     CrashDiagnostics.reportNonFatal(
                         tag = "cover_preload_failed",
@@ -175,17 +173,10 @@ private class CoverPreloader(
                 }
             }
 
-            coverPreloaderLogger.d {
-                "Preloaded ${newBooks.size} covers (total preloaded: ${preloadedIds.size})"
-            }
+            coverPreloaderLogger.d { "Preloaded ${booksToPreload.size} covers" }
         }
 
-    /**
-     * Clears the preloaded IDs cache.
-     * Useful when the book list changes significantly.
-     */
     public fun clearCache() {
-        preloadedIds.clear()
         coverPreloaderLogger.d { "Cleared preload cache" }
     }
 }

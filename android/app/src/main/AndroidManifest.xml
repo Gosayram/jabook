@@ -6,20 +6,20 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-    <!-- Required only if your app modifies network configuration -->
-    <!-- <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" /> -->
+    <!-- Required for libtorrent UDP sockets (DHT, trackers, NAT traversal) -->
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
 
     <!-- Storage permissions for both internal and SD card access -->
     <!-- READ_EXTERNAL_STORAGE: Required for reading files from internal storage and SD card -->
-    <!-- Works on Android 6.0+ (API 23+) as runtime permission -->
-    <!-- Keep without maxSdkVersion for SD card compatibility on all Android versions -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <!-- Replaced by READ_MEDIA_AUDIO on API 33+; maxSdkVersion=32 avoids lint warning -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
 
     <!-- WRITE_EXTERNAL_STORAGE: Required for writing files to internal storage and SD card -->
-    <!-- Works on Android 6.0+ (API 23+) as runtime permission -->
-    <!-- Keep without maxSdkVersion for SD card write access on all Android versions -->
+    <!-- Deprecated at API 29; maxSdkVersion=28 avoids lint warning -->
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28"
         tools:ignore="ScopedStorage" />
 
     <!-- MANAGE_EXTERNAL_STORAGE: Required for full filesystem access on Android 11+ (API 30+) -->
@@ -41,10 +41,6 @@
     <!-- On Android 12 and below, notifications work without explicit permission -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- SCHEDULE_EXACT_ALARM: Required for exact alarm scheduling (background downloads, etc) -->
-    <!-- Android 12+ (API 31+) requires this for WorkManager and AlarmManager exact alarms -->
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
-
     <!-- VIBRATE: Allows notifications to vibrate -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
@@ -59,6 +55,7 @@
     <!-- Power and audio service permissions -->
     <!-- WAKE_LOCK: Prevents device from sleeping during audio playback (API 21+) -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+
 
     <!-- FOREGROUND_SERVICE: Required for foreground services (Android 9+, API 28+) -->
     <!-- Note: On Android 9+ (API 28+), foreground services require this permission -->
@@ -101,10 +98,11 @@
         android:allowBackup="true"
         android:hasFragileUserData="true"
         android:enableOnBackInvokedCallback="true"
-        android:largeHeap="true"
+
         android:supportsRtl="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
+        android:localeConfig="@xml/locales_config"
         android:manageSpaceActivity=".DataManagementActivity"
         tools:targetApi="34"
         tools:ignore="NamespaceTypo,MissingClass">
@@ -114,6 +112,11 @@
         <meta-data
             android:name="com.google.android.gms.car.application"
             android:resource="@xml/auto_app_desc" />
+
+        <!-- Media3 Cast - DefaultCastOptionsProvider (MediaRouter Output Switcher) -->
+        <meta-data
+            android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
+            android:value="androidx.media3.cast.DefaultCastOptionsProvider" />
 
 
         <!-- requestLegacyExternalStorage removed: not supported on Android 11+ (API 30+) -->
@@ -128,7 +131,7 @@
             android:theme="@style/Theme.App.Starting"
             android:supportsPictureInPicture="true"
             android:resizeableActivity="true"
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
 
@@ -239,13 +242,6 @@
             </intent-filter>
         </receiver>
 
-        <!-- Download foreground service -->
-        <service
-            android:name=".download.DownloadForegroundService"
-            android:exported="false"
-            android:foregroundServiceType="dataSync">
-        </service>
-
         <!-- Torrent download foreground service -->
         <service
             android:name=".compose.data.torrent.TorrentDownloadService"
@@ -253,12 +249,11 @@
             android:exported="false"
             android:foregroundServiceType="dataSync|mediaPlayback" />
 
-        <!-- Indexing foreground service -->
+        <!-- WorkManager uses this service while IndexingWorker runs in the foreground. -->
         <service
-            android:name=".indexing.IndexingForegroundService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="dataSync" />
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
 
         <!-- Torrent notification action receiver -->
         <receiver
@@ -271,18 +266,6 @@
                 <action android:name="org.jabook.ACTION_CANCEL_TORRENT" />
                 <action android:name="org.jabook.ACTION_PAUSE_ALL" />
                 <action android:name="org.jabook.ACTION_RESUME_ALL" />
-            </intent-filter>
-        </receiver>
-
-        <!-- MediaSession action receiver for Play/Pause commands -->
-        <!-- This receiver handles Play/Pause actions through MediaSession, -->
-        <!-- which is more reliable than PendingIntent on Samsung and other devices -->
-        <receiver
-            android:name=".audio.MediaSessionActionReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.jabook.app.jabook.audio.MEDIA_SESSION_PLAY" />
-                <action android:name="com.jabook.app.jabook.audio.MEDIA_SESSION_PAUSE" />
             </intent-filter>
         </receiver>
 
@@ -301,18 +284,27 @@
                 android:resource="@xml/player_widget_info" />
         </receiver>
 
-        <!-- Disable default WorkManager initialization -->
-        <!-- App uses on-demand initialization via Configuration.Provider -->
-        <provider
-            android:name="androidx.startup.InitializationProvider"
-            android:authorities="${applicationId}.androidx-startup"
-            android:exported="false"
-            tools:node="merge">
+        <!-- Quick Settings Tile for play/pause toggle with current book info -->
+        <service
+            android:name=".widget.PlayerTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_play"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <!-- Stores per-app locale state for AppCompatDelegate autoStoreLocales -->
+        <service
+            android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
+            android:enabled="false"
+            android:exported="false">
             <meta-data
-                android:name="androidx.work.WorkManagerInitializer"
-                android:value="androidx.startup"
-                tools:node="remove" />
-        </provider>
+                android:name="autoStoreLocales"
+                android:value="true" />
+        </service>
 
         <!-- FileProvider for secure file sharing -->
         <!-- Allows sharing torrent files, APKs, logs, and audiobooks with other apps -->
@@ -324,6 +316,19 @@
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
+        </provider>
+
+        <!-- On-demand WorkManager init (Configuration.Provider): remove only the default
+             WorkManager initializer, keep profileinstaller/emoji2/lifecycle startup initializers -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
         </provider>
 
         <!-- preloaded_fonts removed: Not needed for Compose with Google Fonts -->

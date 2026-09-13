@@ -21,11 +21,13 @@ public object PlayerReducer {
     public fun reduce(
         state: PlayerState,
         intent: PlayerIntent,
+        currentPositionMs: Long,
     ): PlayerState =
         when (state) {
             PlayerState.Loading -> reduceLoading(state, intent)
-            is PlayerState.Active -> reduceActive(state, intent)
+            is PlayerState.Active -> reduceActive(state, intent, currentPositionMs)
             is PlayerState.Error -> reduceError(state, intent)
+            is PlayerState.Empty -> reduceEmpty(state, intent)
         }
 
     public fun nextChapterRepeatMode(current: ChapterRepeatMode): ChapterRepeatMode =
@@ -51,7 +53,12 @@ public object PlayerReducer {
             ChapterRepeatMode.INFINITE -> ChapterEndReduction(shouldRepeat = true, hasRepeatedOnce = hasRepeatedOnce)
         }
 
-    public fun reduceChapterChanged(): Boolean = false
+    /** A one-time chapter repeat is consumed by a repeat or any chapter transition. */
+    public fun clearOneTimeChapterRepeat(mode: ChapterRepeatMode): ChapterRepeatMode =
+        if (mode == ChapterRepeatMode.ONCE) ChapterRepeatMode.OFF else mode
+
+    /** Native repeat-one remains active only for the infinite chapter-repeat mode. */
+    public fun shouldKeepNativeChapterRepeat(mode: ChapterRepeatMode): Boolean = mode == ChapterRepeatMode.INFINITE
 
     private fun reduceLoading(
         state: PlayerState,
@@ -65,6 +72,7 @@ public object PlayerReducer {
     private fun reduceActive(
         state: PlayerState.Active,
         intent: PlayerIntent,
+        currentPositionMs: Long = 0L,
     ): PlayerState =
         when (intent) {
             PlayerIntent.Play -> {
@@ -90,32 +98,11 @@ public object PlayerReducer {
                     state.copy(playbackSpeed = clampedSpeed)
                 }
             }
-            is PlayerIntent.SeekTo -> {
-                val clampedPosition =
-                    PlayerIntentGuardPolicy.clampSeekPosition(
-                        requestedPositionMs = intent.positionMs,
-                        chapterDurationMs = state.currentChapter?.duration?.inWholeMilliseconds,
-                    )
-                state.copy(currentPosition = clampedPosition)
-            }
-            PlayerIntent.SeekForward -> {
-                val requestedPosition = state.currentPosition + state.forwardInterval * 1_000L
-                val clampedPosition =
-                    PlayerIntentGuardPolicy.clampSeekPosition(
-                        requestedPositionMs = requestedPosition,
-                        chapterDurationMs = state.currentChapter?.duration?.inWholeMilliseconds,
-                    )
-                state.copy(currentPosition = clampedPosition)
-            }
-            PlayerIntent.SeekBackward -> {
-                val requestedPosition = state.currentPosition - state.rewindInterval * 1_000L
-                val clampedPosition =
-                    PlayerIntentGuardPolicy.clampSeekPosition(
-                        requestedPositionMs = requestedPosition,
-                        chapterDurationMs = state.currentChapter?.duration?.inWholeMilliseconds,
-                    )
-                state.copy(currentPosition = clampedPosition)
-            }
+            // Seek intents are routed authoritatively by PlayerIntentCommandRouter;
+            // the reducer only confirms the active state.
+            is PlayerIntent.SeekTo -> state.copy()
+            PlayerIntent.SeekForward -> state.copy()
+            PlayerIntent.SeekBackward -> state.copy()
             is PlayerIntent.SelectChapter -> {
                 if (state.chapters.isEmpty()) {
                     state
@@ -123,10 +110,15 @@ public object PlayerReducer {
                     val maxIndex = state.chapters.lastIndex
                     val clampedIndex = intent.chapterIndex.coerceIn(0, maxIndex)
                     val selectedChapter = state.chapters[clampedIndex]
+                    val resumePosition =
+                        if (intent.positionMs > 0L) {
+                            intent.positionMs.coerceAtMost(selectedChapter.duration.inWholeMilliseconds)
+                        } else {
+                            0L
+                        }
                     state.copy(
                         currentChapterIndex = clampedIndex,
                         currentChapter = selectedChapter,
-                        currentPosition = 0L,
                     )
                 }
             }
@@ -252,6 +244,15 @@ public object PlayerReducer {
     ): PlayerState =
         when (intent) {
             is PlayerIntent.ReportError -> PlayerState.Error(intent.reason)
+            PlayerIntent.InitializePlayer -> PlayerState.Loading
+            else -> state
+        }
+
+    private fun reduceEmpty(
+        state: PlayerState.Empty,
+        intent: PlayerIntent,
+    ): PlayerState =
+        when (intent) {
             PlayerIntent.InitializePlayer -> PlayerState.Loading
             else -> state
         }

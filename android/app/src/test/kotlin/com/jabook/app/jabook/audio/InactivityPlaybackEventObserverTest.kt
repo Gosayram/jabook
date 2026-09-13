@@ -19,9 +19,12 @@ import androidx.media3.exoplayer.ExoPlayer
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
-import org.mockito.Mockito.mock
-import org.mockito.Mockito.`when`
+import org.junit.runner.RunWith
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class InactivityPlaybackEventObserverTest {
     private lateinit var player: ExoPlayer
     private var checkAndStartCalls: Int = 0
@@ -29,7 +32,7 @@ class InactivityPlaybackEventObserverTest {
 
     @Before
     fun setUp() {
-        player = mock(ExoPlayer::class.java)
+        player = mock()
         checkAndStartCalls = 0
         resetSources.clear()
     }
@@ -66,7 +69,7 @@ class InactivityPlaybackEventObserverTest {
 
     @Test
     fun `state ready when paused triggers check and start`() {
-        `when`(player.playWhenReady).thenReturn(false)
+        whenever(player.playWhenReady).thenReturn(false)
         val observer =
             InactivityPlaybackEventObserver(
                 player = player,
@@ -82,7 +85,7 @@ class InactivityPlaybackEventObserverTest {
 
     @Test
     fun `state ready when playWhenReady resets timer`() {
-        `when`(player.playWhenReady).thenReturn(true)
+        whenever(player.playWhenReady).thenReturn(true)
         val observer =
             InactivityPlaybackEventObserver(
                 player = player,

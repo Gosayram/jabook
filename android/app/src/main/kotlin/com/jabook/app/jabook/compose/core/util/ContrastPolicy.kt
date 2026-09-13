@@ -15,7 +15,7 @@
 package com.jabook.app.jabook.compose.core.util
 
 import androidx.compose.ui.graphics.Color
-import kotlin.math.pow
+import androidx.compose.ui.graphics.luminance
 
 /**
  * WCAG contrast helpers for dynamic foreground/background adaptation.
@@ -27,11 +27,11 @@ public object ContrastPolicy {
         foreground: Color,
         background: Color,
     ): Double {
-        val l1 = luminance(foreground)
-        val l2 = luminance(background)
+        val l1 = foreground.luminance()
+        val l2 = background.luminance()
         val lighter = maxOf(l1, l2)
         val darker = minOf(l1, l2)
-        return (lighter + 0.05) / (darker + 0.05)
+        return ((lighter + 0.05f) / (darker + 0.05f)).toDouble()
     }
 
     /**
@@ -41,19 +41,5 @@ public object ContrastPolicy {
         val whiteContrast = contrastRatio(Color.White, background)
         val blackContrast = contrastRatio(Color.Black, background)
         return if (whiteContrast >= blackContrast) Color.White else Color.Black
-    }
-
-    private fun luminance(color: Color): Double {
-        fun linearize(value: Double): Double =
-            if (value <= 0.04045) {
-                value / 12.92
-            } else {
-                ((value + 0.055) / 1.055).pow(2.4)
-            }
-
-        val r = linearize(color.red.toDouble())
-        val g = linearize(color.green.toDouble())
-        val b = linearize(color.blue.toDouble())
-        return 0.2126 * r + 0.7152 * g + 0.0722 * b
     }
 }

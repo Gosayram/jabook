@@ -30,6 +30,11 @@ import org.jsoup.nodes.TextNode
  * Utility for converting HTML to AnnotatedString with clickable links.
  */
 public object HtmlToAnnotatedString {
+    private val TOPIC_ID_PATTERN = Regex("[?&]t=(\\d+)")
+
+    // Recursion guard against hostile deeply-nested HTML (StackOverflowError).
+    private const val MAX_DEPTH = 20
+
     /**
      * Convert HTML string to AnnotatedString with clickable links.
      *
@@ -62,7 +67,9 @@ public object HtmlToAnnotatedString {
     private fun AnnotatedString.Builder.processNode(
         node: Node,
         linkColor: androidx.compose.ui.graphics.Color,
+        depth: Int = 0,
     ) {
+        if (depth > MAX_DEPTH) return
         when (node) {
             is TextNode -> {
                 append(node.text())
@@ -73,7 +80,7 @@ public object HtmlToAnnotatedString {
                         when (node.attr("class")) {
                             "sp-wrap" -> {
                                 append("\n")
-                                node.childNodes().forEach { processNode(it, linkColor) }
+                                node.childNodes().forEach { processNode(it, linkColor, depth + 1) }
                                 append("\n")
                             }
                             "sp-head" -> {
@@ -84,16 +91,16 @@ public object HtmlToAnnotatedString {
                                     ),
                                 ) {
                                     append("[ ")
-                                    node.childNodes().forEach { processNode(it, linkColor) }
+                                    node.childNodes().forEach { processNode(it, linkColor, depth + 1) }
                                     append(" ]")
                                 }
                                 append("\n")
                             }
                             "sp-body" -> {
-                                node.childNodes().forEach { processNode(it, linkColor) }
+                                node.childNodes().forEach { processNode(it, linkColor, depth + 1) }
                             }
                             else -> {
-                                node.childNodes().forEach { processNode(it, linkColor) }
+                                node.childNodes().forEach { processNode(it, linkColor, depth + 1) }
                                 append("\n")
                             }
                         }
@@ -109,7 +116,7 @@ public object HtmlToAnnotatedString {
                         if (href.isNotEmpty()) {
                             val start = length
                             withStyle(linkStyle) {
-                                node.childNodes().forEach { processNode(it, linkColor) }
+                                node.childNodes().forEach { processNode(it, linkColor, depth + 1) }
                             }
                             val end = length
 
@@ -131,7 +138,9 @@ public object HtmlToAnnotatedString {
                                     start = start,
                                     end = end,
                                 )
-                            } else {
+                            } else if (href.startsWith("http://") || href.startsWith("https://")) {
+                                // Whitelist web schemes only — arbitrary schemes (intent://,
+                                // javascript:, etc.) must not reach the system resolver.
                                 addLink(
                                     LinkAnnotation.Url(href),
                                     start = start,
@@ -139,44 +148,44 @@ public object HtmlToAnnotatedString {
                                 )
                             }
                         } else {
-                            node.childNodes().forEach { processNode(it, linkColor) }
+                            node.childNodes().forEach { processNode(it, linkColor, depth + 1) }
                         }
                     }
                     "br" -> {
                         append("\n")
                     }
                     "p" -> {
-                        node.childNodes().forEach { processNode(it, linkColor) }
+                        node.childNodes().forEach { processNode(it, linkColor, depth + 1) }
                         append("\n")
                     }
                     "b", "strong" -> {
                         withStyle(SpanStyle(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)) {
-                            node.childNodes().forEach { processNode(it, linkColor) }
+                            node.childNodes().forEach { processNode(it, linkColor, depth + 1) }
                         }
                     }
                     "i", "em" -> {
                         withStyle(SpanStyle(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)) {
-                            node.childNodes().forEach { processNode(it, linkColor) }
+                            node.childNodes().forEach { processNode(it, linkColor, depth + 1) }
                         }
                     }
                     "u" -> {
                         withStyle(SpanStyle(textDecoration = TextDecoration.Underline)) {
-                            node.childNodes().forEach { processNode(it, linkColor) }
+                            node.childNodes().forEach { processNode(it, linkColor, depth + 1) }
                         }
                     }
                     "ul" -> {
                         append("\n")
-                        node.childNodes().forEach { processNode(it, linkColor) }
+                        node.childNodes().forEach { processNode(it, linkColor, depth + 1) }
                         append("\n")
                     }
                     "li" -> {
                         append("• ")
-                        node.childNodes().forEach { processNode(it, linkColor) }
+                        node.childNodes().forEach { processNode(it, linkColor, depth + 1) }
                         append("\n")
                     }
                     else -> {
                         // Process child nodes for other tags
-                        node.childNodes().forEach { processNode(it, linkColor) }
+                        node.childNodes().forEach { processNode(it, linkColor, depth + 1) }
                     }
                 }
             }
@@ -192,8 +201,7 @@ public object HtmlToAnnotatedString {
      */
     private fun extractTopicId(url: String): String? =
         if (url.contains("viewtopic.php")) {
-            val regex = Regex("[?&]t=(\\d+)")
-            regex.find(url)?.groupValues?.get(1)
+            TOPIC_ID_PATTERN.find(url)?.groupValues?.get(1)
         } else {
             null
         }

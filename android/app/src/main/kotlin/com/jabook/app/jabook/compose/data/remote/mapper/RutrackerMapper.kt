@@ -59,6 +59,7 @@ public fun SearchResult.toDomain(): RutrackerSearchResult =
         torrentUrl = torrentUrl.trim(),
         coverUrl = coverUrl?.takeIf { it.isNotBlank() },
         uploader = uploader?.takeIf { it.isNotBlank() }?.trim(),
+        registeredAtEpochSec = registeredAtEpochSec,
     )
 
 /**
@@ -84,7 +85,7 @@ public fun List<SearchResult>.toDomain(): List<RutrackerSearchResult> {
     val filteredCount = invalidResults.size
     if (filteredCount > 0) {
         mapperLogger.w {
-            "⚠️ Filtered out $filteredCount invalid results out of $totalCount total"
+            "Filtered out $filteredCount invalid results out of $totalCount total"
         }
         invalidResults.take(5).forEach { (index, dto) ->
             mapperLogger.w {
@@ -127,7 +128,7 @@ public fun List<SearchResult>.toDomainFromIndex(): List<RutrackerSearchResult> {
     val filteredCount = invalidResults.size
     if (filteredCount > 0) {
         mapperLogger.w {
-            "⚠️ [INDEX] Filtered out $filteredCount invalid indexed results out of $totalCount total"
+            "[INDEX] Filtered out $filteredCount invalid indexed results out of $totalCount total"
         }
         invalidResults.take(5).forEach { (index, dto) ->
             mapperLogger.w {

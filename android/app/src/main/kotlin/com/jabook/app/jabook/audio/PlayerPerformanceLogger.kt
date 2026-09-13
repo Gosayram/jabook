@@ -50,6 +50,7 @@ public object PlayerPerformanceLogger {
      *
      * @param name Session identifier (e.g., "cold_start", "warm_start")
      */
+    @Synchronized
     public fun start(name: String) {
         sessionName = name
         sessionStartTime = System.currentTimeMillis()
@@ -63,6 +64,7 @@ public object PlayerPerformanceLogger {
      * @param component Component name (e.g., "Service", "Player", "UI")
      * @param event Event description (e.g., "onCreate started")
      */
+    @Synchronized
     public fun log(
         component: String,
         event: String,
@@ -88,6 +90,7 @@ public object PlayerPerformanceLogger {
     /**
      * Log with automatic delta from previous event.
      */
+    @Synchronized
     public fun logDelta(
         component: String,
         event: String,
@@ -106,6 +109,7 @@ public object PlayerPerformanceLogger {
     /**
      * Print summary of all events with timing analysis.
      */
+    @Synchronized
     public fun summary() {
         if (events.isEmpty()) {
             LogUtils.w(TAG, "No events logged")
@@ -138,7 +142,7 @@ public object PlayerPerformanceLogger {
         }
 
         // Find bottlenecks (gaps > 100ms)
-        LogUtils.d(TAG, "⚠️ Bottlenecks (gaps > 100ms):")
+        LogUtils.d(TAG, "Bottlenecks (gaps > 100ms):")
         for (i in 1 until events.size) {
             val prev = events[i - 1]
             val curr = events[i]
@@ -153,10 +157,8 @@ public object PlayerPerformanceLogger {
         LogUtils.d(TAG, "===================================================")
     }
 
-    /**
-     * Enable/disable logging (for production builds).
-     */
-    public fun setEnabled() {
+    /** Enable or disable timing logs outside a measurement session. */
+    public fun setEnabled(enabled: Boolean) {
         this.enabled = enabled
     }
 
@@ -168,6 +170,7 @@ public object PlayerPerformanceLogger {
     /**
      * Clear session data.
      */
+    @Synchronized
     public fun reset() {
         events.clear()
         sessionStartTime = 0L

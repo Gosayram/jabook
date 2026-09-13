@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.audio.data.local.database.entity
 
+import androidx.annotation.Keep
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -22,6 +23,7 @@ import androidx.room.PrimaryKey
  *
  * This includes playlist, position, speed, repeat mode, and sleep timer.
  */
+@Keep
 @Entity(tableName = "saved_player_states")
 public data class SavedPlayerStateEntity(
     @PrimaryKey

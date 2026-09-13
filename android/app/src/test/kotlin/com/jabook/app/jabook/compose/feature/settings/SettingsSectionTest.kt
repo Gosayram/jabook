@@ -1,0 +1,53 @@
+// Copyright 2026 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package com.jabook.app.jabook.compose.feature.settings
+
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.unit.dp
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [33])
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
+public class SettingsSectionTest {
+    @get:Rule
+    public val composeTestRule = createComposeRule()
+
+    @Test
+    public fun `section title is announced as a TalkBack heading`() {
+        composeTestRule.setContent {
+            MaterialTheme {
+                SettingsSection(
+                    title = "Playback",
+                    contentPadding = 16.dp,
+                    itemSpacing = 8.dp,
+                )
+            }
+        }
+
+        composeTestRule
+            .onNodeWithText("Playback")
+            .assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading))
+    }
+}

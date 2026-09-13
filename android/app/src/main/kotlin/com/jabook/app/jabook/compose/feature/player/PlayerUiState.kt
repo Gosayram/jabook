@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.feature.player
 
 import androidx.compose.runtime.Immutable
 import com.jabook.app.jabook.compose.domain.model.Book
+import com.jabook.app.jabook.compose.domain.model.BookmarkItem
 import com.jabook.app.jabook.compose.domain.model.Chapter
 import kotlinx.collections.immutable.ImmutableList
 
@@ -26,6 +27,25 @@ import kotlinx.collections.immutable.ImmutableList
  * - ONCE: Repeat current chapter once, then play next
  * - INFINITE: Repeat current chapter infinitely
  */
+public enum class ABRepeatPhase {
+    INACTIVE,
+    A_SET,
+    ACTIVE,
+}
+
+@Immutable
+public data class ABRepeatState(
+    val pointA: Long = -1L,
+    val pointB: Long = -1L,
+    val chapterIndex: Int = -1,
+    val phase: ABRepeatPhase = ABRepeatPhase.INACTIVE,
+)
+
+internal fun isValidABRepeatRange(
+    pointA: Long,
+    pointB: Long,
+): Boolean = pointA >= 0L && pointB > pointA
+
 public enum class ChapterRepeatMode {
     OFF,
     ONCE,
@@ -49,7 +69,6 @@ public sealed interface PlayerState {
         val book: Book,
         val chapters: ImmutableList<Chapter>,
         val isPlaying: Boolean,
-        val currentPosition: Long, // milliseconds
         val currentChapterIndex: Int,
         val currentChapter: Chapter?,
         val rewindInterval: Int,
@@ -73,6 +92,7 @@ public sealed interface PlayerState {
         val autoVolumeLeveling: Boolean = false,
         val themeColors: com.jabook.app.jabook.compose.core.theme.PlayerThemeColors? = null,
         val lyrics: ImmutableList<com.jabook.app.jabook.compose.feature.player.lyrics.LyricLine>? = null,
+        val bookmarks: ImmutableList<BookmarkItem> = kotlinx.collections.immutable.persistentListOf(),
     ) : PlayerState
 
     /**
@@ -82,6 +102,11 @@ public sealed interface PlayerState {
     public data class Error(
         val message: String,
     ) : PlayerState
+
+    /**
+     * Empty state — no book selected.
+     */
+    public data object Empty : PlayerState
 }
 
 public enum class PlayerSleepTimerMode {

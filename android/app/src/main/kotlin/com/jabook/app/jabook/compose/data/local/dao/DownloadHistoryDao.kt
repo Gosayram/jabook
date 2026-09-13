@@ -23,6 +23,7 @@ import androidx.sqlite.db.SupportSQLiteQuery
 import com.jabook.app.jabook.compose.data.local.entity.DownloadHistoryEntity
 import com.jabook.app.jabook.compose.domain.model.HistorySortOrder
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
  * DAO for download history operations.
@@ -35,13 +36,18 @@ public interface DownloadHistoryDao {
      * @param query SQLite query for flexible sorting/search
      */
     @RawQuery(observedEntities = [DownloadHistoryEntity::class])
-    public fun getHistory(query: SupportSQLiteQuery): Flow<List<DownloadHistoryEntity>>
+    public fun getHistoryInternal(query: SupportSQLiteQuery): Flow<List<DownloadHistoryEntity>>
+
+    public fun getHistory(query: SupportSQLiteQuery): Flow<List<DownloadHistoryEntity>> = getHistoryInternal(query).distinctUntilChanged()
 
     /**
      * Get history entries by status.
      */
     @Query("SELECT * FROM download_history WHERE status = :status ORDER BY completedAt DESC")
-    public fun getHistoryByStatus(status: String): Flow<List<DownloadHistoryEntity>>
+    public fun getHistoryByStatusInternal(status: String): Flow<List<DownloadHistoryEntity>>
+
+    public fun getHistoryByStatus(status: String): Flow<List<DownloadHistoryEntity>> =
+        getHistoryByStatusInternal(status).distinctUntilChanged()
 
     /**
      * Insert a history entry.
@@ -101,5 +107,5 @@ public fun DownloadHistoryDao.getHistoryWithFilter(
             SimpleSQLiteQuery(sql, arrayOf("%$searchQuery%"))
         }
 
-    return getHistory(query)
+    return getHistory(query) // ponytail: distinctUntilChanged applied in DAO default method
 }

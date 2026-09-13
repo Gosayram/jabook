@@ -16,7 +16,6 @@ package com.jabook.app.jabook.compose.domain.model
 
 /**
  * Represents different types of authentication errors.
- * Based on Flutter's robust error handling patterns.
  */
 public sealed class AuthError {
     /**

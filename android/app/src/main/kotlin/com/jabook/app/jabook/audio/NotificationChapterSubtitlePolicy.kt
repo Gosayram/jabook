@@ -14,35 +14,14 @@
 
 package com.jabook.app.jabook.audio
 
-import java.io.File
-import java.net.URI
-
 internal object NotificationChapterSubtitlePolicy {
     fun resolveSubtitle(
         path: String,
         index: Int,
         metadata: Map<String, String>?,
+        totalChapters: Int,
     ): String {
-        val explicitTrackTitle = metadata?.get("trackTitle")?.trim().orEmpty()
-        if (explicitTrackTitle.isNotEmpty()) {
-            return explicitTrackTitle
-        }
-
-        val fileBasedTitle =
-            if (path.startsWith("http://") || path.startsWith("https://")) {
-                runCatching {
-                    val parsedPath = URI(path).path
-                    val fileName = parsedPath.substringAfterLast('/')
-                    fileName.substringBeforeLast('.')
-                }.getOrDefault("")
-            } else {
-                File(path).nameWithoutExtension
-            }.trim()
-
-        return if (fileBasedTitle.isNotEmpty()) {
-            fileBasedTitle
-        } else {
-            "Track ${index + 1}"
-        }
+        val chapterNum = index + 1
+        return "Chapter $chapterNum of $totalChapters"
     }
 }

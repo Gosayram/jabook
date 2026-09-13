@@ -24,7 +24,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
@@ -38,6 +37,7 @@ public sealed interface MainActivityUiState {
     public data class Success(
         val userData: UserData,
         val useDynamicColors: Boolean,
+        val accentSwatchIndex: Int = 0,
     ) : MainActivityUiState
 }
 
@@ -54,11 +54,13 @@ public class MainViewModel
         public val uiState: StateFlow<MainActivityUiState> =
             combine(
                 userPreferencesRepository.userData,
-                settingsRepository.userPreferences.map { it.useDynamicColors },
-            ) { userData, useDynamicColors ->
+                settingsRepository.userPreferences,
+            ) { userData, preferences ->
                 MainActivityUiState.Success(
                     userData = userData,
-                    useDynamicColors = useDynamicColors,
+                    useDynamicColors = preferences.useDynamicColors,
+                    // proto `accent_swatch_index` (field 49); 0 = flavor default
+                    accentSwatchIndex = preferences.accentSwatchIndex,
                 )
             }.stateIn(
                 scope = viewModelScope,

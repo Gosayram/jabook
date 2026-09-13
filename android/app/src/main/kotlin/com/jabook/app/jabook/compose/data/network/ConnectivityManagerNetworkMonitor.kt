@@ -42,25 +42,18 @@ public class ConnectivityManagerNetworkMonitor
                 val callback =
                     object : ConnectivityManager.NetworkCallback() {
                         override fun onAvailable(network: Network) {
-                            val type = getNetworkType(network)
-                            trySend(type)
+                            trySend(getActiveNetworkType())
                         }
 
                         override fun onLost(network: Network) {
-                            // We might still have other networks, so check active
-                            val activeNetwork = connectivityManager.activeNetwork
-                            if (activeNetwork == null) {
-                                trySend(NetworkType.NONE)
-                            } else {
-                                trySend(getNetworkType(activeNetwork))
-                            }
+                            trySend(getActiveNetworkType())
                         }
 
                         override fun onCapabilitiesChanged(
                             network: Network,
                             networkCapabilities: NetworkCapabilities,
                         ) {
-                            trySend(getNetworkType(network))
+                            trySend(getActiveNetworkType())
                         }
                     }
 
@@ -73,12 +66,7 @@ public class ConnectivityManagerNetworkMonitor
                 connectivityManager.registerNetworkCallback(request, callback)
 
                 // Initial state
-                val activeNetwork = connectivityManager.activeNetwork
-                if (activeNetwork == null) {
-                    trySend(NetworkType.NONE)
-                } else {
-                    trySend(getNetworkType(activeNetwork))
-                }
+                trySend(getActiveNetworkType())
 
                 awaitClose {
                     connectivityManager.unregisterNetworkCallback(callback)
@@ -90,14 +78,17 @@ public class ConnectivityManagerNetworkMonitor
                 .map { it != NetworkType.NONE }
                 .distinctUntilChanged()
 
-        private fun getNetworkType(network: Network): NetworkType {
-            val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return NetworkType.NONE
+        private fun getNetworkType(network: Network): NetworkType =
+            networkTypeForCapabilities(connectivityManager.getNetworkCapabilities(network))
 
-            return when {
-                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> NetworkType.WIFI
-                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> NetworkType.CELLULAR
-                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> NetworkType.ETHERNET
-                else -> NetworkType.UNKNOWN
-            }
-        }
+        private fun getActiveNetworkType(): NetworkType = connectivityManager.activeNetwork?.let(::getNetworkType) ?: NetworkType.NONE
+    }
+
+internal fun networkTypeForCapabilities(capabilities: NetworkCapabilities?): NetworkType =
+    when {
+        capabilities == null || !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) -> NetworkType.NONE
+        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> NetworkType.WIFI
+        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> NetworkType.CELLULAR
+        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> NetworkType.ETHERNET
+        else -> NetworkType.UNKNOWN
     }

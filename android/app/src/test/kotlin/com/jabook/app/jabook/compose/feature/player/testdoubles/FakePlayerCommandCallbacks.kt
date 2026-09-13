@@ -31,6 +31,7 @@ internal class FakePlayerCommandCallbacks {
     var skipToPreviousCalls: Int = 0
     var lastSeekPositionMs: Long = -1L
     var lastSkipToChapterIndex: Int = -1
+    var lastSkipToChapterPositionMs: Long = 0L
     var initializeVisualizerCalls: Int = 0
     var lastVisualizerEnabled: Boolean? = null
     var lastPlaybackSpeed: Float? = null
@@ -59,10 +60,13 @@ internal class FakePlayerCommandCallbacks {
             skipToNext = { skipToNextCalls++ },
             skipToPrevious = { skipToPreviousCalls++ },
             seekTo = { lastSeekPositionMs = it },
-            skipToChapter = { lastSkipToChapterIndex = it },
+            skipToChapter = { index, positionMs ->
+                lastSkipToChapterIndex = index
+                lastSkipToChapterPositionMs = positionMs
+            },
             initializeVisualizer = { initializeVisualizerCalls++ },
             setVisualizerEnabled = { lastVisualizerEnabled = it },
-            setPlaybackSpeed = { lastPlaybackSpeed = it },
+            setPlaybackSpeed = { speed, _ -> lastPlaybackSpeed = speed },
             setPitchCorrectionEnabled = { lastPitchCorrectionEnabled = it },
             startSleepTimer = { lastSleepTimerMinutes = it },
             startSleepTimerEndOfChapter = { startSleepTimerEndOfChapterCalls++ },

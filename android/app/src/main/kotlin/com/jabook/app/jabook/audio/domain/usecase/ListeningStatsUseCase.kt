@@ -56,4 +56,20 @@ public class ListeningStatsUseCase
                     activeDays = dayStats.size,
                 )
             }
+
+        /**
+         * Observe the productive listening period based on actual session hour distribution.
+         * Returns the hour (0-23) with the most listening sessions, or -1 if no data.
+         */
+        public fun observePeakListeningHour(
+            fromEpochMs: Long,
+            toEpochMs: Long,
+        ): Flow<Int> =
+            listeningSessionRepository
+                .observeHourDistribution(fromEpochMs, toEpochMs)
+                .map { hourCounts ->
+                    hourCounts
+                        .maxByOrNull { it.sessionCount }
+                        ?.hour ?: -1
+                }
     }

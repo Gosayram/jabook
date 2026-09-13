@@ -14,11 +14,11 @@
 
 package com.jabook.app.jabook.compose.di
 
-import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.compose.core.logger.LogLevel
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.core.logger.NoOpLoggerFactory
+import com.jabook.app.jabook.util.LogUtils
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -28,8 +28,9 @@ import javax.inject.Singleton
 /**
  * Hilt module for providing LoggerFactory.
  *
- * In debug builds, provides AndroidLoggerFactory with DEBUG level.
- * In release builds, provides NoOpLoggerFactory to disable logging.
+ * In debug AND non-prod builds (dev/stage/beta application id suffixes — same
+ * condition as [LogUtils]), provides AndroidLoggerFactory with DEBUG level.
+ * In prod builds, provides NoOpLoggerFactory to disable logging.
  */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -37,7 +38,7 @@ public object LoggerModule {
     @Provides
     @Singleton
     public fun provideLoggerFactory(): LoggerFactory =
-        if (BuildConfig.DEBUG) {
+        if (LogUtils.isDebugLoggingEnabled) {
             LoggerFactoryImpl(LogLevel.DEBUG)
         } else {
             NoOpLoggerFactory

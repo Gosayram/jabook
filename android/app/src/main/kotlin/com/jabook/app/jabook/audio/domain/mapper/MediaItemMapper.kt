@@ -38,6 +38,8 @@ public object MediaItemMapper {
             duration = chapter.getDurationMs(),
             chapterId = chapter.id,
             fileIndex = chapter.fileIndex,
+            clipStartPositionMs = chapter.startTime.takeIf { it > 0 }?.toLong(),
+            clipEndPositionMs = chapter.endTime,
         )
     }
 

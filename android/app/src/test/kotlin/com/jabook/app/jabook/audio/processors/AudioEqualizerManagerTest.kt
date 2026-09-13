@@ -14,6 +14,8 @@
 
 package com.jabook.app.jabook.audio.processors
 
+import android.media.audiofx.Equalizer
+import android.os.Looper
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -25,11 +27,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.atLeastOnce
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 
 @RunWith(RobolectricTestRunner::class)
 class AudioEqualizerManagerTest {
@@ -41,17 +45,20 @@ class AudioEqualizerManagerTest {
         val settingsRepository: SettingsRepository = mock()
         whenever(settingsRepository.userPreferences)
             .thenReturn(flowOf(UserPreferences.newBuilder().setEqualizerPreset("NIGHT").build()))
+        whenever(settingsRepository.customEqBands)
+            .thenReturn(flowOf(List(10) { 0 }))
 
         val equalizer = mock<android.media.audiofx.Equalizer>()
         whenever(equalizer.numberOfBands).thenReturn(2.toShort())
         whenever(equalizer.bandLevelRange).thenReturn(shortArrayOf(-1000, 1000))
 
         val manager =
-            AudioEqualizerManager(
+            object : AudioEqualizerManager(
                 player = player,
                 settingsRepository = settingsRepository,
-                eqFactory = { equalizer },
-            )
+            ) {
+                override fun createEqualizer(sessionId: Int): android.media.audiofx.Equalizer = equalizer
+            }
 
         manager.initialize()
         manager.release()
@@ -70,17 +77,20 @@ class AudioEqualizerManagerTest {
         val settingsRepository: SettingsRepository = mock()
         whenever(settingsRepository.userPreferences)
             .thenReturn(flowOf(UserPreferences.newBuilder().setEqualizerPreset("FLAT").build()))
+        whenever(settingsRepository.customEqBands)
+            .thenReturn(flowOf(List(10) { 0 }))
 
         var factoryCalls = 0
         val manager =
-            AudioEqualizerManager(
+            object : AudioEqualizerManager(
                 player = player,
                 settingsRepository = settingsRepository,
-                eqFactory = {
+            ) {
+                override fun createEqualizer(sessionId: Int): android.media.audiofx.Equalizer {
                     factoryCalls += 1
-                    mock()
-                },
-            )
+                    return mock()
+                }
+            }
 
         manager.initialize()
         manager.release()
@@ -95,4 +105,113 @@ class AudioEqualizerManagerTest {
     fun `map preset falls back to default for unknown value`() {
         assertTrue(mapPresetName("UNKNOWN") == EqualizerPreset.DEFAULT)
     }
+
+    @Test
+    fun `custom preset with stored bands applies band gains to equalizer`() {
+        val equalizer = mock<Equalizer>()
+        whenever(equalizer.numberOfBands).thenReturn(10.toShort())
+        whenever(equalizer.bandLevelRange).thenReturn(shortArrayOf(-1500, 1500))
+
+        val manager = createManager(presetName = "CUSTOM", customBands = customBands, equalizer = equalizer)
+        manager.initialize()
+        shadowOf(Looper.getMainLooper()).idle()
+        manager.release()
+
+        // maxPositiveGain = 500 → safe preamp = -500 (calculateSafePreamp)
+        assertEquals(expectedLevels(customBands, preamp = -500), lastLevelsPerBand(equalizer))
+    }
+
+    @Test
+    fun `custom preset with empty bands falls back to flat`() {
+        val equalizer = mock<Equalizer>()
+        whenever(equalizer.numberOfBands).thenReturn(10.toShort())
+        whenever(equalizer.bandLevelRange).thenReturn(shortArrayOf(-1500, 1500))
+
+        val manager = createManager(presetName = "CUSTOM", customBands = emptyList(), equalizer = equalizer)
+        manager.initialize()
+        shadowOf(Looper.getMainLooper()).idle()
+        manager.release()
+
+        // Empty stored bands → CUSTOM's own (all-zero) gains with 0 preamp
+        assertEquals(
+            List(10) { it to 0.toShort() }.toMap(),
+            lastLevelsPerBand(equalizer),
+        )
+    }
+
+    @Test
+    fun `non-custom preset ignores customEqBands`() {
+        val equalizer = mock<Equalizer>()
+        whenever(equalizer.numberOfBands).thenReturn(10.toShort())
+        whenever(equalizer.bandLevelRange).thenReturn(shortArrayOf(-1500, 1500))
+
+        val junkBands = List(10) { 999 }
+        val manager = createManager(presetName = "NIGHT", customBands = junkBands, equalizer = equalizer)
+        manager.initialize()
+        shadowOf(Looper.getMainLooper()).idle()
+        manager.release()
+
+        // NIGHT uses PREAMP_AUTO: preamp = -maxPositive(NIGHT) = -350
+        assertEquals(
+            expectedLevels(EqualizerPreset.NIGHT.bandGainsMb.toList(), preamp = EqualizerPreset.NIGHT.effectivePreamp()),
+            lastLevelsPerBand(equalizer),
+        )
+    }
+
+    @Test
+    fun `custom band beyond device range is clamped`() {
+        val equalizer = mock<Equalizer>()
+        whenever(equalizer.numberOfBands).thenReturn(10.toShort())
+        whenever(equalizer.bandLevelRange).thenReturn(shortArrayOf(-300, 300))
+
+        val manager = createManager(presetName = "CUSTOM", customBands = customBands, equalizer = equalizer)
+        manager.initialize()
+        shadowOf(Looper.getMainLooper()).idle()
+        manager.release()
+
+        assertEquals(expectedLevels(customBands, preamp = -500, min = -300, max = 300), lastLevelsPerBand(equalizer))
+    }
+
+    // ---- Helpers ----
+
+    private val customBands = listOf(200, 400, 100, 300, 500, 0, 200, 100, 300, 400)
+
+    private fun createManager(
+        presetName: String,
+        customBands: List<Int>,
+        equalizer: Equalizer,
+    ): AudioEqualizerManager {
+        val player: ExoPlayer = mock()
+        whenever(player.audioSessionId).thenReturn(42)
+
+        val settingsRepository: SettingsRepository = mock()
+        whenever(settingsRepository.userPreferences)
+            .thenReturn(flowOf(UserPreferences.newBuilder().setEqualizerPreset(presetName).build()))
+        whenever(settingsRepository.customEqBands)
+            .thenReturn(flowOf(customBands))
+
+        return object : AudioEqualizerManager(
+            player = player,
+            settingsRepository = settingsRepository,
+        ) {
+            override fun createEqualizer(sessionId: Int): Equalizer = equalizer
+        }
+    }
+
+    /** Last setBandLevel value per band index (initial DEFAULT attach runs before the collector). */
+    private fun lastLevelsPerBand(equalizer: Equalizer): Map<Int, Short> {
+        val bands = argumentCaptor<Short>()
+        val levels = argumentCaptor<Short>()
+        verify(equalizer, atLeastOnce()).setBandLevel(bands.capture(), levels.capture())
+        val result = mutableMapOf<Int, Short>()
+        bands.allValues.forEachIndexed { idx, band -> result[band.toInt()] = levels.allValues[idx] }
+        return result
+    }
+
+    private fun expectedLevels(
+        gains: List<Int>,
+        preamp: Int,
+        min: Int = -1500,
+        max: Int = 1500,
+    ): Map<Int, Short> = gains.indices.associateWith { i -> (gains[i] + preamp).coerceIn(min, max).toShort() }
 }

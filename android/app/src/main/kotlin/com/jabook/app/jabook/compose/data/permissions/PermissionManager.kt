@@ -22,6 +22,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.Settings
+import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -56,27 +57,15 @@ public class PermissionManager
 
         /**
          * Checks if the app has the comprehensive storage permission required for operation.
-         * - Android 11+ (R): Checks Environment.isExternalStorageManager()
-         * - Android < 11: Checks WRITE_EXTERNAL_STORAGE
+         * Checks Environment.isExternalStorageManager() (Android 11+).
          */
-        public fun hasStoragePermission(): Boolean =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                Environment.isExternalStorageManager()
-            } else {
-                ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                ) == PackageManager.PERMISSION_GRANTED &&
-                    ContextCompat.checkSelfPermission(
-                        context,
-                        Manifest.permission.READ_EXTERNAL_STORAGE,
-                    ) == PackageManager.PERMISSION_GRANTED
-            }
+        public fun hasStoragePermission(): Boolean = Environment.isExternalStorageManager()
 
         /**
          * Checks if the app has notification permission (Android 13+).
          * On older versions, this is always true.
          */
+        @RequiresApi(Build.VERSION_CODES.TIRAMISU)
         public fun hasNotificationPermission(): Boolean =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 ContextCompat.checkSelfPermission(
@@ -88,41 +77,21 @@ public class PermissionManager
             }
 
         /**
-         * Returns storage access request parameters for current Android version.
-         *
-         * Android 11+ uses all-files access settings screen.
-         * Android 10 and below use legacy runtime permissions.
+         * Returns storage access request parameters.
+         * Uses all-files access settings screen (Android 11+).
          */
         public fun getStorageAccessRequest(): StorageAccessRequest =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                StorageAccessRequest(
-                    mode = StorageAccessMode.FULL_FILE_SYSTEM,
-                    intent = getManageExternalStorageIntent(),
-                )
-            } else {
-                StorageAccessRequest(
-                    mode = StorageAccessMode.LEGACY_RUNTIME_PERMISSIONS,
-                    runtimePermissions =
-                        listOf(
-                            Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                            Manifest.permission.READ_EXTERNAL_STORAGE,
-                        ),
-                )
-            }
+            StorageAccessRequest(
+                mode = StorageAccessMode.FULL_FILE_SYSTEM,
+                intent = getManageExternalStorageIntent(),
+            )
 
         /**
          * Returns the Intent to request the "All Files Access" permission (Android 11+).
          */
         public fun getManageExternalStorageIntent(): Intent =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                    data = Uri.parse("package:${context.packageName}")
-                }
-            } else {
-                // Fallback to app settings if called on unsupported version, though it shouldn't be
-                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                    data = Uri.parse("package:${context.packageName}")
-                }
+            Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                data = Uri.parse("package:${context.packageName}")
             }
 
         /**

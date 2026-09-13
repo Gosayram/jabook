@@ -49,6 +49,14 @@ public interface AuthRepository {
     public suspend fun logout()
 
     /**
+     * End the active session without forgetting remembered credentials:
+     * clears cookies (HTTP + WebView session) and the displayed nickname,
+     * then emits [AuthStatus.Unauthenticated]. Stored credentials survive,
+     * so the next startup auto-relogins as usual (e.g. used by "clear cache").
+     */
+    public suspend fun clearSession()
+
+    /**
      * Check if user is currently logged in (valid session).
      */
     public suspend fun isLoggedIn(): Boolean
@@ -66,14 +74,21 @@ public interface AuthRepository {
     /**
      * Sync cookies from system WebView to PersistentCookieJar.
      * Should be called after WebView login.
+     * @param url the actual current WebView URL (may differ from base mirror after redirect)
      */
-    public suspend fun syncCookiesFromWebView()
+    public suspend fun syncCookiesFromWebView(url: String? = null)
 
     /**
      * Sync cookies from PersistentCookieJar to system WebView.
      * Should be called on app start or before WebView navigation.
      */
     public suspend fun syncCookiesToWebView()
+
+    /**
+     * Sync cookies from PersistentCookieJar to system WebView for a specific URL.
+     * Should be called before WebView loads a page to pre-seed cookies.
+     */
+    public suspend fun syncCookiesToWebView(url: String)
 
     /**
      * Clear stored credentials.

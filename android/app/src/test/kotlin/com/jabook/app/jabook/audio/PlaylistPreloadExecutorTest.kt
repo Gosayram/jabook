@@ -15,15 +15,19 @@
 package com.jabook.app.jabook.audio
 
 import androidx.media3.exoplayer.source.MediaSource
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
+import org.robolectric.RobolectricTestRunner
 
 @OptIn(ExperimentalCoroutinesApi::class)
+@RunWith(RobolectricTestRunner::class)
 class PlaylistPreloadExecutorTest {
     @Test
     fun `execute returns Attached and invokes attach when track still needed`() =
@@ -77,5 +81,17 @@ class PlaylistPreloadExecutorTest {
 
             assertTrue(result is PlaylistPreloadExecutionResult.Failed)
             assertEquals("boom", (result as PlaylistPreloadExecutionResult.Failed).error.message)
+        }
+
+    @Test(expected = CancellationException::class)
+    fun `execute propagates cancellation`() =
+        runTest {
+            val executor = PlaylistPreloadExecutor(mainDispatcher = StandardTestDispatcher(testScheduler))
+
+            executor.execute(
+                buildMediaSource = { throw CancellationException("cancel") },
+                shouldAttachOnMain = { true },
+                attachOnMain = {},
+            )
         }
 }

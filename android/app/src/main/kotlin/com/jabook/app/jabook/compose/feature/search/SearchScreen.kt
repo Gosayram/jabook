@@ -14,18 +14,31 @@
 
 package com.jabook.app.jabook.compose.feature.search
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -38,25 +51,30 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.layout.AnimatedPane
 import androidx.compose.material3.adaptive.layout.SupportingPaneScaffold
 import androidx.compose.material3.adaptive.layout.SupportingPaneScaffoldRole
 import androidx.compose.material3.adaptive.navigation.rememberSupportingPaneScaffoldNavigator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,8 +82,16 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -73,12 +99,20 @@ import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
+import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
+import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
+import com.jabook.app.jabook.compose.data.model.DownloadStatus
 import com.jabook.app.jabook.compose.designsystem.component.EmptyState
+import com.jabook.app.jabook.compose.designsystem.component.LoadingScreen
+import com.jabook.app.jabook.compose.domain.model.Book
+import com.jabook.app.jabook.compose.domain.model.BookActionsProvider
+import com.jabook.app.jabook.compose.domain.model.BookDisplayMode
 import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
 import com.jabook.app.jabook.compose.domain.model.SearchFilters
 import com.jabook.app.jabook.compose.domain.model.SearchHistoryItem
 import com.jabook.app.jabook.compose.domain.model.SearchSortOrder
-import kotlinx.coroutines.delay
+import com.jabook.app.jabook.compose.feature.indexing.IndexingViewModel
+import com.jabook.app.jabook.compose.feature.library.UnifiedBooksView
 import kotlinx.coroutines.launch
 
 /**
@@ -100,6 +134,7 @@ private val searchScreenLogger by lazy { LoggerFactoryImpl().get("SearchScreen")
  * @param onNavigateBack Callback to navigate back
  * @param onBookClick Callback when book is clicked (local Book)
  * @param onOnlineBookClick Callback when online search result is clicked
+ * @param onSearchOnline Callback to delegate the query to the dedicated RuTracker search screen
  * @param viewModel ViewModel provided by Hilt
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class)
@@ -108,6 +143,7 @@ public fun SearchScreen(
     onNavigateBack: () -> Unit,
     onBookClick: (String) -> Unit,
     onOnlineBookClick: (RutrackerSearchResult) -> Unit,
+    onSearchOnline: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SearchViewModel = hiltViewModel(),
 ) {
@@ -124,43 +160,22 @@ public fun SearchScreen(
 
     var showSortMenu by remember { mutableStateOf(false) }
 
-    // Navigator for SupportingPaneScaffold
+    // Navigator for SupportingPaneScaffold — canonical supporting pane per foundations/layout.
+    // scaffoldNavigator.scaffoldDirective is the library default: 24dp spacer, 360/412 pane widths.
     val scaffoldNavigator = rememberSupportingPaneScaffoldNavigator()
     val scope = rememberCoroutineScope()
 
     // Check index status for online search
-    val indexingViewModel: com.jabook.app.jabook.compose.feature.indexing.IndexingViewModel = hiltViewModel()
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val indexingViewModel: IndexingViewModel = hiltViewModel()
+    val context = LocalContext.current
     val isIndexing by indexingViewModel.isIndexing.collectAsStateWithLifecycle()
-    var indexSize by remember { mutableStateOf(0) }
-    var showIndexingMessage by remember { mutableStateOf(false) }
-
-    androidx.compose.runtime.LaunchedEffect(Unit) {
-        indexSize = indexingViewModel.getIndexSize()
-        if (indexSize == 0) {
-            showIndexingMessage = true
-        }
-    }
-
-    // Update index size when indexing completes
-    androidx.compose.runtime.LaunchedEffect(isIndexing) {
-        if (!isIndexing) {
-            indexSize = indexingViewModel.getIndexSize()
-            showIndexingMessage = indexSize == 0
-        } else {
-            while (indexingViewModel.isIndexing.value) {
-                indexSize = indexingViewModel.getIndexSize()
-                showIndexingMessage = indexSize == 0
-                delay(1500L)
-            }
-        }
-    }
+    val indexSize by indexingViewModel.indexSize.collectAsStateWithLifecycle()
 
     // Removed filter sheet - using adaptive pane instead
     val imagePickerLauncher =
-        androidx.activity.compose.rememberLauncherForActivityResult(
+        rememberLauncherForActivityResult(
             contract =
-                androidx.activity.result.contract.ActivityResultContracts
+                ActivityResultContracts
                     .PickVisualMedia(),
         ) { uri ->
             val candidate =
@@ -178,7 +193,7 @@ public fun SearchScreen(
 
     // Premium Background Gradient
     val backgroundGradient =
-        androidx.compose.ui.graphics.Brush.verticalGradient(
+        Brush.verticalGradient(
             colors =
                 listOf(
                     MaterialTheme.colorScheme.background,
@@ -199,6 +214,8 @@ public fun SearchScreen(
             mainPane = {
                 AnimatedPane {
                     Scaffold(
+                        // TopAppBar applies statusBars insets itself; zeroed to avoid double inset under NavigationSuiteScaffold.
+                        contentWindowInsets = WindowInsets(0, 0, 0, 0),
                         containerColor = Color.Transparent, // Transparent to show gradient
                         topBar = {
                             TopAppBar(
@@ -206,7 +223,22 @@ public fun SearchScreen(
                                     TextField(
                                         value = searchQuery,
                                         onValueChange = { viewModel.onSearchQueryChanged(it) },
-                                        modifier = Modifier.fillMaxWidth(),
+                                        modifier =
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .onPreviewKeyEvent { event ->
+                                                    // Escape clears the query while the field holds focus (TV/keyboard)
+                                                    if (
+                                                        event.type == KeyEventType.KeyUp &&
+                                                        event.key == Key.Escape &&
+                                                        searchQuery.isNotEmpty()
+                                                    ) {
+                                                        viewModel.clearSearch()
+                                                        true
+                                                    } else {
+                                                        false
+                                                    }
+                                                },
                                         placeholder = { Text(stringResource(R.string.searchPlaceholder)) },
                                         singleLine = true,
                                         colors =
@@ -217,12 +249,22 @@ public fun SearchScreen(
                                                 unfocusedIndicatorColor = Color.Transparent,
                                             ),
                                         trailingIcon = {
-                                            if (searchQuery.isNotBlank()) {
-                                                IconButton(onClick = viewModel::clearSearch) {
-                                                    Icon(
-                                                        imageVector = Icons.Filled.Clear,
-                                                        contentDescription = stringResource(R.string.clearSearch),
-                                                    )
+                                            // Fixed-size slot so the field doesn't shift when the icon appears
+                                            Box(
+                                                modifier = Modifier.size(28.dp),
+                                                contentAlignment = Alignment.Center,
+                                            ) {
+                                                AnimatedVisibility(
+                                                    visible = searchQuery.isNotBlank(),
+                                                    enter = fadeIn() + scaleIn(),
+                                                    exit = fadeOut() + scaleOut(),
+                                                ) {
+                                                    IconButton(onClick = viewModel::clearSearch) {
+                                                        Icon(
+                                                            imageVector = Icons.Filled.Clear,
+                                                            contentDescription = stringResource(R.string.clearSearch),
+                                                        )
+                                                    }
                                                 }
                                             }
                                         },
@@ -240,10 +282,10 @@ public fun SearchScreen(
                                     IconButton(
                                         onClick = {
                                             imagePickerLauncher.launch(
-                                                androidx.activity.result.PickVisualMediaRequest(
+                                                PickVisualMediaRequest(
                                                     mediaType =
-                                                        androidx.activity.result.contract
-                                                            .ActivityResultContracts.PickVisualMedia.ImageOnly,
+                                                        ActivityResultContracts
+                                                            .PickVisualMedia.ImageOnly,
                                                 ),
                                             )
                                         },
@@ -303,9 +345,9 @@ public fun SearchScreen(
                                     }
                                 },
                                 colors =
-                                    androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+                                    TopAppBarDefaults.topAppBarColors(
                                         containerColor = Color.Transparent,
-                                        scrolledContainerColor = Color.Transparent,
+                                        scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
                                     ),
                             )
                         },
@@ -316,14 +358,21 @@ public fun SearchScreen(
                                 Modifier
                                     .fillMaxSize()
                                     .padding(padding)
-                                    .padding(16.dp),
+                                    .padding(16.dp)
+                                    .then(
+                                        run {
+                                            val wsc = LocalWindowSizeClass.current
+                                            val maxW = wsc?.let { AdaptiveUtils.getMaxContentWidth(it) }
+                                            if (maxW != null) Modifier.widthIn(max = maxW) else Modifier
+                                        },
+                                    ),
                         ) {
                             // Show indexing message if index is empty
-                            if (showIndexingMessage && indexSize == 0) {
-                                androidx.compose.material3.Card(
+                            if (indexSize == 0 && !isIndexing) {
+                                Card(
                                     modifier = Modifier.fillMaxWidth(),
                                     colors =
-                                        androidx.compose.material3.CardDefaults.cardColors(
+                                        CardDefaults.cardColors(
                                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                         ),
                                 ) {
@@ -334,13 +383,13 @@ public fun SearchScreen(
                                         Text(
                                             text = stringResource(R.string.indexNotCreatedTitle),
                                             style = MaterialTheme.typography.titleMedium,
-                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                            textAlign = TextAlign.Center,
                                         )
                                         Spacer(modifier = Modifier.height(8.dp))
                                         Text(
                                             text = stringResource(R.string.indexNotCreatedDescriptionLong),
                                             style = MaterialTheme.typography.bodySmall,
-                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                            textAlign = TextAlign.Center,
                                         )
                                         Spacer(modifier = Modifier.height(12.dp))
                                         Button(
@@ -359,7 +408,7 @@ public fun SearchScreen(
                             if (searchQuery.isNotEmpty()) {
                                 if (indexSize > 0) {
                                     Button(
-                                        onClick = viewModel::searchOnline,
+                                        onClick = { onSearchOnline(searchQuery) },
                                         modifier = Modifier.fillMaxWidth(),
                                     ) {
                                         Icon(Icons.Filled.Search, contentDescription = null)
@@ -369,10 +418,10 @@ public fun SearchScreen(
                                     Spacer(Modifier.height(16.dp))
                                 } else {
                                     // Show message that indexing is needed for online search
-                                    androidx.compose.material3.Card(
+                                    Card(
                                         modifier = Modifier.fillMaxWidth(),
                                         colors =
-                                            androidx.compose.material3.CardDefaults.cardColors(
+                                            CardDefaults.cardColors(
                                                 containerColor =
                                                     if (isIndexing) {
                                                         MaterialTheme.colorScheme.primaryContainer
@@ -393,7 +442,7 @@ public fun SearchScreen(
                                                         stringResource(R.string.indexNotCreatedTitle)
                                                     },
                                                 style = MaterialTheme.typography.titleSmall,
-                                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                                textAlign = TextAlign.Center,
                                             )
                                             Spacer(modifier = Modifier.height(4.dp))
                                             Text(
@@ -404,12 +453,22 @@ public fun SearchScreen(
                                                         stringResource(R.string.indexRequiredForOnlineSearchDescription)
                                                     },
                                                 style = MaterialTheme.typography.bodySmall,
-                                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                                textAlign = TextAlign.Center,
                                             )
                                         }
                                     }
                                     Spacer(Modifier.height(16.dp))
                                 }
+                            }
+
+                            // Genre discovery chips (shown when query is empty)
+                            if (searchQuery.isEmpty()) {
+                                SearchDiscoverySection(
+                                    onGenreClick = { genre ->
+                                        viewModel.onSearchQueryChanged(genre)
+                                    },
+                                )
+                                Spacer(Modifier.height(16.dp))
                             }
 
                             // Content based on UI state
@@ -431,12 +490,7 @@ public fun SearchScreen(
                                 }
 
                                 is SearchUiState.Loading -> {
-                                    Box(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        CircularProgressIndicator()
-                                    }
+                                    LoadingScreen()
                                 }
 
                                 is SearchUiState.Success -> {
@@ -500,7 +554,7 @@ public fun SearchScreen(
 @Composable
 private fun LocalSearchResults(
     query: String,
-    results: List<com.jabook.app.jabook.compose.domain.model.Book>,
+    results: List<Book>,
     searchHistory: List<SearchHistoryItem>,
     onBookClick: (String) -> Unit,
     onHistoryItemClick: (String) -> Unit,
@@ -508,6 +562,14 @@ private fun LocalSearchResults(
     onClearHistory: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // While typing, past searches containing the query act as live suggestions
+    val matchingHistory =
+        if (query.isNotEmpty()) {
+            searchHistory.filter { it.query.contains(query, ignoreCase = true) }
+        } else {
+            emptyList()
+        }
+
     when {
         query.isEmpty() -> {
             if (searchHistory.isNotEmpty()) {
@@ -526,26 +588,82 @@ private fun LocalSearchResults(
         }
 
         results.isEmpty() -> {
-            EmptyState(
-                message = stringResource(R.string.noLocalBooksFound, query),
-            )
+            if (matchingHistory.isNotEmpty()) {
+                SearchHistorySuggestions(
+                    suggestions = matchingHistory,
+                    onItemClick = onHistoryItemClick,
+                )
+            } else {
+                EmptyState(
+                    message = stringResource(R.string.noLocalBooksFound, query),
+                )
+            }
         }
 
         else -> {
-            // Use UnifiedBooksView for local results
-            com.jabook.app.jabook.compose.feature.library.UnifiedBooksView(
-                books = results,
-                displayMode = com.jabook.app.jabook.compose.domain.model.BookDisplayMode.GRID_COMPACT,
-                actionsProvider =
-                    com.jabook.app.jabook.compose.domain.model.BookActionsProvider(
-                        onBookClick = onBookClick,
-                        onBookLongPress = {},
-                        onToggleFavorite = { _, _ -> },
-                        favoriteIds = emptySet(),
-                        showProgress = false,
-                        showFavoriteButton = false,
-                    ),
-                modifier = modifier.fillMaxSize(),
+            Column(modifier = modifier.fillMaxSize()) {
+                if (matchingHistory.isNotEmpty()) {
+                    SearchHistorySuggestions(
+                        suggestions = matchingHistory,
+                        onItemClick = onHistoryItemClick,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                }
+                // Use UnifiedBooksView for local results
+                UnifiedBooksView(
+                    books = results,
+                    displayMode = BookDisplayMode.GRID_COMPACT,
+                    actionsProvider =
+                        BookActionsProvider(
+                            onBookClick = onBookClick,
+                            onBookLongPress = {},
+                            onToggleFavorite = { _, _ -> },
+                            favoriteIds = emptySet(),
+                            showProgress = false,
+                            showFavoriteButton = false,
+                        ),
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Live search-history suggestions shown while the query is non-empty.
+ * Reuses the history section title; tapping a suggestion fills the query
+ * (which re-runs that past search).
+ */
+@Composable
+private fun SearchHistorySuggestions(
+    suggestions: List<SearchHistoryItem>,
+    onItemClick: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = stringResource(R.string.recentSearches),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+        suggestions.forEach { item ->
+            ListItem(
+                headlineContent = { Text(item.query) },
+                leadingContent = {
+                    Icon(
+                        imageVector = Icons.Filled.History,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                },
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { onItemClick(item.query) },
             )
         }
     }
@@ -560,7 +678,7 @@ private fun SearchHistoryList(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize()) {
-        androidx.compose.foundation.layout.Row(
+        Row(
             modifier =
                 Modifier
                     .fillMaxWidth()
@@ -573,7 +691,7 @@ private fun SearchHistoryList(
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary,
             )
-            androidx.compose.material3.TextButton(onClick = onClearHistory) {
+            TextButton(onClick = onClearHistory) {
                 Text(stringResource(R.string.clearAll))
             }
         }
@@ -585,6 +703,7 @@ private fun SearchHistoryList(
             items(
                 items = history,
                 key = { it.id },
+                contentType = { "history_item" },
             ) { item ->
                 ListItem(
                     headlineContent = { Text(item.query) },
@@ -626,9 +745,9 @@ private fun OnlineSearchResults(
     modifier: Modifier = Modifier,
 ) {
     // Log results for debugging
-    androidx.compose.runtime.LaunchedEffect(results.size) {
+    LaunchedEffect(results.size) {
         searchScreenLogger.d {
-            "📊 OnlineSearchResults: ${results.size} results, ${favoriteIds.size} favorites"
+            "OnlineSearchResults: ${results.size} results, ${favoriteIds.size} favorites"
         }
         if (results.isNotEmpty()) {
             val sample = results.take(3)
@@ -645,7 +764,7 @@ private fun OnlineSearchResults(
             val invalidResults = results.filter { !it.isValid() }
             if (invalidResults.isNotEmpty()) {
                 searchScreenLogger.w {
-                    "⚠️ Found ${invalidResults.size} invalid results out of ${results.size}"
+                    "Found ${invalidResults.size} invalid results out of ${results.size}"
                 }
                 invalidResults.take(3).forEachIndexed { index, result ->
                     searchScreenLogger.w {
@@ -665,45 +784,47 @@ private fun OnlineSearchResults(
     } else {
         // Convert SearchResults to Books for unified display
         val booksFromResults =
-            results.mapIndexed { index, result ->
-                val book =
-                    com.jabook.app.jabook.compose.domain.model.Book(
-                        id = result.topicId,
-                        title = result.title,
-                        author = result.uploader ?: result.author,
-                        coverUrl = result.coverUrl,
-                        description = null,
-                        totalDuration = kotlin.time.Duration.ZERO,
-                        currentPosition = kotlin.time.Duration.ZERO,
-                        progress = 0f,
-                        currentChapterIndex = 0,
-                        downloadStatus = com.jabook.app.jabook.compose.data.model.DownloadStatus.NOT_DOWNLOADED,
-                        downloadProgress = 0f,
-                        localPath = null,
-                        addedDate = System.currentTimeMillis(),
-                        lastPlayedDate = null,
-                        isFavorite = favoriteIds.contains(result.topicId),
-                        sourceUrl = result.torrentUrl,
-                    )
-                // Log if book has empty/invalid data
-                if (book.title.isBlank() || book.author.isBlank()) {
-                    searchScreenLogger.w {
-                        "⚠️ Book[$index] has empty data: id='${book.id}', " +
-                            "title='${book.title}', author='${book.author}'"
+            remember(results) {
+                results.mapIndexed { index, result ->
+                    val book =
+                        Book(
+                            id = result.topicId,
+                            title = result.title,
+                            author = result.uploader ?: result.author,
+                            coverUrl = result.coverUrl,
+                            description = null,
+                            totalDuration = kotlin.time.Duration.ZERO,
+                            currentPosition = kotlin.time.Duration.ZERO,
+                            progress = 0f,
+                            currentChapterIndex = 0,
+                            downloadStatus = DownloadStatus.NOT_DOWNLOADED,
+                            downloadProgress = 0f,
+                            localPath = null,
+                            addedDate = System.currentTimeMillis(),
+                            lastPlayedDate = null,
+                            isFavorite = favoriteIds.contains(result.topicId),
+                            sourceUrl = result.torrentUrl,
+                        )
+                    // Log if book has empty/invalid data
+                    if (book.title.isBlank() || book.author.isBlank()) {
+                        searchScreenLogger.w {
+                            "Book[$index] has empty data: id='${book.id}', " +
+                                "title='${book.title}', author='${book.author}'"
+                        }
                     }
+                    book
                 }
-                book
             }
 
         searchScreenLogger.d {
-            "✅ Converted ${results.size} results to ${booksFromResults.size} books"
+            "Converted ${results.size} results to ${booksFromResults.size} books"
         }
 
-        com.jabook.app.jabook.compose.feature.library.UnifiedBooksView(
+        UnifiedBooksView(
             books = booksFromResults,
-            displayMode = com.jabook.app.jabook.compose.domain.model.BookDisplayMode.GRID_COMPACT,
+            displayMode = BookDisplayMode.GRID_COMPACT,
             actionsProvider =
-                com.jabook.app.jabook.compose.domain.model.BookActionsProvider(
+                BookActionsProvider(
                     onBookClick = { bookId ->
                         // Find original SearchResult by topicId
                         results.find { it.topicId == bookId }?.let(onBookClick)
@@ -719,5 +840,47 @@ private fun OnlineSearchResults(
                 ),
             modifier = modifier.fillMaxSize(),
         )
+    }
+}
+
+/**
+ * Genre discovery section shown when search query is empty.
+ * Provides quick-access genre chips for remote search discovery.
+ */
+@Composable
+private fun SearchDiscoverySection(
+    onGenreClick: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val genres =
+        listOf(
+            R.string.genreClassics to stringResource(R.string.genreClassics),
+            R.string.genreSciFi to stringResource(R.string.genreSciFi),
+            R.string.genreDetective to stringResource(R.string.genreDetective),
+            R.string.genreHistory to stringResource(R.string.genreHistory),
+            R.string.genreBiographies to stringResource(R.string.genreBiographies),
+            R.string.genreChildren to stringResource(R.string.genreChildren),
+        )
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = stringResource(R.string.searchDiscoveryTitle),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(8.dp))
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            items(genres.size, key = { it }, contentType = { "genre_chip" }) { index ->
+                val (_, label) = genres[index]
+                FilterChip(
+                    selected = false,
+                    onClick = { onGenreClick(label) },
+                    label = { Text(label) },
+                )
+            }
+        }
     }
 }

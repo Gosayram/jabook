@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.local.entity
 
+import androidx.annotation.Keep
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
@@ -21,6 +22,7 @@ import androidx.room.PrimaryKey
 /**
  * Entity representing a user-defined directory to scan for audiobooks.
  */
+@Keep
 @Entity(tableName = "scan_paths")
 public data class ScanPathEntity(
     @PrimaryKey

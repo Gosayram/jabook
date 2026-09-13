@@ -14,7 +14,7 @@
 
 package com.jabook.app.jabook.audio
 
-import android.media.AudioFormat
+import androidx.media3.common.C
 import androidx.media3.common.audio.AudioProcessor
 import com.jabook.app.jabook.audio.processors.SkipSilenceAudioProcessor
 import com.jabook.app.jabook.audio.processors.SkipSilenceMode
@@ -45,7 +45,7 @@ class SkipSilenceAudioProcessorTest {
             AudioProcessor.AudioFormat(
                 1000,
                 1,
-                AudioFormat.ENCODING_PCM_16BIT,
+                C.ENCODING_PCM_16BIT,
             ),
         )
     }
@@ -110,7 +110,7 @@ class SkipSilenceAudioProcessorTest {
             AudioProcessor.AudioFormat(
                 1000,
                 1,
-                AudioFormat.ENCODING_PCM_16BIT,
+                C.ENCODING_PCM_16BIT,
             )
         skipProcessor.configure(format)
         speedUpProcessor.configure(format)
@@ -147,7 +147,7 @@ class SkipSilenceAudioProcessorTest {
             AudioProcessor.AudioFormat(
                 44_100,
                 1,
-                AudioFormat.ENCODING_PCM_FLOAT,
+                C.ENCODING_PCM_FLOAT,
             ),
         )
         assertFalse(unsupported.isActive())
@@ -165,7 +165,7 @@ class SkipSilenceAudioProcessorTest {
             AudioProcessor.AudioFormat(
                 44_100,
                 1,
-                AudioFormat.ENCODING_PCM_16BIT,
+                C.ENCODING_PCM_16BIT,
             ),
         )
         assertFalse(disabled.isActive())
@@ -195,7 +195,7 @@ class SkipSilenceAudioProcessorTest {
                 retainWindowMs = 65,
             )
         retainProcessor.configure(
-            AudioProcessor.AudioFormat(1000, 1, AudioFormat.ENCODING_PCM_16BIT),
+            AudioProcessor.AudioFormat(1000, 1, C.ENCODING_PCM_16BIT),
         )
 
         val samples = mutableListOf<Int>()
@@ -229,7 +229,7 @@ class SkipSilenceAudioProcessorTest {
                 retainWindowMs = 65,
             )
         retainProcessor.configure(
-            AudioProcessor.AudioFormat(1000, 1, AudioFormat.ENCODING_PCM_16BIT),
+            AudioProcessor.AudioFormat(1000, 1, C.ENCODING_PCM_16BIT),
         )
 
         val samples = mutableListOf<Int>()
@@ -256,7 +256,7 @@ class SkipSilenceAudioProcessorTest {
                 retainWindowMs = 30, // below min, should be clamped to 50
             )
         clampedProcessor.configure(
-            AudioProcessor.AudioFormat(1000, 1, AudioFormat.ENCODING_PCM_16BIT),
+            AudioProcessor.AudioFormat(1000, 1, C.ENCODING_PCM_16BIT),
         )
 
         // 100 silence frames: 3 minSilence + 50 retain = 53 silence kept
@@ -285,7 +285,7 @@ class SkipSilenceAudioProcessorTest {
                 retainWindowMs = 65,
             )
         retainProcessor.configure(
-            AudioProcessor.AudioFormat(1000, 1, AudioFormat.ENCODING_PCM_16BIT),
+            AudioProcessor.AudioFormat(1000, 1, C.ENCODING_PCM_16BIT),
         )
 
         val samples = mutableListOf<Int>()
@@ -323,7 +323,7 @@ class SkipSilenceAudioProcessorTest {
                 retainWindowMs = 65,
             )
         metricProcessor.configure(
-            AudioProcessor.AudioFormat(1000, 1, AudioFormat.ENCODING_PCM_16BIT),
+            AudioProcessor.AudioFormat(1000, 1, C.ENCODING_PCM_16BIT),
         )
 
         val samples = mutableListOf<Int>()
@@ -348,7 +348,7 @@ class SkipSilenceAudioProcessorTest {
                 retainWindowMs = 65,
             )
         metricProcessor.configure(
-            AudioProcessor.AudioFormat(1000, 1, AudioFormat.ENCODING_PCM_16BIT),
+            AudioProcessor.AudioFormat(1000, 1, C.ENCODING_PCM_16BIT),
         )
 
         val samples = mutableListOf<Int>()
@@ -386,7 +386,7 @@ class SkipSilenceAudioProcessorTest {
                 retainWindowMs = 65,
             )
         flushProcessor.configure(
-            AudioProcessor.AudioFormat(1000, 1, AudioFormat.ENCODING_PCM_16BIT),
+            AudioProcessor.AudioFormat(1000, 1, C.ENCODING_PCM_16BIT),
         )
 
         val samples = mutableListOf<Int>()
@@ -400,7 +400,7 @@ class SkipSilenceAudioProcessorTest {
         assertTrue(flushProcessor.getSkippedDurationMs() > 0)
 
         @Suppress("DEPRECATION")
-        flushProcessor.flush()
+        flushProcessor.flush(androidx.media3.common.audio.AudioProcessor.StreamMetadata.DEFAULT)
 
         assertEquals(0L, flushProcessor.getSkippedDurationMs())
     }
@@ -420,7 +420,7 @@ class SkipSilenceAudioProcessorTest {
                 retainWindowMs = 65,
             )
         zaProcessor.configure(
-            AudioProcessor.AudioFormat(1000, 1, AudioFormat.ENCODING_PCM_16BIT),
+            AudioProcessor.AudioFormat(1000, 1, C.ENCODING_PCM_16BIT),
         )
 
         // Cycle 1: short silence (no skipping)

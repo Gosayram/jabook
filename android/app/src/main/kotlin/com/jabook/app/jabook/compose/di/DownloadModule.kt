@@ -14,8 +14,6 @@
 
 package com.jabook.app.jabook.compose.di
 
-import com.jabook.app.jabook.compose.data.download.LibTorrentDownloader
-import com.jabook.app.jabook.compose.data.download.TorrentDownloader
 import com.jabook.app.jabook.compose.data.torrent.TorrentSession
 import com.jabook.app.jabook.compose.data.torrent.TorrentSessionAdapter
 import dagger.Binds
@@ -25,28 +23,14 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
 /**
- * Hilt module for download-related dependencies.
- *
- * Legacy WorkManager-based download system has been removed.
- * All downloads now use the torrent-based system (TorrentDownloadRepository).
+ * Hilt module for torrent-download dependencies: binds the testable
+ * [TorrentSession] abstraction to the libtorrent4j-backed adapter.
  */
 @Module
 @InstallIn(SingletonComponent::class)
 public abstract class DownloadModule {
     /**
-     * Bind TorrentDownloader implementation.
-     *
-     * Uses production LibTorrentDownloader with libtorrent4j.
-     */
-    @Binds
-    @Singleton
-    public abstract fun bindTorrentDownloader(impl: LibTorrentDownloader): TorrentDownloader
-
-    /**
      * Bind [TorrentSession] to the [TorrentSessionAdapter] wrapper.
-     *
-     * This allows production code to depend on the testable [TorrentSession]
-     * abstraction while Hilt injects the real libtorrent4j-backed adapter.
      */
     @Binds
     @Singleton

@@ -16,7 +16,7 @@ package com.jabook.app.jabook.audio
 
 import android.content.Intent
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.session.MediaSession
+import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import com.jabook.app.jabook.widget.PlayerWidgetProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -33,6 +33,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.shadows.ShadowLog
 
 @RunWith(RobolectricTestRunner::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class ServiceIntentHandlerTest {
     private lateinit var service: AudioPlayerService
     private lateinit var player: ExoPlayer
@@ -182,9 +183,9 @@ class ServiceIntentHandlerTest {
 
     @Test
     fun `exit app action performs foreground stop and service shutdown when initialized`() {
-        val mediaSession: MediaSession = mock()
+        val mediaSession: MediaLibrarySession = mock()
         whenever(service.isFullyInitializedFlag).thenReturn(true)
-        whenever(service.mediaSession).thenReturn(mediaSession)
+        whenever(service.mediaLibrarySession).thenReturn(mediaSession)
 
         handler.handleStartCommand(Intent(AudioPlayerService.ACTION_EXIT_APP), flags = 0, startId = 30)
 
@@ -201,7 +202,6 @@ class ServiceIntentHandlerTest {
     @Test
     fun `exit app action is ignored when service is not initialized`() {
         whenever(service.isFullyInitializedFlag).thenReturn(false)
-        whenever(service.mediaSession).thenReturn(null)
         whenever(service.mediaLibrarySession).thenReturn(null)
 
         handler.handleStartCommand(Intent(AudioPlayerService.ACTION_EXIT_APP), flags = 0, startId = 31)

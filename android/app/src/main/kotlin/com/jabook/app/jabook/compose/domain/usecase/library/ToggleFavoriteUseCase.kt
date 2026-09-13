@@ -14,7 +14,7 @@
 
 package com.jabook.app.jabook.compose.domain.usecase.library
 
-import com.jabook.app.jabook.compose.data.local.dao.BooksDao
+import com.jabook.app.jabook.compose.data.repository.BooksRepository
 import com.jabook.app.jabook.compose.domain.model.AppError
 import com.jabook.app.jabook.compose.domain.model.Result
 import com.jabook.app.jabook.compose.domain.model.toAppError
@@ -29,7 +29,7 @@ import javax.inject.Inject
 public class ToggleFavoriteUseCase
     @Inject
     constructor(
-        private val booksDao: BooksDao,
+        private val booksRepository: BooksRepository,
     ) {
         /**
          * Toggle favorite status for a book.
@@ -43,7 +43,7 @@ public class ToggleFavoriteUseCase
             isFavorite: Boolean,
         ): Result<Unit, AppError> =
             try {
-                booksDao.updateFavoriteStatus(bookId, isFavorite)
+                booksRepository.setFavorite(bookId, isFavorite)
                 Result.Success(Unit)
             } catch (e: CancellationException) {
                 throw e

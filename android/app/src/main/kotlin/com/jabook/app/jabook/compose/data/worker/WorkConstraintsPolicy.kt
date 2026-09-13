@@ -28,7 +28,7 @@ public object WorkConstraintsPolicy {
         Constraints
             .Builder()
             .setRequiresStorageNotLow(true)
-            .setRequiresBatteryNotLow(true)
+            .setRequiresBatteryNotLow(false) // ponytail: user-initiated scans should not be blocked by low battery
             .build()
 
     public fun sync(): Constraints =

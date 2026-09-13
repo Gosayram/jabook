@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -50,6 +51,59 @@ public fun SpotlightOverlay(
     onSkip: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // §599: Do not show spotlight when TalkBack is active — provide linear accessible alternative instead
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val am =
+        remember(context) {
+            context.getSystemService(android.content.Context.ACCESSIBILITY_SERVICE) as
+                android.view.accessibility.AccessibilityManager
+        }
+    // Observe live so enabling TalkBack mid-spotlight switches to the accessible variant
+    val talkBackActive = remember { androidx.compose.runtime.mutableStateOf(am.isEnabled && am.isTouchExplorationEnabled) }
+    androidx.compose.runtime.DisposableEffect(am) {
+        val listener =
+            android.view.accessibility.AccessibilityManager.TouchExplorationStateChangeListener { enabled ->
+                talkBackActive.value = enabled && am.isEnabled
+            }
+        am.addTouchExplorationStateChangeListener(listener)
+        onDispose { am.removeTouchExplorationStateChangeListener(listener) }
+    }
+    val isTalkBackActive = talkBackActive.value
+
+    if (isTalkBackActive) {
+        // Linear accessible alternative: render as a simple bottom card without the scrim/punch-out
+        Column(
+            modifier =
+                modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.surface,
+                        shape = RoundedCornerShape(16.dp),
+                    ).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                AccessibleButton(onClick = onSkip) { Text(text = skipText) }
+                AccessibleButton(onClick = onNext) { Text(text = nextText) }
+            }
+        }
+        return
+    }
+
     Box(
         modifier =
             modifier

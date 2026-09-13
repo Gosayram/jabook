@@ -129,12 +129,12 @@ class ScannerCoverIntegrationTest {
             CoverWaterfallPolicy.resolveCover(
                 bookId = "online-book-1",
                 localPath = null,
-                coverUrl = "https://static.rutracker.org/covers/12345.jpg",
+                coverUrl = "https://static.mirror.example/covers/12345.jpg",
                 coversDir = coversDir,
             )
 
         assertEquals(CoverWaterfallPolicy.CoverSource.ONLINE_URL, result.source)
-        assertEquals("https://static.rutracker.org/covers/12345.jpg", result.data)
+        assertEquals("https://static.mirror.example/covers/12345.jpg", result.data)
     }
 
     // ---- Online-only book without cover URL ----
@@ -233,12 +233,12 @@ class ScannerCoverIntegrationTest {
             CoverWaterfallPolicy.resolveCover(
                 bookId = "proto-rel-1",
                 localPath = null,
-                coverUrl = "//static.rutracker.org/covers/cover.jpg",
+                coverUrl = "//static.mirror.example/covers/cover.jpg",
                 coversDir = coversDir,
             )
 
         assertEquals(CoverWaterfallPolicy.CoverSource.ONLINE_URL, result.source)
-        assertEquals("https://static.rutracker.org/covers/cover.jpg", result.data)
+        assertEquals("https://static.mirror.example/covers/cover.jpg", result.data)
     }
 
     // ---- Cover waterfall with mixed sources verifies priority ----

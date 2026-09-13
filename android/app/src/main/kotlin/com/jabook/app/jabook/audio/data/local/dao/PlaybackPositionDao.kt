@@ -15,11 +15,11 @@
 package com.jabook.app.jabook.audio.data.local.dao
 
 import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Upsert
 import com.jabook.app.jabook.audio.data.local.database.entity.PlaybackPositionEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
  * Data Access Object for playback positions.
@@ -30,12 +30,14 @@ public interface PlaybackPositionDao {
      * Gets the playback position for a book.
      */
     @Query("SELECT * FROM playback_positions WHERE bookId = :bookId")
-    public fun getPosition(bookId: String): Flow<PlaybackPositionEntity?>
+    public fun getPositionInternal(bookId: String): Flow<PlaybackPositionEntity?>
+
+    public fun getPosition(bookId: String): Flow<PlaybackPositionEntity?> = getPositionInternal(bookId).distinctUntilChanged()
 
     /**
      * Inserts or updates a playback position.
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     public suspend fun upsertPosition(position: PlaybackPositionEntity)
 
     /**
@@ -43,10 +45,4 @@ public interface PlaybackPositionDao {
      */
     @Query("DELETE FROM playback_positions WHERE bookId = :bookId")
     public suspend fun deletePosition(bookId: String)
-
-    /**
-     * Gets all playback positions.
-     */
-    @Query("SELECT * FROM playback_positions")
-    public fun getAllPositions(): Flow<List<PlaybackPositionEntity>>
 }

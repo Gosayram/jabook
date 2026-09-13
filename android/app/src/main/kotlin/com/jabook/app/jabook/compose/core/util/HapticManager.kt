@@ -34,6 +34,19 @@ public object HapticManager {
         hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
     }
 
+    public fun performDoubleVibration(context: Context) {
+        // VibratorManager is API 31+; Vibrator is the fallback.
+        // minSdk=30, so Vibrator is always available.
+        val vibrator = getVibrator(context) ?: return
+        vibrator.vibrate(
+            VibrationEffect.createWaveform(
+                longArrayOf(0, 30, 100, 30),
+                intArrayOf(0, 180, 0, 180),
+                -1,
+            ),
+        )
+    }
+
     public fun performGesture(hapticFeedback: HapticFeedback) {
         hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
     }
@@ -43,17 +56,14 @@ public object HapticManager {
         durationMs: Long = 50L,
         amplitude: Int = 180,
     ) {
-        val vibrator =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                context.getSystemService(VibratorManager::class.java)?.defaultVibrator
-            } else {
-                context.getSystemService(Vibrator::class.java)
-            } ?: return
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            vibrator.vibrate(VibrationEffect.createOneShot(durationMs, amplitude))
-        } else {
-            @Suppress("DEPRECATION")
-            vibrator.vibrate(durationMs)
-        }
+        val vibrator = getVibrator(context) ?: return
+        vibrator.vibrate(VibrationEffect.createOneShot(durationMs, amplitude))
     }
+
+    private fun getVibrator(context: Context): Vibrator? =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            context.getSystemService(VibratorManager::class.java)?.defaultVibrator
+        } else {
+            context.getSystemService(Vibrator::class.java)
+        }
 }

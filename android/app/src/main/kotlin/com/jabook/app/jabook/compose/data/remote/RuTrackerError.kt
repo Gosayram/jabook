@@ -78,6 +78,14 @@ public sealed class RuTrackerError : Throwable() {
     }
 
     /**
+     * Cloudflare challenge or protection detected.
+     */
+    public data object CloudflareChallenge : RuTrackerError() {
+        override val message: String =
+            "Cloudflare protection detected. Please try again or switch mirrors."
+    }
+
+    /**
      * Parsing error (HTML structure changed, invalid format, etc.).
      */
     public data class ParsingError(

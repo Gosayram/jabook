@@ -16,24 +16,50 @@ package com.jabook.app.jabook.compose.feature.indexing
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Pending
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.util.UiFormatters
+import com.jabook.app.jabook.compose.data.indexing.ForumState
+import com.jabook.app.jabook.compose.data.indexing.ForumStatus
+import com.jabook.app.jabook.compose.data.indexing.IndexProgress
 import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
+import kotlinx.coroutines.delay
 
 /**
  * Dialog showing indexing progress.
@@ -42,6 +68,14 @@ import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
  * @param onDismiss Callback when dialog is dismissed
  * @param onHide Callback when user wants to hide dialog and continue in background
  * @param indexSize Current index size from database (used for accurate count display)
+ * @param forumStatuses Per-forum statuses
+ * @param onNavigateToAuth Invoked by "Войти" when the session expired mid-run
+ * @param onPauseIndexing Invoked by "Пауза" — cancels the worker; persisted
+ *   cursors keep the run resumable
+ * @param onResumeIndexing Invoked by "Продолжить" to re-enqueue indexing —
+ *   backfill resumes from the persisted cursors
+ * @param indexingStartTime Epoch ms when the current run started (0 = unknown);
+ *   feeds the ETA estimate
  * @param modifier Modifier for the dialog
  */
 @Composable
@@ -50,13 +84,19 @@ public fun IndexingProgressDialog(
     onDismiss: () -> Unit,
     onHide: (() -> Unit)? = null,
     indexSize: Int = 0,
+    forumStatuses: List<ForumStatus> = emptyList(),
+    onNavigateToAuth: (() -> Unit)? = null,
+    onPauseIndexing: (() -> Unit)? = null,
+    onResumeIndexing: (() -> Unit)? = null,
+    indexingStartTime: Long = 0L,
     modifier: Modifier = Modifier,
 ) {
     AlertDialog(
         onDismissRequest = {
-            // Don't allow dismiss during indexing
-            if (progress is IndexingProgress.Completed || progress is IndexingProgress.Error) {
-                onDismiss()
+            when (progress) {
+                is IndexingProgress.Completed, is IndexingProgress.Error, is IndexingProgress.Paused -> onDismiss()
+                // Outside tap during indexing hides the dialog; indexing continues in background
+                is IndexingProgress.Idle, is IndexingProgress.InProgress -> onHide?.invoke()
             }
         },
         title = {
@@ -65,13 +105,17 @@ public fun IndexingProgressDialog(
                     is IndexingProgress.Idle -> stringResource(R.string.indexingDialogTitle)
                     is IndexingProgress.InProgress -> stringResource(R.string.indexingDialogTitle)
                     is IndexingProgress.Completed -> stringResource(R.string.indexingCompletedTitle)
+                    is IndexingProgress.Paused -> stringResource(R.string.indexingDialogTitle)
                     is IndexingProgress.Error -> stringResource(R.string.indexingErrorTitle)
                 },
             )
         },
         text = {
             Column(
-                modifier = modifier.fillMaxWidth(),
+                modifier =
+                    modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
@@ -84,43 +128,117 @@ public fun IndexingProgressDialog(
                         )
                     }
 
-                    is IndexingProgress.InProgress -> {
-                        // Progress bar
-                        LinearProgressIndicator(
-                            progress = { progress.progress },
-                            modifier = Modifier.fillMaxWidth(),
+                    is IndexingProgress.Paused -> {
+                        Icon(
+                            imageVector = Icons.Filled.Pending,
+                            contentDescription = stringResource(R.string.indexingStatusPaused),
+                            tint = MaterialTheme.colorScheme.tertiary,
                         )
-
-                        // Status text
-                        val forumProgressText =
-                            stringResource(
-                                R.string.indexingStatusForumProgress,
-                                progress.currentForumIndex + 1,
-                                progress.totalForums,
-                            )
-                        val pageText = stringResource(R.string.indexingStatusPage, progress.currentPage + 1)
-                        val topicsIndexedText =
-                            pluralStringResource(
-                                R.plurals.indexTopicsIndexed,
-                                progress.topicsIndexed,
-                                progress.topicsIndexed,
-                            )
                         Text(
-                            text =
-                                stringResource(R.string.indexingStatusForum, progress.currentForum) + "\n" +
-                                    forumProgressText + "\n" +
-                                    pageText + "\n" +
-                                    topicsIndexedText,
+                            text = stringResource(R.string.indexingPausedMessage),
                             textAlign = TextAlign.Center,
-                            style = MaterialTheme.typography.bodyMedium,
                         )
+                    }
 
-                        // Progress percentage
-                        Text(
-                            text = "${(progress.progress * 100).toInt()}%",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
+                    is IndexingProgress.InProgress -> {
+                        val phaseLabel =
+                            when (progress.detail.phase) {
+                                IndexProgress.PHASE_FRESH -> stringResource(R.string.indexingPhaseFresh)
+                                IndexProgress.PHASE_BACKFILL -> stringResource(R.string.indexingPhaseBackfill)
+                                else -> null
+                            }
+                        if (progress.detail.hasDetailedProgress) {
+                            if (phaseLabel != null) {
+                                Text(
+                                    text = phaseLabel,
+                                    textAlign = TextAlign.Center,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                            LinearProgressIndicator(
+                                progress = { progress.detail.percentComplete },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+
+                            val forumProgressText =
+                                stringResource(
+                                    R.string.indexingStatusForumProgress,
+                                    progress.detail.totalForumsCompleted + 1,
+                                    progress.detail.totalForums,
+                                )
+                            val topicsIndexedText =
+                                pluralStringResource(
+                                    R.plurals.indexTopicsIndexed,
+                                    progress.detail.topicsFound,
+                                    progress.detail.topicsFound,
+                                )
+                            Text(
+                                text =
+                                    forumProgressText + "\n" +
+                                        topicsIndexedText,
+                                textAlign = TextAlign.Center,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+
+                            // ETA: elapsed × remaining / completed forums, refreshed every second
+                            if (progress.detail.totalForumsCompleted > 0 && indexingStartTime > 0L) {
+                                val elapsedMs by produceState(
+                                    initialValue = System.currentTimeMillis() - indexingStartTime,
+                                    key1 = indexingStartTime,
+                                ) {
+                                    while (true) {
+                                        delay(1_000L)
+                                        value = System.currentTimeMillis() - indexingStartTime
+                                    }
+                                }
+                                val remainingForums = progress.detail.totalForums - progress.detail.totalForumsCompleted
+                                val etaMs = elapsedMs * remainingForums / progress.detail.totalForumsCompleted
+                                if (etaMs > 0L) {
+                                    Text(
+                                        text =
+                                            stringResource(
+                                                R.string.indexingEta,
+                                                UiFormatters.formatDuration(etaMs),
+                                            ),
+                                        textAlign = TextAlign.Center,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+
+                            if (forumStatuses.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                LazyColumn(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .heightIn(max = 200.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
+                                    items(forumStatuses, key = { it.forumId }, contentType = { "forum_status" }) { status ->
+                                        ForumStatusRow(status)
+                                    }
+                                }
+                            }
+
+                            Text(
+                                text = UiFormatters.formatPercent(progress.detail.percentComplete),
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        } else {
+                            CircularProgressIndicator()
+                            Text(
+                                text =
+                                    phaseLabel
+                                        ?: progress.detail.currentForumName.ifBlank { stringResource(R.string.indexingPreparing) },
+                                textAlign = TextAlign.Center,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                            )
+                        }
                     }
 
                     is IndexingProgress.Completed -> {
@@ -148,8 +266,14 @@ public fun IndexingProgressDialog(
                     }
 
                     is IndexingProgress.Error -> {
+                        val displayMessage =
+                            if (progress.errorReason == IndexingProgress.ERROR_REASON_AUTH_EXPIRED) {
+                                stringResource(R.string.indexingSessionExpired)
+                            } else {
+                                progress.message
+                            }
                         Text(
-                            text = progress.message,
+                            text = displayMessage,
                             textAlign = TextAlign.Center,
                             color = MaterialTheme.colorScheme.error,
                         )
@@ -166,21 +290,149 @@ public fun IndexingProgressDialog(
             }
         },
         confirmButton = {
-            if (progress is IndexingProgress.Completed || progress is IndexingProgress.Error) {
-                TextButton(onClick = onDismiss) {
-                    Text(stringResource(R.string.close))
+            val isAuthExpiredError =
+                progress is IndexingProgress.Error &&
+                    progress.errorReason == IndexingProgress.ERROR_REASON_AUTH_EXPIRED
+            when {
+                isAuthExpiredError -> {
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        if (onNavigateToAuth != null) {
+                            TextButton(onClick = onNavigateToAuth) {
+                                Text(stringResource(R.string.indexingLoginAction))
+                            }
+                        }
+                        if (onResumeIndexing != null) {
+                            TextButton(onClick = onResumeIndexing) {
+                                Text(stringResource(R.string.indexingResumeAction))
+                            }
+                        }
+                        TextButton(onClick = onDismiss) {
+                            Text(stringResource(R.string.close))
+                        }
+                    }
+                }
+                progress is IndexingProgress.Paused -> {
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        if (onResumeIndexing != null) {
+                            TextButton(onClick = onResumeIndexing) {
+                                Text(stringResource(R.string.indexingResumeAction))
+                            }
+                        }
+                        TextButton(onClick = onDismiss) {
+                            Text(stringResource(R.string.close))
+                        }
+                    }
+                }
+                progress is IndexingProgress.Completed || progress is IndexingProgress.Error -> {
+                    TextButton(onClick = onDismiss) {
+                        Text(stringResource(R.string.close))
+                    }
                 }
             }
         },
         dismissButton = {
-            // Show "Скрыть" button during indexing to continue in background
+            // Show "Скрыть" button during indexing to continue in background,
+            // plus a real "Пауза" that cancels the worker (resumable via cursors)
             if (progress is IndexingProgress.InProgress || progress is IndexingProgress.Idle) {
-                onHide?.let { hide ->
-                    TextButton(onClick = hide) {
-                        Text(stringResource(R.string.hideAction))
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    onHide?.let { hide ->
+                        TextButton(onClick = hide) {
+                            Text(stringResource(R.string.hideAction))
+                        }
+                    }
+                    if (progress is IndexingProgress.InProgress && onPauseIndexing != null) {
+                        TextButton(onClick = onPauseIndexing) {
+                            Text(stringResource(R.string.indexingPauseAction))
+                        }
                     }
                 }
             }
         },
     )
+}
+
+@Composable
+private fun ForumStatusRow(status: ForumStatus) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        when (status.state) {
+            ForumState.INDEXED -> {
+                Icon(
+                    imageVector = Icons.Filled.CheckCircle,
+                    contentDescription = stringResource(R.string.indexingStatusIndexed),
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+            ForumState.IN_PROGRESS -> {
+                val inProgressLabel = stringResource(R.string.indexingStatusInProgress)
+                CircularProgressIndicator(
+                    modifier =
+                        Modifier
+                            .size(16.dp)
+                            .semantics { contentDescription = inProgressLabel },
+                    strokeWidth = 2.dp,
+                )
+            }
+            ForumState.FAILED -> {
+                Icon(
+                    imageVector = Icons.Filled.Error,
+                    contentDescription = stringResource(R.string.indexingStatusFailed),
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.error,
+                )
+            }
+            ForumState.PAUSED -> {
+                Icon(
+                    imageVector = Icons.Filled.Pending,
+                    contentDescription = stringResource(R.string.indexingStatusPaused),
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.tertiary,
+                )
+            }
+            ForumState.PENDING -> {
+                Icon(
+                    imageVector = Icons.Filled.Pending,
+                    contentDescription = stringResource(R.string.indexingStatusPending),
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        Spacer(modifier = Modifier.width(8.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = status.forumName,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (status.state == ForumState.INDEXED && status.topicsCount > 0) {
+                Text(
+                    text =
+                        pluralStringResource(
+                            R.plurals.indexTopicsCount,
+                            status.topicsCount,
+                            status.topicsCount,
+                        ),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (status.state == ForumState.FAILED && status.errorMessage != null) {
+                Text(
+                    text = status.errorMessage,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
 }

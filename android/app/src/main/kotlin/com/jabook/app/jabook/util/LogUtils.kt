@@ -24,13 +24,10 @@ import com.jabook.app.jabook.BuildConfig
  * - Prod: Only WARN and ERROR enabled
  */
 public object LogUtils {
-    private const val FLAVOR_PROD = "prod"
-    private const val FLAVOR_BETA = "beta"
-
     // Check if we should log debug/info/verbose messages
     // Enable for DEBUG builds AND all non-prod flavors (dev, stage, beta)
     // Non-prod packages end with ".dev", ".stage", ".beta" suffix
-    private val isDebugLoggingEnabled: Boolean =
+    public val isDebugLoggingEnabled: Boolean =
         BuildConfig.DEBUG ||
             BuildConfig.APPLICATION_ID.endsWith(".dev") ||
             BuildConfig.APPLICATION_ID.endsWith(".stage") ||

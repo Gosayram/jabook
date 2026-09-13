@@ -15,83 +15,146 @@
 package com.jabook.app.jabook.compose.data.torrent
 
 import androidx.room.Dao
-import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.Update
+import androidx.room.Transaction
+import androidx.room.TypeConverters
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
  * DAO for torrent downloads
  */
 @Dao
+@TypeConverters(TorrentDownloadConverters::class)
 public interface TorrentDownloadDao {
     /**
-     * Get all downloads as Flow
+     * Get all downloads as Flow.
+     * Uses [TorrentDownloadRow] (no resumeData BLOB) so list reads never
+     * materialize multi-KB resume BLOBs for every row.
      */
-    @Query("SELECT * FROM torrent_downloads ORDER BY addedTime DESC")
-    public fun getAllFlow(): Flow<List<TorrentDownloadEntity>>
+    @Query(
+        """
+        SELECT hash, name, state, progress, totalSize, downloadedSize, uploadedSize,
+               savePath, files, errorMessage, addedTime, completedTime, pauseReason, topicId
+        FROM torrent_downloads ORDER BY addedTime DESC
+        """,
+    )
+    public fun getAllFlowInternal(): Flow<List<TorrentDownloadRow>>
+
+    public fun getAllFlow(): Flow<List<TorrentDownloadRow>> = getAllFlowInternal().distinctUntilChanged()
 
     /**
      * Get all downloads (one-time)
      */
-    @Query("SELECT * FROM torrent_downloads ORDER BY addedTime DESC")
-    public suspend fun getAll(): List<TorrentDownloadEntity>
+    @Query(
+        """
+        SELECT hash, name, state, progress, totalSize, downloadedSize, uploadedSize,
+               savePath, files, errorMessage, addedTime, completedTime, pauseReason, topicId
+        FROM torrent_downloads ORDER BY addedTime DESC
+        """,
+    )
+    public suspend fun getAll(): List<TorrentDownloadRow>
 
     /**
      * Get download by hash
      */
-    @Query("SELECT * FROM torrent_downloads WHERE hash = :hash")
-    public suspend fun getByHash(hash: String): TorrentDownloadEntity?
-
-    /**
-     * Get download by hash as Flow
-     */
-    @Query("SELECT * FROM torrent_downloads WHERE hash = :hash")
-    public fun getByHashFlow(hash: String): Flow<TorrentDownloadEntity?>
-
-    /**
-     * Get completed downloads
-     */
-    @Query("SELECT * FROM torrent_downloads WHERE state = 'COMPLETED' ORDER BY completedTime DESC")
-    public suspend fun getCompleted(): List<TorrentDownloadEntity>
-
-    /**
-     * Get active downloads (downloading, seeding, etc)
-     */
     @Query(
         """
-        SELECT * FROM torrent_downloads 
-        WHERE state IN ('DOWNLOADING', 'SEEDING', 'STREAMING', 'CHECKING', 'DOWNLOADING_METADATA')
-        ORDER BY addedTime DESC
+        SELECT hash, name, state, progress, totalSize, downloadedSize, uploadedSize,
+               savePath, files, errorMessage, addedTime, completedTime, pauseReason, topicId
+        FROM torrent_downloads WHERE hash = :hash
         """,
     )
-    public fun getActiveFlow(): Flow<List<TorrentDownloadEntity>>
+    public suspend fun getByHash(hash: String): TorrentDownloadRow?
 
     /**
-     * Insert download
+     * Insert downloads that do not exist yet. Existing rows are left untouched so
+     * persisted [TorrentDownloadEntity.resumeData] is never clobbered by sync writes.
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    public suspend fun insert(download: TorrentDownloadEntity)
-
-    /**
-     * Insert multiple downloads
-     */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     public suspend fun insertAll(downloads: List<TorrentDownloadEntity>)
 
     /**
-     * Update download
+     * Persists a placeholder row the moment a torrent is added, so a process
+     * death before the ADD_TORRENT alert fires cannot lose the download.
+     * The real name/files arrive with the alert and overwrite this row.
      */
-    @Update
-    public suspend fun update(download: TorrentDownloadEntity)
+    @Query(
+        """
+        INSERT OR IGNORE INTO torrent_downloads
+            (hash, name, state, progress, totalSize, downloadedSize, uploadedSize,
+             savePath, files, errorMessage, addedTime, completedTime, pauseReason, topicId)
+        VALUES (:hash, :hash, 'QUEUED', 0, 0, 0, 0, :savePath, '[]', NULL, :now, NULL, NULL, :topicId)
+        """,
+    )
+    public suspend fun insertPendingRow(
+        hash: String,
+        savePath: String,
+        topicId: String?,
+        now: Long,
+    )
 
     /**
-     * Delete download
+     * Update all live-synced columns for one download, deliberately excluding
+     * resumeData so periodic progress syncs cannot erase the resume BLOB.
      */
-    @Delete
-    public suspend fun delete(download: TorrentDownloadEntity)
+    @Query(
+        """
+        UPDATE torrent_downloads SET
+            name = :name, state = :state, progress = :progress,
+            totalSize = :totalSize, downloadedSize = :downloadedSize,
+            uploadedSize = :uploadedSize, savePath = :savePath, files = :files,
+            errorMessage = :errorMessage, addedTime = :addedTime,
+            completedTime = :completedTime, pauseReason = :pauseReason,
+            topicId = :topicId
+        WHERE hash = :hash
+        """,
+    )
+    public suspend fun updateSyncFields(
+        hash: String,
+        name: String,
+        state: TorrentState,
+        progress: Float,
+        totalSize: Long,
+        downloadedSize: Long,
+        uploadedSize: Long,
+        savePath: String,
+        files: List<TorrentFile>,
+        errorMessage: String?,
+        addedTime: Long,
+        completedTime: Long,
+        pauseReason: PauseReason?,
+        topicId: String?,
+    )
+
+    /**
+     * Insert new downloads then update all live-synced columns.
+     * Runs in a single transaction so callers never see a partial write.
+     */
+    @Transaction
+    public suspend fun upsertSyncFields(downloads: List<TorrentDownloadEntity>) {
+        insertAll(downloads)
+        downloads.forEach { e ->
+            updateSyncFields(
+                hash = e.hash,
+                name = e.name,
+                state = e.state,
+                progress = e.progress,
+                totalSize = e.totalSize,
+                downloadedSize = e.downloadedSize,
+                uploadedSize = e.uploadedSize,
+                savePath = e.savePath,
+                files = e.files,
+                errorMessage = e.errorMessage,
+                addedTime = e.addedTime,
+                completedTime = e.completedTime,
+                pauseReason = e.pauseReason,
+                topicId = e.topicId,
+            )
+        }
+    }
 
     /**
      * Delete by hash
@@ -100,19 +163,8 @@ public interface TorrentDownloadDao {
     public suspend fun deleteByHash(hash: String)
 
     /**
-     * Delete all completed downloads
-     */
-    @Query("DELETE FROM torrent_downloads WHERE state = 'COMPLETED'")
-    public suspend fun deleteAllCompleted()
-
-    /**
-     * Delete all downloads
-     */
-    @Query("DELETE FROM torrent_downloads")
-    public suspend fun deleteAll()
-
-    /**
-     * Update download state
+     * Persist a state override (e.g. STOPPED when a torrent is removed without
+     * deleting files) so restoreActiveDownloads() won't re-add it on restart.
      */
     @Query("UPDATE torrent_downloads SET state = :state WHERE hash = :hash")
     public suspend fun updateState(
@@ -121,40 +173,16 @@ public interface TorrentDownloadDao {
     )
 
     /**
-     * Update download progress
+     * Returns all non-completed/non-error/non-stopped downloads regardless of
+     * resume data, for re-adding on session init. STOPPED torrents were explicitly
+     * removed by the user and must NOT be silently re-added on restart.
      */
     @Query(
         """
-        UPDATE torrent_downloads
-        SET progress = :progress, downloadedSize = :downloadedSize
-        WHERE hash = :hash
+        SELECT hash, name, state, progress, totalSize, downloadedSize, uploadedSize,
+               savePath, files, errorMessage, addedTime, completedTime, pauseReason, topicId
+        FROM torrent_downloads WHERE state NOT IN ('COMPLETED', 'ERROR', 'STOPPED')
         """,
     )
-    public suspend fun updateProgress(
-        hash: String,
-        progress: Float,
-        downloadedSize: Long,
-    )
-
-    /**
-     * Persist libtorrent resume data so downloads survive process death.
-     * Called whenever libtorrent emits a SaveResumeDataAlert for a torrent.
-     */
-    @Query("UPDATE torrent_downloads SET resumeData = :data WHERE hash = :hash")
-    public suspend fun updateResumeData(
-        hash: String,
-        data: ByteArray,
-    )
-
-    /**
-     * Returns all non-completed downloads that have resume data, for restoration on session init.
-     */
-    @Query("SELECT * FROM torrent_downloads WHERE state NOT IN ('COMPLETED', 'ERROR') AND resumeData IS NOT NULL")
-    public suspend fun getResumableDownloads(): List<TorrentDownloadEntity>
-
-    /**
-     * Returns all non-completed downloads regardless of resume data, for re-adding on session init.
-     */
-    @Query("SELECT * FROM torrent_downloads WHERE state NOT IN ('COMPLETED', 'ERROR')")
-    public suspend fun getActiveDownloads(): List<TorrentDownloadEntity>
+    public suspend fun getActiveDownloads(): List<TorrentDownloadRow>
 }

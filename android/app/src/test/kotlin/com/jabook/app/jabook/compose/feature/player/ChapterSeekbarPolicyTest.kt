@@ -82,6 +82,107 @@ class ChapterSeekbarPolicyTest {
     }
 
     @Test
+    fun `buildTimeline keeps zero-duration chapters as zero-width segments`() {
+        val mixedChapters =
+            listOf(
+                chapter(index = 0, durationMs = 1_000L),
+                chapter(index = 1, durationMs = 0L),
+                chapter(index = 2, durationMs = 3_000L),
+            )
+        val timeline =
+            ChapterSeekbarPolicy.buildTimeline(
+                chapters = mixedChapters,
+                currentChapterIndex = 2,
+                currentChapterPositionMs = 1_000L,
+            )
+
+        assertEquals(4_000L, timeline.totalDurationMs)
+        assertEquals(2_000L, timeline.globalPositionMs)
+        assertEquals(1, timeline.chapterMarkersFractions.size)
+        assertEquals(1f / 4f, timeline.chapterMarkersFractions[0], 0.0001f)
+    }
+
+    @Test
+    fun `buildTimeline distributes fallback duration across zero-duration chapters`() {
+        val zeroChapters =
+            listOf(
+                chapter(index = 0, durationMs = 0L),
+                chapter(index = 1, durationMs = 0L),
+                chapter(index = 2, durationMs = 0L),
+            )
+        val timeline =
+            ChapterSeekbarPolicy.buildTimeline(
+                chapters = zeroChapters,
+                currentChapterIndex = 1,
+                currentChapterPositionMs = 500L,
+                fallbackDurationMs = 6_000L,
+            )
+
+        assertEquals(6_000L, timeline.totalDurationMs)
+        assertEquals(2_500L, timeline.globalPositionMs)
+        assertEquals(2, timeline.chapterMarkersFractions.size)
+    }
+
+    @Test
+    fun `buildTimeline with all zero durations and no fallback stays empty`() {
+        val zeroChapters = listOf(chapter(index = 0, durationMs = 0L))
+        val timeline =
+            ChapterSeekbarPolicy.buildTimeline(
+                chapters = zeroChapters,
+                currentChapterIndex = 0,
+                currentChapterPositionMs = 0L,
+            )
+
+        assertEquals(0L, timeline.totalDurationMs)
+    }
+
+    @Test
+    fun `resolveSeekTarget keeps original indices for zero-duration chapters`() {
+        val mixedChapters =
+            listOf(
+                chapter(index = 0, durationMs = 1_000L),
+                chapter(index = 1, durationMs = 0L),
+                chapter(index = 2, durationMs = 3_000L),
+            )
+        val target = ChapterSeekbarPolicy.resolveSeekTarget(mixedChapters, progress = 0.75f)
+
+        assertEquals(2, target.chapterIndex)
+        assertEquals(2_000L, target.chapterPositionMs)
+    }
+
+    @Test
+    fun `resolveSeekTarget maps progress across fallback-distributed chapters`() {
+        val zeroChapters =
+            listOf(
+                chapter(index = 0, durationMs = 0L),
+                chapter(index = 1, durationMs = 0L),
+            )
+        val target =
+            ChapterSeekbarPolicy.resolveSeekTarget(
+                zeroChapters,
+                progress = 0.75f,
+                fallbackDurationMs = 4_000L,
+            )
+
+        assertEquals(1, target.chapterIndex)
+        assertEquals(1_000L, target.chapterPositionMs)
+    }
+
+    @Test
+    fun `resolveSeekTarget degenerate single chapter maps progress into position`() {
+        val single = listOf(chapter(index = 0, durationMs = 0L))
+        val target =
+            ChapterSeekbarPolicy.resolveSeekTarget(
+                single,
+                progress = 0.5f,
+                fallbackDurationMs = 1_000L,
+            )
+
+        assertEquals(0, target.chapterIndex)
+        assertEquals(500L, target.chapterPositionMs)
+    }
+
+    @Test
     fun `property - buildTimeline keeps progress and markers in valid bounds`() {
         runTest {
             checkAll(

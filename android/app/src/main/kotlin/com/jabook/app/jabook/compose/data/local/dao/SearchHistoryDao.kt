@@ -15,11 +15,11 @@
 package com.jabook.app.jabook.compose.data.local.dao
 
 import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Upsert
 import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
  * DAO for search history operations.
@@ -32,13 +32,31 @@ public interface SearchHistoryDao {
      * @param limit Maximum number of results (default 10)
      */
     @Query("SELECT * FROM search_history ORDER BY timestamp DESC LIMIT :limit")
-    public fun getRecentSearches(limit: Int = 10): Flow<List<SearchHistoryEntity>>
+    public fun getRecentSearchesInternal(limit: Int = 10): Flow<List<SearchHistoryEntity>>
+
+    public fun getRecentSearches(limit: Int = 10): Flow<List<SearchHistoryEntity>> = getRecentSearchesInternal(limit).distinctUntilChanged()
 
     /**
      * Insert a search query into history.
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     public suspend fun insertSearch(search: SearchHistoryEntity)
+
+    /**
+     * Find a search entry by its normalized query (for dedup).
+     */
+    @Query("SELECT * FROM search_history WHERE normalized_query = :normalizedQuery LIMIT 1")
+    public suspend fun findByNormalizedQuery(normalizedQuery: String): SearchHistoryEntity?
+
+    /**
+     * Update the timestamp of an existing search entry.
+     */
+    @Query("UPDATE search_history SET timestamp = :timestamp, result_count = :resultCount WHERE id = :id")
+    public suspend fun updateTimestamp(
+        id: Int,
+        timestamp: Long,
+        resultCount: Int,
+    )
 
     /**
      * Delete a specific search from history.

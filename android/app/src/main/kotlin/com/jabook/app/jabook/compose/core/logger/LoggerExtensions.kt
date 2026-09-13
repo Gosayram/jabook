@@ -87,7 +87,7 @@ public fun Logger.logSuccess(
     message: String,
     durationMs: Long? = null,
 ) {
-    i { "[$operationId] ✅ $message${if (durationMs != null) " (${durationMs}ms)" else ""}" }
+    i { "[$operationId] $message${if (durationMs != null) " (${durationMs}ms)" else ""}" }
 }
 
 /**
@@ -98,7 +98,7 @@ public fun Logger.logError(
     message: String,
     throwable: Throwable? = null,
 ) {
-    e(throwable, { "[$operationId] ❌ $message" })
+    e(throwable, { "[$operationId] $message" })
 }
 
 /**
@@ -108,7 +108,7 @@ public fun Logger.logWarning(
     operationId: String,
     message: String,
 ) {
-    w { "[$operationId] ⚠️ $message" }
+    w { "[$operationId] $message" }
 }
 
 /**

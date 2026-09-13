@@ -65,7 +65,7 @@ public class TorrentNotificationManager
             if (download.state == TorrentState.PAUSED) {
                 builder.addAction(
                     android.R.drawable.ic_media_play,
-                    "Resume",
+                    context.getString(R.string.resume),
                     createActionIntent(TorrentActionReceiver.ACTION_RESUME_TORRENT, download.hash),
                 )
             } else if (download.state == TorrentState.DOWNLOADING ||
@@ -75,7 +75,7 @@ public class TorrentNotificationManager
             ) {
                 builder.addAction(
                     android.R.drawable.ic_media_pause,
-                    "Pause",
+                    context.getString(R.string.pause),
                     createActionIntent(TorrentActionReceiver.ACTION_PAUSE_TORRENT, download.hash),
                 )
             }
@@ -83,7 +83,7 @@ public class TorrentNotificationManager
             // Allow cancelling from notification
             builder.addAction(
                 android.R.drawable.ic_menu_close_clear_cancel,
-                "Cancel",
+                context.getString(R.string.cancel),
                 createActionIntent(TorrentActionReceiver.ACTION_CANCEL_TORRENT, download.hash),
             )
 
@@ -98,7 +98,7 @@ public class TorrentNotificationManager
                 TorrentState.ERROR -> {
                     builder
                         .setColor(Color.RED)
-                        .setContentText(download.errorMessage ?: "Error")
+                        .setContentText(download.errorMessage ?: context.getString(R.string.error))
                 }
                 TorrentState.COMPLETED -> {
                     builder
@@ -143,11 +143,11 @@ public class TorrentNotificationManager
                 .setContentIntent(createOpenDownloadsIntent())
                 .addAction(
                     android.R.drawable.ic_media_pause,
-                    "Pause All",
+                    context.getString(R.string.pauseAll),
                     createActionIntent(TorrentActionReceiver.ACTION_PAUSE_ALL),
                 ).addAction(
                     android.R.drawable.ic_media_play,
-                    "Resume All",
+                    context.getString(R.string.resumeAll),
                     createActionIntent(TorrentActionReceiver.ACTION_RESUME_ALL),
                 ).build()
         }
@@ -156,8 +156,10 @@ public class TorrentNotificationManager
          * Update notification for download
          */
         public fun updateNotification(download: TorrentDownload) {
+            // Skip building the notification entirely when the user disabled notifications
+            if (!notificationManager.areNotificationsEnabled()) return
             val notification = createProgressNotification(download)
-            notificationManager.notify(download.hash.hashCode(), notification)
+            notificationManager.notify(TorrentNotificationIds.forHash(download.hash), notification)
         }
 
         /**
@@ -165,13 +167,6 @@ public class TorrentNotificationManager
          */
         public fun cancel(notificationId: Int) {
             notificationManager.cancel(notificationId)
-        }
-
-        /**
-         * Update all notifications
-         */
-        public fun updateAllNotifications() {
-            // Will be called by service when needed
         }
 
         private fun getProgressText(download: TorrentDownload): String =
@@ -207,7 +202,7 @@ public class TorrentNotificationManager
                 }
 
             // Use unique request code to distinguish different hashes/actions
-            val requestCode = (hash?.hashCode() ?: 0) + action.hashCode()
+            val requestCode = TorrentNotificationIds.forAction(hash, action)
 
             return PendingIntent.getBroadcast(
                 context,

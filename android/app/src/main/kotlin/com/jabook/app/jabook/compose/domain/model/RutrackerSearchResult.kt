@@ -51,6 +51,8 @@ public data class RutrackerSearchResult(
     val coverUrl: String? = null,
     /** Uploader nickname (optional) */
     val uploader: String? = null,
+    /** Topic registration timestamp in epoch seconds; null when unknown */
+    val registeredAtEpochSec: Long? = null,
 ) {
     /**
      * Validates that the search result has required fields.
