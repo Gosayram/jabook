@@ -15,7 +15,6 @@
 package com.jabook.app.jabook.compose.data.indexing
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -26,10 +25,11 @@ import org.junit.Test
 class ForumIndexerBackoffTest {
     @Test
     fun `backoff grows by attempt not page number`() {
-        assertEquals(1000L, ForumIndexer.calculateAdaptiveBackoffMs(1, null, random = 0.5))
-        assertEquals(2000L, ForumIndexer.calculateAdaptiveBackoffMs(2, null, random = 0.5))
-        assertEquals(4000L, ForumIndexer.calculateAdaptiveBackoffMs(3, null, random = 0.5))
-        assertEquals(8000L, ForumIndexer.calculateAdaptiveBackoffMs(4, null, random = 0.5))
+        // attempt = real retry counter (1-based): 1s * 2^attempt
+        assertEquals(2000L, ForumIndexer.calculateAdaptiveBackoffMs(1, null, random = 0.5))
+        assertEquals(4000L, ForumIndexer.calculateAdaptiveBackoffMs(2, null, random = 0.5))
+        assertEquals(8000L, ForumIndexer.calculateAdaptiveBackoffMs(3, null, random = 0.5))
+        assertEquals(16000L, ForumIndexer.calculateAdaptiveBackoffMs(4, null, random = 0.5))
     }
 
     @Test
@@ -38,20 +38,22 @@ class ForumIndexerBackoffTest {
     }
 
     @Test
-    fun `retry-after is honored verbatim without jitter`() {
-        assertEquals(45_000L, ForumIndexer.calculateAdaptiveBackoffMs(1, 45_000L, random = 0.0))
-        assertEquals(45_000L, ForumIndexer.calculateAdaptiveBackoffMs(1, 45_000L, random = 1.0))
+    fun `retry-after is honored without jitter and capped at 30s`() {
+        assertEquals(12_000L, ForumIndexer.calculateAdaptiveBackoffMs(1, 12_000L, random = 0.0))
+        assertEquals(12_000L, ForumIndexer.calculateAdaptiveBackoffMs(1, 12_000L, random = 1.0))
+        // Server asks 45s — still capped at MAX_BACKOFF_MS
+        assertEquals(30_000L, ForumIndexer.calculateAdaptiveBackoffMs(1, 45_000L, random = 0.5))
     }
 
     @Test
     fun `jitter stays within plus minus 30 percent`() {
-        val min = 700L
-        val max = 1300L
+        // base for attempt 1 is 2000ms → ±600ms
+        val min = 1400L
+        val max = 2600L
         val low = ForumIndexer.calculateAdaptiveBackoffMs(1, null, random = 0.0)
         val high = ForumIndexer.calculateAdaptiveBackoffMs(1, null, random = 1.0)
-        assertTrue("low $low below $min", low >= min)
-        assertTrue("high $high above cap", high <= ForumIndexer.MAX_BACKOFF_MS)
-        assertTrue("high $high above $max", high <= max)
+        assertEquals(min, low)
+        assertEquals(max, high)
     }
 
     @Test
