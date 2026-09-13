@@ -200,6 +200,39 @@ class AuthRepositoryImplTest {
             verify(mirrorManager).setMirror(MirrorManager.DEFAULT_MIRRORS.first())
         }
 
+    @Test
+    fun `clearSession ends the session but keeps stored credentials`() =
+        runTest {
+            stubDefaults()
+            whenever(cookieJar.loadForRequest(any())).thenReturn(listOf(sessionCookie()))
+            whenever(secureStorage.getCredentials()).thenReturn(UserCredentials("stored", "pass"))
+            whenever(authService.fetchIndexAuthState())
+                .thenReturn(RutrackerAuthService.IndexAuthState(loggedIn = true, username = "atlet99"))
+
+            val repository = repository(UnconfinedTestDispatcher(testScheduler))
+            assertTrue(repository.isLoggedIn())
+
+            repository.clearSession()
+
+            assertEquals(AuthStatus.Unauthenticated, repository.authStatus.value)
+            verify(cookieJar).clear()
+            verify(cookiePersistence).clearWebViewSession("https://mirror.example/")
+            verify(preferencesRepository).setAuthUsername("")
+            verify(secureStorage, never()).clearCredentials()
+        }
+
+    @Test
+    fun `logout clears session and stored credentials`() =
+        runTest {
+            stubDefaults()
+            val repository = repository(UnconfinedTestDispatcher(testScheduler))
+
+            repository.logout()
+
+            assertEquals(AuthStatus.Unauthenticated, repository.authStatus.value)
+            verify(secureStorage).clearCredentials()
+        }
+
     private suspend fun stubDefaults() {
         whenever(mirrorManager.currentMirror).thenReturn(MutableStateFlow("mirror.example"))
         whenever(preferencesRepository.getAuthUsername()).thenReturn("")

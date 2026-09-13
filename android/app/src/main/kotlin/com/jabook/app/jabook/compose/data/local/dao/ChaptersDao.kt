@@ -158,4 +158,10 @@ public interface ChaptersDao {
      */
     @Query("SELECT COUNT(*) FROM chapters WHERE book_id = :bookId")
     public suspend fun getTotalCount(bookId: String): Int
+
+    /**
+     * Gets total count of chapters across all books.
+     */
+    @Query("SELECT COUNT(*) FROM chapters")
+    public suspend fun getTotalChapterCount(): Int
 }

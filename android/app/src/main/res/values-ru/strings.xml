@@ -479,6 +479,17 @@
     <string name="downloadProgressLabelText">Прогресс</string>
     <!-- Заголовок раздела статистики кэша -->
     <string name="cacheStatisticsTitle">Статистика кэша</string>
+    <string name="debugCacheTotalSize">Общий размер</string>
+    <string name="debugCacheSearch">Кэш поиска</string>
+    <string name="debugCacheTopics">Кэш тем</string>
+    <string name="debugCacheTempDownloads">Временные загрузки</string>
+    <string name="debugCacheLogs">Файлы журналов</string>
+    <string name="debugCacheImage">Кэш изображений (диск Coil)</string>
+    <string name="debugCacheCovers">Папка обложек</string>
+    <string name="debugCacheCoversValue">%1$d файлов, %2$s</string>
+    <string name="debugCacheCookies">Сохранённые cookie</string>
+    <string name="debugCacheLastCleanup">Последняя очистка</string>
+    <string name="debugCacheNever">Никогда</string>
     <!-- Метка для общего количества записей -->
     <string name="totalEntriesText">Всего записей: </string>
     <!-- Метка для размера кэша поиска -->
@@ -1311,6 +1322,7 @@
     <!-- Метрики инспектора БД -->
     <string name="debugDbBooksCount">Книги</string>
     <string name="debugDbFavoritesCount">Избранное</string>
+    <string name="debugDbChaptersCount">Главы</string>
     <string name="debugDbIndexedTopicsCount">Индексированные темы</string>
     <string name="debugDbDownloadHistoryCount">История загрузок</string>
     <!-- Метка для общего размера кэша -->
@@ -2248,7 +2260,7 @@
     <!-- Освободить размер кэша -->
     <string name="freeUpCacheSize">Освободить %s</string>
     <!-- Подтверждение очистки кэша -->
-    <string name="clearCacheConfirmation">Это удалит %s кэшированных данных. Продолжить?</string>
+    <string name="clearCacheConfirmation">Это удалит %s кэшированных данных и завершит сессию RuTracker (сохранённые учётные данные останутся для автоматического входа). Продолжить?</string>
     <!-- Нажмите на главу для перехода и воспроизведения -->
     <!-- Видео -->
     <string name="videoLabel">Видео</string>
@@ -2980,6 +2992,9 @@
     <string name="indexingStatusPage">Страница %1$d</string>
     <string name="indexingCompletedHeadline">Индексация завершена!</string>
     <string name="indexingDurationSeconds">Время: %1$d сек</string>
+    <string name="indexingEta">≈ %1$s осталось</string>
+    <string name="indexingPauseAction">Пауза</string>
+    <string name="indexingPausedMessage">Индексация приостановлена. Прогресс сохранён — можно продолжить позже.</string>
     <string name="indexingForumLabel">Форум: %1$s</string>
     <string name="indexingStatusIndexed">Проиндексировано</string>
     <string name="indexingStatusInProgress">Индексация</string>

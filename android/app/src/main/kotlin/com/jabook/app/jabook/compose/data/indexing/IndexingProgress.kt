@@ -45,6 +45,12 @@ public sealed class IndexingProgress {
     ) : IndexingProgress()
 
     /**
+     * Indexing cancelled by the user ("Pause"); persisted page cursors allow
+     * resuming where it stopped.
+     */
+    public data object Paused : IndexingProgress()
+
+    /**
      * Indexing failed with error.
      *
      * @param message Error message
@@ -112,6 +118,8 @@ public data class ForumStatus(
  * @param forumStatuses Per-forum status list
  * @param phase Current crawl phase ([PHASE_FRESH], [PHASE_BACKFILL]) or null
  *   when not applicable (legacy full crawl).
+ * @param reportedPercent Progress percent (0..1) reported by the background
+ *   worker, when known; null = compute from per-forum counters.
  */
 public data class IndexProgress(
     val currentForumName: String = "",
@@ -122,6 +130,7 @@ public data class IndexProgress(
     val errors: List<String> = emptyList(),
     val forumStatuses: List<ForumStatus> = emptyList(),
     val phase: String? = null,
+    val reportedPercent: Float? = null,
 ) {
     public companion object {
         /** Fresh-first phase: newest pages crawled first for all forums. */
@@ -136,10 +145,12 @@ public data class IndexProgress(
 
     /**
      * Overall progress percentage (0.0 to 1.0).
-     * Each forum contributes 1/totalForums to progress, subdivided by page count.
+     * Prefers the worker-reported percent; otherwise each forum contributes
+     * 1/totalForums, subdivided by page count.
      */
     val percentComplete: Float
         get() {
+            reportedPercent?.let { return it.coerceIn(0f, 1f) }
             if (totalForums == 0) return 0f
             val forumContribution = 1f / totalForums
             // Prefer the current forum's recorded page total; fall back to a 50-page estimate

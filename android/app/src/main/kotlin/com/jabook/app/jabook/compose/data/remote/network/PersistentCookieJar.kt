@@ -66,6 +66,9 @@ internal class CookieMemoryCache {
     fun clear() {
         entries.clear()
     }
+
+    /** Total number of cookies currently held across all hosts. */
+    fun count(): Int = entries.values.sumOf { it.size }
 }
 
 /**
@@ -265,6 +268,12 @@ public class PersistentCookieJar
             cache.clear()
             dataStore.edit { it.clear() }
         }
+
+        /**
+         * Number of cookies currently held across all hosts (in-memory snapshot;
+         * best-effort until the background warm-up finishes).
+         */
+        public fun size(): Int = cache.count()
 
         private fun serializeCookie(cookie: Cookie): String = cookieJson.encodeToString(PersistedCookie.serializer(), cookie.toPersisted())
 

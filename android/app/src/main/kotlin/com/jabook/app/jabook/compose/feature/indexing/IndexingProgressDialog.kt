@@ -40,6 +40,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
@@ -57,6 +59,7 @@ import com.jabook.app.jabook.compose.data.indexing.ForumState
 import com.jabook.app.jabook.compose.data.indexing.ForumStatus
 import com.jabook.app.jabook.compose.data.indexing.IndexProgress
 import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
+import kotlinx.coroutines.delay
 
 /**
  * Dialog showing indexing progress.
@@ -67,8 +70,12 @@ import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
  * @param indexSize Current index size from database (used for accurate count display)
  * @param forumStatuses Per-forum statuses
  * @param onNavigateToAuth Invoked by "Войти" when the session expired mid-run
+ * @param onPauseIndexing Invoked by "Пауза" — cancels the worker; persisted
+ *   cursors keep the run resumable
  * @param onResumeIndexing Invoked by "Продолжить" to re-enqueue indexing —
  *   backfill resumes from the persisted cursors
+ * @param indexingStartTime Epoch ms when the current run started (0 = unknown);
+ *   feeds the ETA estimate
  * @param modifier Modifier for the dialog
  */
 @Composable
@@ -79,13 +86,15 @@ public fun IndexingProgressDialog(
     indexSize: Int = 0,
     forumStatuses: List<ForumStatus> = emptyList(),
     onNavigateToAuth: (() -> Unit)? = null,
+    onPauseIndexing: (() -> Unit)? = null,
     onResumeIndexing: (() -> Unit)? = null,
+    indexingStartTime: Long = 0L,
     modifier: Modifier = Modifier,
 ) {
     AlertDialog(
         onDismissRequest = {
             when (progress) {
-                is IndexingProgress.Completed, is IndexingProgress.Error -> onDismiss()
+                is IndexingProgress.Completed, is IndexingProgress.Error, is IndexingProgress.Paused -> onDismiss()
                 // Outside tap during indexing hides the dialog; indexing continues in background
                 is IndexingProgress.Idle, is IndexingProgress.InProgress -> onHide?.invoke()
             }
@@ -96,6 +105,7 @@ public fun IndexingProgressDialog(
                     is IndexingProgress.Idle -> stringResource(R.string.indexingDialogTitle)
                     is IndexingProgress.InProgress -> stringResource(R.string.indexingDialogTitle)
                     is IndexingProgress.Completed -> stringResource(R.string.indexingCompletedTitle)
+                    is IndexingProgress.Paused -> stringResource(R.string.indexingDialogTitle)
                     is IndexingProgress.Error -> stringResource(R.string.indexingErrorTitle)
                 },
             )
@@ -114,6 +124,18 @@ public fun IndexingProgressDialog(
                         CircularProgressIndicator()
                         Text(
                             text = stringResource(R.string.indexingPreparing),
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+
+                    is IndexingProgress.Paused -> {
+                        Icon(
+                            imageVector = Icons.Filled.Pending,
+                            contentDescription = stringResource(R.string.indexingStatusPaused),
+                            tint = MaterialTheme.colorScheme.tertiary,
+                        )
+                        Text(
+                            text = stringResource(R.string.indexingPausedMessage),
                             textAlign = TextAlign.Center,
                         )
                     }
@@ -158,6 +180,33 @@ public fun IndexingProgressDialog(
                                 textAlign = TextAlign.Center,
                                 style = MaterialTheme.typography.bodyMedium,
                             )
+
+                            // ETA: elapsed × remaining / completed forums, refreshed every second
+                            if (progress.detail.totalForumsCompleted > 0 && indexingStartTime > 0L) {
+                                val elapsedMs by produceState(
+                                    initialValue = System.currentTimeMillis() - indexingStartTime,
+                                    key1 = indexingStartTime,
+                                ) {
+                                    while (true) {
+                                        delay(1_000L)
+                                        value = System.currentTimeMillis() - indexingStartTime
+                                    }
+                                }
+                                val remainingForums = progress.detail.totalForums - progress.detail.totalForumsCompleted
+                                val etaMs = elapsedMs * remainingForums / progress.detail.totalForumsCompleted
+                                if (etaMs > 0L) {
+                                    Text(
+                                        text =
+                                            stringResource(
+                                                R.string.indexingEta,
+                                                UiFormatters.formatDuration(etaMs),
+                                            ),
+                                        textAlign = TextAlign.Center,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
 
                             if (forumStatuses.isNotEmpty()) {
                                 Spacer(modifier = Modifier.height(8.dp))
@@ -262,6 +311,18 @@ public fun IndexingProgressDialog(
                         }
                     }
                 }
+                progress is IndexingProgress.Paused -> {
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        if (onResumeIndexing != null) {
+                            TextButton(onClick = onResumeIndexing) {
+                                Text(stringResource(R.string.indexingResumeAction))
+                            }
+                        }
+                        TextButton(onClick = onDismiss) {
+                            Text(stringResource(R.string.close))
+                        }
+                    }
+                }
                 progress is IndexingProgress.Completed || progress is IndexingProgress.Error -> {
                     TextButton(onClick = onDismiss) {
                         Text(stringResource(R.string.close))
@@ -270,11 +331,19 @@ public fun IndexingProgressDialog(
             }
         },
         dismissButton = {
-            // Show "Скрыть" button during indexing to continue in background
+            // Show "Скрыть" button during indexing to continue in background,
+            // plus a real "Пауза" that cancels the worker (resumable via cursors)
             if (progress is IndexingProgress.InProgress || progress is IndexingProgress.Idle) {
-                onHide?.let { hide ->
-                    TextButton(onClick = hide) {
-                        Text(stringResource(R.string.hideAction))
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    onHide?.let { hide ->
+                        TextButton(onClick = hide) {
+                            Text(stringResource(R.string.hideAction))
+                        }
+                    }
+                    if (progress is IndexingProgress.InProgress && onPauseIndexing != null) {
+                        TextButton(onClick = onPauseIndexing) {
+                            Text(stringResource(R.string.indexingPauseAction))
+                        }
                     }
                 }
             }

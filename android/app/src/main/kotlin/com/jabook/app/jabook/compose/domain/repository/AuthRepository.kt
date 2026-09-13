@@ -49,6 +49,14 @@ public interface AuthRepository {
     public suspend fun logout()
 
     /**
+     * End the active session without forgetting remembered credentials:
+     * clears cookies (HTTP + WebView session) and the displayed nickname,
+     * then emits [AuthStatus.Unauthenticated]. Stored credentials survive,
+     * so the next startup auto-relogins as usual (e.g. used by "clear cache").
+     */
+    public suspend fun clearSession()
+
+    /**
      * Check if user is currently logged in (valid session).
      */
     public suspend fun isLoggedIn(): Boolean

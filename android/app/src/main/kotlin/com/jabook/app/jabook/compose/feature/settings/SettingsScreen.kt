@@ -1636,9 +1636,11 @@ public fun SettingsScreen(
                     progress = indexingProgress,
                     indexSize = indexSize,
                     forumStatuses = forumStatuses,
+                    indexingStartTime = indexingStartTime ?: 0L,
                     onDismiss = {
                         if (indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed ||
-                            indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Error
+                            indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Error ||
+                            indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Paused
                         ) {
                             showIndexingDialog = false
                             coroutineScope.launch {
@@ -1651,6 +1653,7 @@ public fun SettingsScreen(
                         indexingViewModel.startIndexingInBackground(context)
                     },
                     onNavigateToAuth = safeNavigateToAuth,
+                    onPauseIndexing = indexingViewModel::pauseIndexing,
                     onResumeIndexing = {
                         showIndexingDialog = false
                         // Re-enqueues the worker; backfill resumes from persisted cursors

@@ -25,6 +25,7 @@ import com.jabook.app.jabook.compose.data.local.dao.IndexMetadata
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.remote.RuTrackerError
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
+import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
 import com.jabook.app.jabook.compose.data.worker.IndexingWorkScheduler
 import com.jabook.app.jabook.compose.data.worker.IndexingWorker
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
@@ -53,6 +54,7 @@ public class IndexingViewModel
         private val withAuthorisedCheckUseCase: WithAuthorisedCheckUseCase,
         private val indexingWorkScheduler: IndexingWorkScheduler,
         private val settingsRepository: SettingsRepository,
+        private val userPreferencesRepository: UserPreferencesRepository,
         private val loggerFactory: LoggerFactory,
     ) : ViewModel() {
         private companion object {
@@ -83,6 +85,10 @@ public class IndexingViewModel
         private var indexingMonitorJob: Job? = null
         private var indexingJob: Job? = null
 
+        /** Set by [pauseIndexing]; consumed by the monitor when the work terminates. */
+        @Volatile
+        private var pauseRequested: Boolean = false
+
         init {
             startIndexingWorkMonitor()
             viewModelScope.launch {
@@ -106,6 +112,7 @@ public class IndexingViewModel
             // If context is provided, use foreground service for background indexing
             if (context != null) {
                 logger.d { "Starting indexing via WorkManager" }
+                pauseRequested = false
                 _isIndexing.value = true
                 _indexingStartTime.value = System.currentTimeMillis()
                 _indexingProgress.value = IndexingProgress.Idle
@@ -170,9 +177,23 @@ public class IndexingViewModel
          * Cancel indexing (if possible).
          */
         public fun cancelIndexing() {
+            pauseRequested = false
             indexingWorkScheduler.cancel()
             _isIndexing.value = false
             _indexingProgress.value = IndexingProgress.Idle
+        }
+
+        /**
+         * Pause indexing: cancels the WorkManager run; page cursors already
+         * persisted by ForumIndexer survive, so the run is resumable via
+         * [startIndexing]. When the cancelled terminal state arrives and
+         * cursors exist, the progress becomes [IndexingProgress.Paused].
+         */
+        public fun pauseIndexing() {
+            if (!_isIndexing.value) return
+            logger.d { "Pausing indexing (work will be cancelled; cursors preserved)" }
+            pauseRequested = true
+            indexingWorkScheduler.cancel()
         }
 
         /**
@@ -255,8 +276,13 @@ public class IndexingViewModel
                     daysWindow = resolveDaysWindowOrNull(),
                 )
             }
+            pauseRequested = false
             _isIndexing.value = true
-            _indexingStartTime.value = System.currentTimeMillis()
+            // Hiding the dialog must not restart the clock — only set when unset
+            // (i.e. direct indexing handed over to the background service).
+            if (_indexingStartTime.value == null) {
+                _indexingStartTime.value = System.currentTimeMillis()
+            }
             startIndexingWorkMonitor()
         }
 
@@ -334,7 +360,25 @@ public class IndexingViewModel
                             // would let a historical success mask a fresh FAILED run.
                             // DAO returns insertion order (no ORDER BY) — newest last.
                             val latestTerminal = workInfos.lastOrNull { it.state.isFinished }
+                            if (pauseRequested && latestTerminal?.state == WorkInfo.State.CANCELLED) {
+                                pauseRequested = false
+                                val cursors =
+                                    runCatching { userPreferencesRepository.getIndexingPageCursors() }
+                                        .onFailure { logger.w { "Could not read indexing page cursors: ${it.message}" } }
+                                        .getOrDefault(emptyMap())
+                                if (cursors.isNotEmpty()) {
+                                    logger.d { "Indexing paused with ${cursors.size} forum cursor(s); resumable" }
+                                    _indexingProgress.value = IndexingProgress.Paused
+                                    return@collect
+                                }
+                                logger.d { "Indexing cancelled without persisted cursors; nothing to resume" }
+                            }
+                            pauseRequested = false
                             val sizeAfterFinish = resolveIndexSizeAfterServiceCompletion()
+                            val durationMs =
+                                _indexingStartTime.value
+                                    ?.let { start -> System.currentTimeMillis() - start }
+                                    ?: 0L
                             _indexingProgress.value =
                                 when {
                                     latestTerminal?.state == WorkInfo.State.SUCCEEDED &&
@@ -348,7 +392,10 @@ public class IndexingViewModel
                                         )
                                     }
                                     latestTerminal?.state == WorkInfo.State.SUCCEEDED && sizeAfterFinish > 0 -> {
-                                        IndexingProgress.Completed(totalTopics = sizeAfterFinish, durationMs = 0L)
+                                        IndexingProgress.Completed(
+                                            totalTopics = sizeAfterFinish,
+                                            durationMs = durationMs,
+                                        )
                                     }
                                     latestTerminal?.state == WorkInfo.State.FAILED -> {
                                         val errorMsg = latestTerminal.outputData.getString("error_message") ?: "Unknown error"
@@ -368,6 +415,14 @@ public class IndexingViewModel
                 IndexProgress(
                     currentForumName = progress.getString(IndexingWorker.KEY_PROGRESS_MESSAGE).orEmpty(),
                     phase = progress.getString(IndexingWorker.KEY_PROGRESS_PHASE),
+                    topicsFound = progress.getInt(IndexingWorker.KEY_PROGRESS_TOPICS, 0),
+                    totalForumsCompleted = progress.getInt(IndexingWorker.KEY_PROGRESS_FORUMS_DONE, 0),
+                    totalForums = progress.getInt(IndexingWorker.KEY_PROGRESS_FORUMS_TOTAL, 0),
+                    reportedPercent =
+                        progress
+                            .getInt(IndexingWorker.KEY_PROGRESS_PERCENT, -1)
+                            .takeIf { it >= 0 }
+                            ?.div(100f),
                 ),
             )
     }

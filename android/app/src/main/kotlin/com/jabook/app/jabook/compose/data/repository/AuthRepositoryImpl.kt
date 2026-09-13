@@ -333,11 +333,26 @@ public class AuthRepositoryImpl
 
         override suspend fun logout() {
             loginMutex.withLock {
-                cookieJar.clear()
+                clearSessionLocked()
                 secureStorage.clearCredentials()
-                cookiePersistence.clearWebViewSession(rutrackerUrl.toString())
-                _authStatus.value = AuthStatus.Unauthenticated
             }
+        }
+
+        override suspend fun clearSession() {
+            loginMutex.withLock {
+                clearSessionLocked()
+            }
+        }
+
+        /**
+         * Shared teardown for [logout] (full) and [clearSession] (keeps stored
+         * credentials so auto-relogin still works after a cache clear).
+         */
+        private suspend fun clearSessionLocked() {
+            cookieJar.clear()
+            cookiePersistence.clearWebViewSession(rutrackerUrl.toString())
+            preferencesRepository.setAuthUsername("")
+            _authStatus.value = AuthStatus.Unauthenticated
         }
 
         private suspend fun useTrustedAuthenticationMirror() {

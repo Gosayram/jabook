@@ -41,6 +41,16 @@ class CookieMemoryCacheTest {
         cache.clear()
 
         assertNull(cache.load("mirror.example"))
+        assertEquals(0, cache.count())
+    }
+
+    @Test
+    fun `count totals cookies across all hosts`() {
+        val cache = CookieMemoryCache()
+        cache.store("mirror.example", listOf(cookie(name = "session", value = "a"), cookie(name = "csrf", value = "b")))
+        cache.store("other.example", listOf(cookie(name = "session", value = "c")))
+
+        assertEquals(3, cache.count())
     }
 
     private fun cookie(

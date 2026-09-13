@@ -16,12 +16,14 @@ package com.jabook.app.jabook.compose.feature.debug
 
 import com.jabook.app.jabook.compose.core.logger.Logger
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
-import com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache
+import com.jabook.app.jabook.compose.data.cache.CacheManager
+import com.jabook.app.jabook.compose.data.cache.CacheStatistics
 import com.jabook.app.jabook.compose.data.debug.DebugAudioFocusSimulator
 import com.jabook.app.jabook.compose.data.debug.DebugLogService
 import com.jabook.app.jabook.compose.data.debug.DebugRuntimeOverrides
 import com.jabook.app.jabook.compose.data.local.JabookDatabase
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
+import com.jabook.app.jabook.compose.data.local.dao.ChaptersDao
 import com.jabook.app.jabook.compose.data.local.dao.DownloadHistoryDao
 import com.jabook.app.jabook.compose.data.local.dao.FavoriteDao
 import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
@@ -29,7 +31,7 @@ import com.jabook.app.jabook.compose.data.local.dao.SearchHistoryDao
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.network.NetworkMonitor
 import com.jabook.app.jabook.compose.data.network.NetworkType
-import com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository
+import com.jabook.app.jabook.compose.data.remote.network.PersistentCookieJar
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,6 +50,7 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 import org.mockito.kotlin.wheneverBlocking
+import java.nio.file.Files
 
 /**
  * Regression tests for build 142 crash: the init block's coroutine runs eagerly on
@@ -60,28 +63,37 @@ class DebugViewModelTest {
     private val debugLogService: DebugLogService = mock()
     private val mirrorManager: MirrorManager = mock()
     private val authService: com.jabook.app.jabook.compose.data.auth.RutrackerAuthService = mock()
-    private val rutrackerRepository: RutrackerRepository = mock()
     private val debugRuntimeOverrides = DebugRuntimeOverrides()
     private val debugAudioFocusSimulator: DebugAudioFocusSimulator = mock()
     private val networkMonitor: NetworkMonitor = mock()
     private val database: JabookDatabase = mock()
+    private val cacheManager: CacheManager = mock()
+    private val cookieJar: PersistentCookieJar = mock()
+    private val context: android.content.Context = mock()
     private val loggerFactory: LoggerFactory = mock()
     private val logger: Logger = mock()
     private val booksDao: BooksDao = mock()
     private val favoriteDao: FavoriteDao = mock()
+    private val chaptersDao: ChaptersDao = mock()
     private val offlineSearchDao: OfflineSearchDao = mock()
     private val downloadHistoryDao: DownloadHistoryDao = mock()
     private val searchHistoryDao: SearchHistoryDao = mock()
 
     private val testDispatcher = UnconfinedTestDispatcher()
 
+    private val tempDir: java.io.File = Files.createTempDirectory("jabook_debug_test").toFile()
+    private val coversDir = java.io.File(tempDir, "covers").apply { mkdirs() }
+    private val coverFile = java.io.File(coversDir, "cover-1.jpg").apply { writeBytes(ByteArray(64)) }
+
     private val cacheStats =
-        RutrackerSearchCache.CacheStatistics(
-            entriesCount = 3,
-            totalResults = 42,
-            estimatedSize = 1024L,
-            oldestEntry = 100L,
-            newestEntry = 200L,
+        CacheStatistics(
+            totalSize = 4096L,
+            searchCacheSize = 1024L,
+            topicCacheSize = 512L,
+            tempDownloadsSize = 256L,
+            logFilesSize = 128L,
+            imageCacheSize = 2048L,
+            lastCleanup = 100L,
         )
 
     private lateinit var viewModel: DebugViewModel
@@ -96,10 +108,13 @@ class DebugViewModelTest {
         whenever(mirrorManager.availableMirrors).thenReturn(MutableStateFlow(emptyList()))
         wheneverBlocking { authService.validateAuth(any()) }.thenReturn(false)
         whenever(authService.lastAuthError).thenReturn(null)
-        whenever(rutrackerRepository.getCacheStatistics()).thenReturn(cacheStats)
+        wheneverBlocking { cacheManager.getCacheStatistics() }.thenReturn(cacheStats)
+        whenever(cookieJar.size()).thenReturn(7)
+        whenever(context.filesDir).thenReturn(tempDir)
         whenever(networkMonitor.networkType).thenReturn(MutableStateFlow(NetworkType.UNKNOWN))
         whenever(database.booksDao()).thenReturn(booksDao)
         whenever(database.favoriteDao()).thenReturn(favoriteDao)
+        whenever(database.chaptersDao()).thenReturn(chaptersDao)
         whenever(database.offlineSearchDao()).thenReturn(offlineSearchDao)
         whenever(database.downloadHistoryDao()).thenReturn(downloadHistoryDao)
         whenever(database.searchHistoryDao()).thenReturn(searchHistoryDao)
@@ -107,12 +122,14 @@ class DebugViewModelTest {
         wheneverBlocking { favoriteDao.getFavoritesCount() }.thenReturn(0)
         wheneverBlocking { offlineSearchDao.getTopicCount() }.thenReturn(0)
         wheneverBlocking { downloadHistoryDao.getCount() }.thenReturn(0)
+        wheneverBlocking { chaptersDao.getTotalChapterCount() }.thenReturn(0)
         whenever(searchHistoryDao.getRecentSearches(any())).thenReturn(flowOf(emptyList()))
     }
 
     @After
     fun tearDown() {
         Dispatchers.resetMain()
+        tempDir.deleteRecursively()
     }
 
     private fun createViewModel(): DebugViewModel =
@@ -120,11 +137,13 @@ class DebugViewModelTest {
             debugLogService,
             mirrorManager,
             authService,
-            rutrackerRepository,
             debugRuntimeOverrides,
             debugAudioFocusSimulator,
             networkMonitor,
             database,
+            cacheManager,
+            cookieJar,
+            context,
             loggerFactory,
         )
 
@@ -141,6 +160,26 @@ class DebugViewModelTest {
         runTest {
             viewModel = createViewModel()
             advanceUntilIdle()
-            assertEquals(cacheStats, viewModel.cacheStats.value)
+            assertEquals(cacheStats, viewModel.cacheSnapshot.value.stats)
+        }
+
+    @Test
+    fun loadCacheStatsCollectsCoversDirectoryAndCookieCount() =
+        runTest {
+            viewModel = createViewModel()
+            advanceUntilIdle()
+            assertEquals(1, viewModel.cacheSnapshot.value.coversCount)
+            assertEquals(64L, viewModel.cacheSnapshot.value.coversBytes)
+            assertEquals(7, viewModel.cacheSnapshot.value.cookieCount)
+        }
+
+    @Test
+    fun refreshDbInspectorIncludesChaptersCount() =
+        runTest {
+            viewModel = createViewModel()
+            wheneverBlocking { chaptersDao.getTotalChapterCount() }.thenReturn(11)
+            viewModel.refreshDbInspector()
+            advanceUntilIdle()
+            assertEquals(11, viewModel.dbInspectorSnapshot.value.chaptersCount)
         }
 }

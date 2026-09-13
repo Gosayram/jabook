@@ -506,6 +506,17 @@
     <string name="downloadProgressLabelText">Progress</string>
     <!-- Title for cache statistics section -->
     <string name="cacheStatisticsTitle">Cache Statistics</string>
+    <string name="debugCacheTotalSize">Total size</string>
+    <string name="debugCacheSearch">Search cache</string>
+    <string name="debugCacheTopics">Topic cache</string>
+    <string name="debugCacheTempDownloads">Temp downloads</string>
+    <string name="debugCacheLogs">Log files</string>
+    <string name="debugCacheImage">Image cache (Coil disk)</string>
+    <string name="debugCacheCovers">Covers directory</string>
+    <string name="debugCacheCoversValue">%1$d files, %2$s</string>
+    <string name="debugCacheCookies">Stored cookies</string>
+    <string name="debugCacheLastCleanup">Last cleanup</string>
+    <string name="debugCacheNever">Never</string>
     <!-- Label for total entries -->
     <string name="totalEntriesText">Total entries: </string>
     <!-- Label for search cache size -->
@@ -1356,6 +1367,7 @@
     <!-- Debug DB inspector metrics -->
     <string name="debugDbBooksCount">Books</string>
     <string name="debugDbFavoritesCount">Favorites</string>
+    <string name="debugDbChaptersCount">Chapters</string>
     <string name="debugDbIndexedTopicsCount">Indexed topics</string>
     <string name="debugDbDownloadHistoryCount">Download history</string>
     <!-- Label for total cache size -->
@@ -2306,7 +2318,7 @@
     <!-- Enter chapter number -->
     <string name="searchChapterPlaceholder">Enter chapter number</string>
     <!-- Clear cache confirmation message -->
-    <string name="clearCacheConfirmation">This will delete %s of cached data. Continue?</string>
+    <string name="clearCacheConfirmation">This will delete %s of cached data and end your RuTracker session (saved credentials stay for automatic re-login). Continue?</string>
     <!-- Count -->
     <string name="count">Count</string>
     <!-- Delete Old (>30 days) -->
@@ -2945,6 +2957,9 @@
     <string name="indexingStatusPage">Page %1$d</string>
     <string name="indexingCompletedHeadline">Indexing completed!</string>
     <string name="indexingDurationSeconds">Time: %1$d sec</string>
+    <string name="indexingEta">≈ %1$s left</string>
+    <string name="indexingPauseAction">Pause</string>
+    <string name="indexingPausedMessage">Indexing paused. Progress is saved — you can continue later.</string>
     <string name="indexingForumLabel">Forum: %1$s</string>
     <string name="indexingStatusIndexed">Indexed</string>
     <string name="indexingStatusInProgress">Indexing</string>

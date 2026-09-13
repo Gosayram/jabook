@@ -67,6 +67,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
+import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.data.debug.DebugNetworkOverrideMode
 import com.jabook.app.jabook.compose.data.debug.toIcon
 import kotlinx.coroutines.launch
@@ -353,7 +354,7 @@ private fun CacheTab(
     viewModel: DebugViewModel,
     tabIndex: Int,
 ) {
-    val cacheStats by viewModel.cacheStats.collectAsStateWithLifecycle()
+    val snapshot by viewModel.cacheSnapshot.collectAsStateWithLifecycle()
 
     // Load stats when tab opens
     LaunchedEffect(tabIndex) {
@@ -364,6 +365,7 @@ private fun CacheTab(
         modifier =
             Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
     ) {
         Card(modifier = Modifier.fillMaxWidth()) {
@@ -374,21 +376,57 @@ private fun CacheTab(
                 )
                 Spacer(Modifier.height(8.dp))
 
-                if (cacheStats != null) {
-                    val stats = cacheStats!!
+                val stats = snapshot.stats
+                if (stats != null) {
                     DebugInfoRow(
-                        label = stringResource(R.string.entriesCount),
-                        value = "${stats.entriesCount}",
+                        label = stringResource(R.string.debugCacheTotalSize),
+                        value = UiFormatters.formatFileSize(stats.totalSize),
                     )
                     DebugInfoRow(
-                        label = stringResource(R.string.totalResults),
-                        value = "${stats.totalResults}",
+                        label = stringResource(R.string.debugCacheSearch),
+                        value = UiFormatters.formatFileSize(stats.searchCacheSize),
                     )
                     DebugInfoRow(
-                        label = stringResource(R.string.estimatedSize),
+                        label = stringResource(R.string.debugCacheTopics),
+                        value = UiFormatters.formatFileSize(stats.topicCacheSize),
+                    )
+                    DebugInfoRow(
+                        label = stringResource(R.string.debugCacheTempDownloads),
+                        value = UiFormatters.formatFileSize(stats.tempDownloadsSize),
+                    )
+                    DebugInfoRow(
+                        label = stringResource(R.string.debugCacheLogs),
+                        value = UiFormatters.formatFileSize(stats.logFilesSize),
+                    )
+                    DebugInfoRow(
+                        label = stringResource(R.string.debugCacheImage),
+                        value = UiFormatters.formatFileSize(stats.imageCacheSize),
+                    )
+                    DebugInfoRow(
+                        label = stringResource(R.string.debugCacheCovers),
                         value =
-                            com.jabook.app.jabook.compose.core.util.UiFormatters
-                                .formatFileSize(stats.estimatedSize),
+                            stringResource(
+                                R.string.debugCacheCoversValue,
+                                snapshot.coversCount,
+                                UiFormatters.formatFileSize(snapshot.coversBytes),
+                            ),
+                    )
+                    DebugInfoRow(
+                        label = stringResource(R.string.debugCacheCookies),
+                        value = snapshot.cookieCount.toString(),
+                    )
+                    DebugInfoRow(
+                        label = stringResource(R.string.debugCacheLastCleanup),
+                        value =
+                            if (stats.lastCleanup > 0L) {
+                                java.text.DateFormat
+                                    .getDateTimeInstance(
+                                        java.text.DateFormat.SHORT,
+                                        java.text.DateFormat.SHORT,
+                                    ).format(java.util.Date(stats.lastCleanup))
+                            } else {
+                                stringResource(R.string.debugCacheNever)
+                            },
                     )
                 } else {
                     Text(stringResource(R.string.loadingStats))
@@ -700,6 +738,7 @@ private fun DatabaseInspectorTab(
                 Spacer(Modifier.height(8.dp))
                 DebugInfoRow(stringResource(R.string.debugDbBooksCount), dbSnapshot.booksCount.toString())
                 DebugInfoRow(stringResource(R.string.debugDbFavoritesCount), dbSnapshot.favoritesCount.toString())
+                DebugInfoRow(stringResource(R.string.debugDbChaptersCount), dbSnapshot.chaptersCount.toString())
                 DebugInfoRow(stringResource(R.string.debugDbIndexedTopicsCount), dbSnapshot.indexedTopicsCount.toString())
                 DebugInfoRow(
                     stringResource(R.string.debugDbDownloadHistoryCount),

@@ -130,6 +130,7 @@ public fun RutrackerSearchScreen(
     val isIndexing by indexingViewModel.isIndexing.collectAsStateWithLifecycle()
     val indexSize by indexingViewModel.indexSize.collectAsStateWithLifecycle()
     val forumStatuses by indexingViewModel.forumStatuses.collectAsStateWithLifecycle()
+    val indexingStartTime by indexingViewModel.indexingStartTime.collectAsStateWithLifecycle()
     val navigationClickGuard = remember { NavigationClickGuard() }
     val safeNavigateBack = dropUnlessResumed { navigationClickGuard.run(onNavigateBack) }
     var showIndexingDialog by remember { mutableStateOf(false) }
@@ -159,9 +160,11 @@ public fun RutrackerSearchScreen(
         com.jabook.app.jabook.compose.feature.indexing.IndexingProgressDialog(
             progress = indexingProgress,
             forumStatuses = forumStatuses,
+            indexingStartTime = indexingStartTime ?: 0L,
             onDismiss = {
                 if (indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed ||
-                    indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Error
+                    indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Error ||
+                    indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Paused
                 ) {
                     showIndexingDialog = false
                 }
@@ -172,6 +175,7 @@ public fun RutrackerSearchScreen(
                 indexingViewModel.startIndexingInBackground(context)
             },
             onNavigateToAuth = onNavigateToAuth,
+            onPauseIndexing = indexingViewModel::pauseIndexing,
             onResumeIndexing = {
                 showIndexingDialog = false
                 // Re-enqueues the worker; backfill resumes from persisted cursors

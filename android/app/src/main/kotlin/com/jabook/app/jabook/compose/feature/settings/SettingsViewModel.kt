@@ -693,14 +693,20 @@ public class SettingsViewModel
 
         /**
          * Load cache statistics.
+         *
+         * @param markLoading When false, refreshes stats silently without touching
+         *   [CacheOperationState] — used after a clear so the terminal Success/Error
+         *   state isn't clobbered by the refresh.
          */
-        public fun loadCacheStatistics() {
+        public fun loadCacheStatistics(markLoading: Boolean = true) {
             viewModelScope.launch {
                 try {
-                    _cacheOperation.value = CacheOperationState.Loading
+                    if (markLoading) _cacheOperation.value = CacheOperationState.Loading
                     val stats = cacheManager.getCacheStatistics()
                     _cacheStats.value = stats
-                    _cacheOperation.value = CacheOperationState.Idle
+                    if (markLoading && _cacheOperation.value == CacheOperationState.Loading) {
+                        _cacheOperation.value = CacheOperationState.Idle
+                    }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -711,6 +717,10 @@ public class SettingsViewModel
 
         /**
          * Clear cache (all or specific type).
+         *
+         * A full clear (type == null) also ends the RuTracker session via
+         * [AuthRepository.clearSession] — remembered credentials survive, so
+         * auto-relogin restores the session on next use.
          */
         public fun clearCache(type: String? = null) {
             if (_cacheOperation.value == CacheOperationState.Clearing) return
@@ -733,7 +743,11 @@ public class SettingsViewModel
                         }
 
                     if (success) {
-                        loadCacheStatistics() // Reload stats
+                        if (type == null) {
+                            runCatching { authRepository.clearSession() }
+                                .onFailure { logger.e(it) { "Failed to clear auth session" } }
+                        }
+                        loadCacheStatistics(markLoading = false) // Reload stats silently
                         _cacheOperation.value = CacheOperationState.Success
                     } else {
                         _cacheOperation.value = CacheOperationState.Error(context.getString(R.string.failed_to_clear_cache))

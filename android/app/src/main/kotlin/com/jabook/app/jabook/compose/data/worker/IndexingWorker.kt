@@ -75,6 +75,9 @@ public class IndexingWorker
             public const val KEY_PROGRESS_PERCENT: String = "progress_percent"
             public const val KEY_PROGRESS_MESSAGE: String = "progress_message"
             public const val KEY_PROGRESS_PHASE: String = "progress_phase"
+            public const val KEY_PROGRESS_TOPICS: String = "progress_topics"
+            public const val KEY_PROGRESS_FORUMS_DONE: String = "progress_forums_done"
+            public const val KEY_PROGRESS_FORUMS_TOTAL: String = "progress_forums_total"
             public const val KEY_TOPICS_INDEXED: String = "topics_indexed"
             public const val KEY_FORUM_IDS: String = "forumIds"
             public const val KEY_USE_SELECTED_FORUM_IDS: String = "useSelectedForumIds"
@@ -227,6 +230,9 @@ public class IndexingWorker
                                             .putInt(KEY_PROGRESS_PERCENT, percent)
                                             .putString(KEY_PROGRESS_MESSAGE, progress.detail.currentForumName)
                                             .putString(KEY_PROGRESS_PHASE, progress.detail.phase)
+                                            .putInt(KEY_PROGRESS_TOPICS, progress.detail.topicsFound)
+                                            .putInt(KEY_PROGRESS_FORUMS_DONE, progress.detail.totalForumsCompleted)
+                                            .putInt(KEY_PROGRESS_FORUMS_TOTAL, progress.detail.totalForums)
                                             .build(),
                                     )
                                 }
