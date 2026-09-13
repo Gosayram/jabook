@@ -60,6 +60,7 @@ class LibraryScanWorkerTest {
     @Test
     fun `doWork returns failure when scanner is cancelled`() =
         runBlocking {
+            whenever(booksDao.getAllBookDirectories()).thenReturn(emptyList())
             val worker =
                 buildWorker(
                     scanner =
@@ -81,6 +82,7 @@ class LibraryScanWorkerTest {
     fun `doWork uses scan-safe upsert that preserves existing playback state`() =
         runBlocking {
             whenever(booksDao.getAllBookPaths()).thenReturn(emptyList())
+            whenever(booksDao.getAllBookDirectories()).thenReturn(emptyList())
             whenever(scanPathDao.getAllPathsList()).thenReturn(emptyList())
             val worker =
                 buildWorker(

@@ -40,7 +40,6 @@ import org.junit.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.atLeastOnce
 import org.mockito.kotlin.doSuspendableAnswer
-import org.mockito.kotlin.isNull
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
@@ -93,7 +92,7 @@ class AuthRepositoryImplTest {
         runTest {
             stubDefaults()
             whenever(cookieJar.loadForRequest(any())).thenReturn(emptyList())
-            whenever(authService.login(any(), any(), any())).thenReturn(RutrackerAuthService.AuthResult.Success)
+            whenever(authService.login(UserCredentials("user", "password"))).thenReturn(RutrackerAuthService.AuthResult.Success)
 
             val repository = repository(StandardTestDispatcher(testScheduler))
 
@@ -164,22 +163,18 @@ class AuthRepositoryImplTest {
             }
             whenever(secureStorage.getCredentials()).thenReturn(UserCredentials("stored", "pass"))
             val loginGate = CompletableDeferred<RutrackerAuthService.AuthResult>()
-            whenever(authService.login(any(), any(), any())).doSuspendableAnswer { loginGate.await() }
+            whenever(authService.login(UserCredentials("stored", "pass")))
+                .doSuspendableAnswer { loginGate.await() }
+            whenever(authService.login(UserCredentials("user", "password")))
+                .thenReturn(RutrackerAuthService.AuthResult.Success)
 
             val repository = repository(StandardTestDispatcher(testScheduler))
             runCurrent()
             // Auto-relogin in progress and holding the login mutex.
-            verify(authService).login(any(), isNull(), isNull())
+            verify(authService).login(UserCredentials("stored", "pass"))
 
             val userLogin = async { repository.login(UserCredentials("user", "password")) }
             runCurrent()
-            if (!userLogin.isActive) {
-                println(
-                    "DEBUG: completed with exception=" +
-                        userLogin.getCompletionExceptionOrNull() +
-                        " status=" + repository.authStatus.value,
-                )
-            }
             // Mutex is contended: login must be waiting, not instantly failed.
             assertTrue(userLogin.isActive)
 
@@ -197,7 +192,7 @@ class AuthRepositoryImplTest {
         runTest {
             whenever(mirrorManager.currentMirror).thenReturn(MutableStateFlow("evil.example"))
             whenever(cookieJar.loadForRequest(any())).thenReturn(emptyList())
-            whenever(authService.login(any(), any(), any())).thenReturn(RutrackerAuthService.AuthResult.Success)
+            whenever(authService.login(UserCredentials("user", "password"))).thenReturn(RutrackerAuthService.AuthResult.Success)
 
             val repository = repository(UnconfinedTestDispatcher(testScheduler))
             repository.login(UserCredentials("user", "password"))
