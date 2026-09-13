@@ -13,10 +13,6 @@
 
 # -------- Kotlinx Serialization (ENHANCED - R8 FULL MODE COMPATIBLE) --------
 
-# Keep all kotlinx.serialization core classes
--keep class kotlinx.serialization.** { *; }
--keep interface kotlinx.serialization.** { *; }
-
 # Keep all @Serializable classes WITHOUT obfuscation
 -keep @kotlinx.serialization.Serializable class ** {
     *;
@@ -54,8 +50,10 @@
     *;
 }
 
-# Keep all serialization annotations
+# Keep serialization core: KSerializer interface + internal helpers used by generated code
 -keepattributes *Annotation*, InnerClasses, Signature, EnclosingMethod, RuntimeVisibleAnnotations
+-keep interface kotlinx.serialization.KSerializer { *; }
+-keep class kotlinx.serialization.internal.** { *; }
 
 # -------- Hilt (Dependency Injection) --------
 # Keep entry points and generated components
@@ -73,14 +71,18 @@
 # -------- DataStore Proto --------
 -keep class com.jabook.app.jabook.compose.data.preferences.UserPreferences { *; }
 -keep class com.jabook.app.jabook.compose.data.preferences.UserPreferences$* { *; }
-# Keep protobuf-lite runtime/message members used by generated serializers and reflection bridges
--keep class com.google.protobuf.** { *; }
+# Keep protobuf-lite JNI-facing + generated message classes only
+-keep class com.google.protobuf.GeneratedMessageLite { *; }
+-keep class * extends com.google.protobuf.GeneratedMessageLite { *; }
 -keepclassmembers class * extends com.google.protobuf.GeneratedMessageLite {
-    *;
+    <fields>;
+    <methods>;
 }
+# Keep protobuf wire format internals (reflection-used by lite runtime)
+-keep class com.google.protobuf.FieldSet { *; }
+-keep class com.google.protobuf.ExtensionRegistryLite { *; }
 
 # -------- Retrofit / OkHttp --------
--keepattributes Signature, InnerClasses, EnclosingMethod
 -keepclassmembers,allowshrinking,allowobfuscation interface * {
     @retrofit2.http.* <methods>;
 }
@@ -93,9 +95,6 @@
 # -------- libtorrent4j (CRITICAL - prevent obfuscation) --------
 # Keep all libtorrent4j classes to prevent NoSuchMethodError
 -keep class org.libtorrent4j.** { *; }
--keep class org.libtorrent4j.swig.** { *; }
--keepclassmembers class org.libtorrent4j.** { *; }
--keepclassmembers class org.libtorrent4j.swig.** { *; }
 # Keep native methods in libtorrent4j
 -keepclasseswithmembernames class org.libtorrent4j.swig.** {
     native <methods>;
@@ -108,15 +107,7 @@
 -dontwarn org.libtorrent4j.**
 -dontwarn org.libtorrent4j.swig.**
 
-# -------- KTagLib JNI bridge --------
-# Keep ktaglib API/jni-facing symbols stable for native calls
--keep class com.simplecityapps.ktaglib.** { *; }
--keepclasseswithmembernames class com.simplecityapps.ktaglib.** {
-    native <methods>;
-}
-
 # -------- Entry Points (Activities) --------
--keep class com.jabook.app.jabook.MainActivity
 -keep class com.jabook.app.jabook.compose.ComposeMainActivity
 
 # -------- Android Framework (required) --------
@@ -149,20 +140,15 @@
 -dontwarn org.apache.tika.**
 -dontwarn edu.umd.cs.findbugs.annotations.**
 
-# -------- Media3 (CRITICAL - prevents CrashLoop) --------
-# Keep MediaSession and CommandButton classes to prevent obfuscation issues
--keep class androidx.media3.session.** { *; }
--keep class androidx.media3.common.Player$Listener { *; }
--keep interface androidx.media3.common.Player$Listener { *; }
-
-# Keep CommandButton.Builder to prevent icon resource ID obfuscation
--keep class androidx.media3.session.CommandButton { *; }
--keep class androidx.media3.session.CommandButton$Builder { *; }
--keepclassmembers class androidx.media3.session.CommandButton$Builder {
-    *;
-}
-
-# Keep MediaLibrarySession callback methods
+# -------- Media3 (session callbacks only) --------
+# Keep MediaLibrarySession callback implementations (loaded by reflection)
 -keep class * extends androidx.media3.session.MediaLibraryService$MediaLibrarySession$Callback {
     *;
 }
+# Keep MediaSession callback implementations (loaded by reflection)
+-keep class * extends androidx.media3.session.MediaSession$Callback {
+    *;
+}
+# Keep CommandButton + Builder (icon resource IDs referenced by reflection)
+-keep class androidx.media3.session.CommandButton { *; }
+-keep class androidx.media3.session.CommandButton$Builder { *; }

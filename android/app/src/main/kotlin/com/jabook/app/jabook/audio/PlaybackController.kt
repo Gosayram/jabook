@@ -14,15 +14,18 @@
 
 package com.jabook.app.jabook.audio
 
+import android.os.Looper
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.jabook.app.jabook.audio.ErrorHandler
+import com.jabook.app.jabook.compose.core.util.rethrowCancellation
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Manages playback control operations (play, pause, stop, seek, etc.).
@@ -36,6 +39,8 @@ internal class PlaybackController(
     private val getResumeRewindAggressiveness: () -> Float = { 1.0f },
     private val nowMsProvider: () -> Long = { System.currentTimeMillis() },
     private val consumeSleepTimerStopFlag: () -> Boolean = { false },
+    private val getAutoRewindSeconds: () -> Int = { 0 },
+    private val onUserInteraction: () -> Unit = {},
 ) {
     /**
      * Starts or resumes playback.
@@ -44,6 +49,8 @@ internal class PlaybackController(
      */
     private var lastPauseTime: Long = 0L
     private var suppressNextResumeRewind: Boolean = false
+    private var suppressAutoRewind: Boolean = false
+    private val pendingResumeGeneration = AtomicLong(0L)
 
     /**
      * Marks pause cause as sleep timer expiry.
@@ -54,7 +61,26 @@ internal class PlaybackController(
     public fun markSleepTimerPause() {
         lastPauseTime = nowMsProvider()
         suppressNextResumeRewind = true
+        suppressAutoRewind = true // don't auto-rewind when sleep timer pauses
     }
+
+    /**
+     * When set, invoked before user actions so an in-flight crossfade transition is
+     * finalized synchronously and the action applies to the now-current player
+     * instead of being silently discarded on the outgoing player.
+     */
+    public var finalizeActiveTransition: (() -> Unit)? = null
+
+    /** Forces any in-flight crossfade transition to complete immediately, preserving position. */
+    public fun finalizeActiveTransitionNow() {
+        finalizeActiveTransition?.invoke()
+    }
+
+    /**
+     * When set, invoked on pause/stop so an in-flight crossfade transition is
+     * cancelled and player state is left consistent.
+     */
+    public var cancelActiveTransition: (() -> Unit)? = null
 
     /**
      * Starts or resumes playback.
@@ -64,17 +90,19 @@ internal class PlaybackController(
     public fun play() {
         LogUtils.i("AudioPlayerService", "play() called")
 
-        val player = getActivePlayer()
-        if (player.mediaItemCount == 0) {
-            LogUtils.w("AudioPlayerService", "Cannot play: no media items loaded")
-            // Service might have been unloaded - state will be restored when playlist is set
-            return
-        }
+        // Finalize an in-flight crossfade first so playWhenReady lands on the
+        // incoming player, not the outgoing one about to be torn down.
+        finalizeActiveTransition?.invoke()
 
-        // Match lissen-android: simple approach - just set playWhenReady=true in coroutine
-        // ExoPlayer will handle AudioFocus automatically
         playerServiceScope.launch(Dispatchers.Main) {
             try {
+                val player = getActivePlayer()
+                if (player.mediaItemCount == 0) {
+                    LogUtils.w("AudioPlayerService", "Cannot play: no media items loaded")
+                    // Service might have been unloaded - state will be restored when playlist is set
+                    return@launch
+                }
+
                 // Call prepare() if player is in IDLE or ENDED state (following RiMusic pattern)
                 // This ensures player restarts properly after book completion or errors
                 if (player.playbackState == Player.STATE_IDLE || player.playbackState == Player.STATE_ENDED) {
@@ -87,22 +115,25 @@ internal class PlaybackController(
                     try {
                         getResumeRewindSeconds()
                     } catch (e: Exception) {
+                        e.rethrowCancellation()
                         10
                     }
                 val resumeRewindMode =
                     try {
                         getResumeRewindMode()
                     } catch (e: Exception) {
+                        e.rethrowCancellation()
                         ResumeRewindMode.FIXED
                     }
                 val resumeRewindAggressiveness =
                     try {
                         getResumeRewindAggressiveness()
                     } catch (e: Exception) {
+                        e.rethrowCancellation()
                         1.0f
                     }
                 val currentTime = nowMsProvider()
-                val pauseDurationMs = if (lastPauseTime > 0) currentTime - lastPauseTime else Long.MAX_VALUE
+                val pauseDurationMs = if (lastPauseTime > 0) currentTime - lastPauseTime else 0L
                 val shouldSuppressRewind = suppressNextResumeRewind || consumeSleepTimerStopFlag()
                 val rewindMs =
                     if (shouldSuppressRewind) {
@@ -136,8 +167,8 @@ internal class PlaybackController(
                 // Reset inactivity timer (user action)
                 resetInactivityTimer()
             } catch (e: Exception) {
+                e.rethrowCancellation()
                 LogUtils.e("AudioPlayerService", "Failed to start playback", e)
-                e.printStackTrace()
                 ErrorHandler.handleGeneralError("AudioPlayerService", e, "Play method execution")
             }
         }
@@ -145,8 +176,14 @@ internal class PlaybackController(
 
     /**
      * Pauses playback.
+     *
+     * Optional auto-rewind (getAutoRewindSeconds) seeks back a few seconds while
+     * paused; long-pause resume rewind is applied separately at resume time
+     * (ResumeRewindPolicy).
      */
     public fun pause() {
+        invalidatePendingResume()
+        cancelActiveTransition?.invoke()
         playerServiceScope.launch {
             try {
                 val player = getActivePlayer()
@@ -155,19 +192,31 @@ internal class PlaybackController(
                 lastPauseTime = nowMsProvider()
                 suppressNextResumeRewind = false
 
-                // Small rewind on pause improves context retention for audiobooks.
-                if (player.playbackState != Player.STATE_ENDED) {
-                    val rewindPosition = (player.currentPosition - 2_000L).coerceAtLeast(0L)
-                    player.seekTo(rewindPosition)
-                }
-
                 player.playWhenReady = false
-                // Note: We don't abandon AudioFocus on pause - we keep it for quick resume
-                // AudioFocus will be abandoned when service is stopped
+
+                // Auto-rewind on pause (Voice/Audible pattern): seek back a
+                // configurable amount so the listener re-hears context when
+                // they resume. Disabled by sleep timer via suppressAutoRewind.
+                if (!suppressAutoRewind) {
+                    val seconds = getAutoRewindSeconds()
+                    // Re-check before seeking: the user may have resumed while this
+                    // task was queued — a late rewind seek would yank the position
+                    // back mid-resume (audible jump).
+                    if (seconds > 0 && player.currentPosition > 0 && !player.playWhenReady) {
+                        val newPos =
+                            (player.currentPosition - seconds * 1000L).coerceAtLeast(0L)
+                        player.seekTo(newPos)
+                        // Don't double-rewind at resume: auto-rewind already
+                        // moved the position back, so suppress resume-rewind.
+                        suppressNextResumeRewind = true
+                    }
+                }
+                suppressAutoRewind = false
 
                 // Reset inactivity timer (user action - pause is also an interaction)
                 resetInactivityTimer()
             } catch (e: Exception) {
+                e.rethrowCancellation()
                 ErrorHandler.handleGeneralError("AudioPlayerService", e, "Pause method execution")
             }
         }
@@ -180,8 +229,18 @@ internal class PlaybackController(
      * For full cleanup, use stopAndRelease() instead.
      */
     public fun stop() {
-        val player = getActivePlayer()
+        invalidatePendingResume()
+        cancelActiveTransition?.invoke()
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            performStop()
+        } else {
+            playerServiceScope.launch(Dispatchers.Main) { performStop() }
+        }
+    }
+
+    private fun performStop() {
         try {
+            val player = getActivePlayer()
             LogUtils.d("AudioPlayerService", "stop() called, current playbackState: ${player.playbackState}")
             player.stop()
             // ExoPlayer manages AudioFocus automatically, no need to abandon manually
@@ -196,6 +255,7 @@ internal class PlaybackController(
      * @param positionMs Position in milliseconds
      */
     public fun seekTo(positionMs: Long) {
+        finalizeActiveTransition?.invoke()
         val player = getActivePlayer()
 
         try {
@@ -209,6 +269,7 @@ internal class PlaybackController(
                 return
             }
 
+            val resumeGeneration = invalidatePendingResume()
             val playWhenReadyBeforeSeek = player.playWhenReady
             val duration = player.duration
             val seekPosition =
@@ -224,14 +285,7 @@ internal class PlaybackController(
             resetInactivityTimer()
 
             if (playWhenReadyBeforeSeek) {
-                playerServiceScope.launch {
-                    delay(100L)
-                    if (player.playbackState == Player.STATE_READY || player.playbackState == Player.STATE_BUFFERING) {
-                        if (!player.playWhenReady) {
-                            player.playWhenReady = true
-                        }
-                    }
-                }
+                resumeAfterSeekIfStillCurrent(player, resumeGeneration)
             }
         } catch (e: Exception) {
             LogUtils.e("AudioPlayerService", "Failed to seek to position: $positionMs", e)
@@ -241,10 +295,16 @@ internal class PlaybackController(
     /**
      * Sets playback speed.
      *
-     * @param speed Playback speed (0.5x to 2.0x)
+     * @param speed Playback speed (0.5x to 4.0x)
      */
     public fun setSpeed(speed: Float) {
-        getActivePlayer().setPlaybackSpeed(speed)
+        finalizeActiveTransition?.invoke()
+        val safeSpeed =
+            speed
+                .takeIf(Float::isFinite)
+                ?.coerceIn(SetPlaylistCommand.MIN_SPEED, SetPlaylistCommand.MAX_SPEED)
+                ?: 1f
+        getActivePlayer().setPlaybackSpeed(safeSpeed)
         // Reset inactivity timer (user action)
         resetInactivityTimer()
     }
@@ -301,6 +361,7 @@ internal class PlaybackController(
      * Inspired by lissen-android: checks track availability before switching.
      */
     public fun next() {
+        finalizeActiveTransition?.invoke()
         val player = getActivePlayer()
         val currentIndex = player.currentMediaItemIndex
 
@@ -344,6 +405,7 @@ internal class PlaybackController(
      * Inspired by lissen-android: checks track availability before switching.
      */
     public fun previous() {
+        finalizeActiveTransition?.invoke()
         val player = getActivePlayer()
         val currentIndex = player.currentMediaItemIndex
 
@@ -387,8 +449,10 @@ internal class PlaybackController(
      * @param index Track index in playlist
      */
     public fun seekToTrack(index: Int) {
+        finalizeActiveTransition?.invoke()
         val player = getActivePlayer()
         if (index >= 0 && index < player.mediaItemCount) {
+            val resumeGeneration = invalidatePendingResume()
             val playWhenReadyBeforeSeek = player.playWhenReady
             player.seekTo(index, 0L)
 
@@ -396,14 +460,7 @@ internal class PlaybackController(
             resetInactivityTimer()
 
             if (playWhenReadyBeforeSeek) {
-                playerServiceScope.launch {
-                    delay(100L)
-                    if (player.playbackState == Player.STATE_READY || player.playbackState == Player.STATE_BUFFERING) {
-                        if (!player.playWhenReady) {
-                            player.playWhenReady = true
-                        }
-                    }
-                }
+                resumeAfterSeekIfStillCurrent(player, resumeGeneration)
             }
         }
     }
@@ -418,6 +475,7 @@ internal class PlaybackController(
         trackIndex: Int,
         positionMs: Long,
     ) {
+        finalizeActiveTransition?.invoke()
         val player = getActivePlayer()
 
         if (trackIndex < 0 || trackIndex >= player.mediaItemCount) {
@@ -434,6 +492,7 @@ internal class PlaybackController(
         }
 
         try {
+            val resumeGeneration = invalidatePendingResume()
             val playWhenReadyBeforeSeek = player.playWhenReady
             val adjustedPositionMs = ChapterSeekOffsetPolicy.adjust(positionMs)
             player.seekTo(trackIndex, adjustedPositionMs)
@@ -442,14 +501,7 @@ internal class PlaybackController(
             resetInactivityTimer()
 
             if (playWhenReadyBeforeSeek) {
-                playerServiceScope.launch {
-                    delay(100L)
-                    if (player.playbackState == Player.STATE_READY || player.playbackState == Player.STATE_BUFFERING) {
-                        if (!player.playWhenReady) {
-                            player.playWhenReady = true
-                        }
-                    }
-                }
+                resumeAfterSeekIfStillCurrent(player, resumeGeneration)
             }
         } catch (e: Exception) {
             LogUtils.e(
@@ -466,6 +518,15 @@ internal class PlaybackController(
      * @param seconds Number of seconds to rewind (default: 15)
      */
     public fun rewind(seconds: Int = 15) {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            performRewind(seconds)
+        } else {
+            playerServiceScope.launch(Dispatchers.Main) { performRewind(seconds) }
+        }
+    }
+
+    private fun performRewind(seconds: Int) {
+        finalizeActiveTransition?.invoke()
         val player = getActivePlayer()
         val currentPosition = player.currentPosition
         val newPosition = (currentPosition - seconds * 1000L).coerceAtLeast(0L)
@@ -481,6 +542,15 @@ internal class PlaybackController(
      * @param seconds Number of seconds to forward (default: 30)
      */
     public fun forward(seconds: Int = 30) {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            performForward(seconds)
+        } else {
+            playerServiceScope.launch(Dispatchers.Main) { performForward(seconds) }
+        }
+    }
+
+    private fun performForward(seconds: Int) {
+        finalizeActiveTransition?.invoke()
         val player = getActivePlayer()
         val currentPosition = player.currentPosition
         val duration = player.duration
@@ -493,6 +563,29 @@ internal class PlaybackController(
             )
             // Reset inactivity timer (user action)
             resetInactivityTimer()
+        }
+    }
+
+    private fun invalidatePendingResume(): Long = pendingResumeGeneration.incrementAndGet()
+
+    /**
+     * Resumes only the seek that scheduled this task. A later pause, stop, seek, or player swap
+     * invalidates the task so an old callback cannot restart playback.
+     */
+    private fun resumeAfterSeekIfStillCurrent(
+        player: ExoPlayer,
+        generation: Long,
+    ) {
+        playerServiceScope.launch {
+            delay(100L)
+            if (generation != pendingResumeGeneration.get() || getActivePlayer() !== player) {
+                return@launch
+            }
+            if (player.playbackState == Player.STATE_READY || player.playbackState == Player.STATE_BUFFERING) {
+                if (!player.playWhenReady) {
+                    player.playWhenReady = true
+                }
+            }
         }
     }
 

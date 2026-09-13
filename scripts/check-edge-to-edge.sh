@@ -27,4 +27,29 @@ if ! search_file '\benableEdgeToEdge\(\)' "$MAIN_ACTIVITY"; then
   exit 1
 fi
 
+MAIN_SRC="$ROOT_DIR/android/app/src/main"
+
+# Use ripgrep if available, fall back to grep for CI environments without rg
+if command -v rg >/dev/null 2>&1; then
+    search_src() { rg -q "$1" "$2" --type kotlin; }
+else
+    search_src() { grep -rE "$1" --include='*.kt' "$2"; }
+fi
+
+# Legacy system-UI APIs break mandatory edge-to-edge on API 35+; fail if any creep back in.
+if search_src 'systemUiVisibility' "$MAIN_SRC"; then
+  echo "❌ Edge-to-edge guard failed: systemUiVisibility usage found (deprecated, breaks edge-to-edge)"
+  exit 1
+fi
+
+if search_src 'statusBarColor[[:space:]]*=|navigationBarColor[[:space:]]*=' "$MAIN_SRC"; then
+  echo "❌ Edge-to-edge guard failed: window statusBarColor/navigationBarColor manipulation found"
+  exit 1
+fi
+
+if search_src 'setDecorFitsSystemWindows\([^)]*true' "$MAIN_SRC"; then
+  echo "❌ Edge-to-edge guard failed: setDecorFitsSystemWindows(true) found"
+  exit 1
+fi
+
 echo "✅ Edge-to-edge guard passed"

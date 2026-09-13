@@ -2,6 +2,15 @@
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package com.jabook.app.jabook.compose.data.network
 
@@ -21,7 +30,7 @@ class DnsPrefetchPolicyTest {
 
     @Test
     fun `shouldPrefetch returns true for unseen host`() {
-        assertTrue(DnsPrefetchPolicy.shouldPrefetch("rutracker.org", emptyMap(), 1000L))
+        assertTrue(DnsPrefetchPolicy.shouldPrefetch("mirror.example", emptyMap(), 1000L))
     }
 
     @Test
@@ -31,14 +40,14 @@ class DnsPrefetchPolicyTest {
 
     @Test
     fun `shouldPrefetch returns false within cooldown`() {
-        val timestamps = mapOf("rutracker.org" to 1000L)
-        assertFalse(DnsPrefetchPolicy.shouldPrefetch("rutracker.org", timestamps, 30_000L))
+        val timestamps = mapOf("mirror.example" to 1000L)
+        assertFalse(DnsPrefetchPolicy.shouldPrefetch("mirror.example", timestamps, 30_000L))
     }
 
     @Test
     fun `shouldPrefetch returns true after cooldown`() {
-        val timestamps = mapOf("rutracker.org" to 1000L)
-        assertTrue(DnsPrefetchPolicy.shouldPrefetch("rutracker.org", timestamps, 61_000L))
+        val timestamps = mapOf("mirror.example" to 1000L)
+        assertTrue(DnsPrefetchPolicy.shouldPrefetch("mirror.example", timestamps, 61_000L))
     }
 
     @Test
@@ -74,7 +83,7 @@ class DnsPrefetchPolicyTest {
     fun `prefetch resolves host and returns success`() {
         val result =
             DnsPrefetchPolicy.prefetch(
-                host = "rutracker.org",
+                host = "mirror.example",
                 currentTimeMs = 1_000L,
                 resolver = {
                     arrayOf(
@@ -96,13 +105,13 @@ class DnsPrefetchPolicyTest {
 
         val first =
             DnsPrefetchPolicy.prefetch(
-                host = "rutracker.org",
+                host = "mirror.example",
                 currentTimeMs = 1_000L,
                 resolver = resolver,
             )
         val second =
             DnsPrefetchPolicy.prefetch(
-                host = "rutracker.org",
+                host = "mirror.example",
                 currentTimeMs = 1_100L,
                 resolver = resolver,
             )

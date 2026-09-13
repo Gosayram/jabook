@@ -14,11 +14,14 @@
 
 package com.jabook.app.jabook.audio
 
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.Dispatchers
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class SuspendableCountDownTimerTest {
     private lateinit var ticks: MutableList<Long>
     private lateinit var finishes: MutableList<Unit>
@@ -38,6 +41,7 @@ class SuspendableCountDownTimerTest {
             intervalMillis = intervalMillis,
             onTickSeconds = { ticks.add(it) },
             onFinished = { finishes.add(Unit) },
+            dispatcher = Dispatchers.Unconfined,
         )
 
     // --- getRemainingMillis returns total initially ---
@@ -91,8 +95,19 @@ class SuspendableCountDownTimerTest {
         val timer = createTimer(0L)
         timer.start()
 
-        // Coroutine finishes asynchronously on Dispatchers.Default — wait briefly
-        runBlocking { kotlinx.coroutines.delay(100) }
         assertEquals(1, finishes.size)
+    }
+
+    // --- restart on the reused scope ---
+
+    @Test
+    fun `timer restarts on the reused scope after pause`() {
+        val timer = createTimer(0L)
+        timer.start()
+        assertEquals(1, finishes.size)
+        timer.pause()
+        timer.start()
+        assertEquals(2, finishes.size)
+        timer.cancel()
     }
 }

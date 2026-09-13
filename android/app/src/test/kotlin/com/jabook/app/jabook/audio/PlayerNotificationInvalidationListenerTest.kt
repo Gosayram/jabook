@@ -18,7 +18,10 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class PlayerNotificationInvalidationListenerTest {
     @Test
     fun `media metadata changed is routed as debounced signal`() {

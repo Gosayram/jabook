@@ -14,8 +14,11 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
+import android.content.Context
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.Logger
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.compose.core.util.runCatchingCancelable
 import com.jabook.app.jabook.compose.data.preferences.ProtoSettingsRepository
 import com.jabook.app.jabook.compose.domain.usecase.library.UpdateBookSettingsUseCase
 import kotlinx.coroutines.CoroutineScope
@@ -37,6 +40,7 @@ internal class PlayerSettingsHandler(
     private val settingsRepository: ProtoSettingsRepository,
     private val viewModelScope: CoroutineScope,
     loggerFactory: LoggerFactory,
+    private val context: Context,
     private val reportError: (String) -> Unit,
 ) {
     private val logger: Logger = loggerFactory.get("PlayerSettingsHandler")
@@ -46,20 +50,20 @@ internal class PlayerSettingsHandler(
         forwardSeconds: Int?,
     ) {
         viewModelScope.launch {
-            runCatching { updateBookSettingsUseCase(bookId, rewindSeconds, forwardSeconds) }
+            runCatchingCancelable { updateBookSettingsUseCase(bookId, rewindSeconds, forwardSeconds) }
                 .onFailure { error ->
                     logger.e({ "Failed to update book seek settings" }, error)
-                    reportError("Failed to update seek settings")
+                    reportError(context.getString(R.string.failed_to_update_seek_settings))
                 }
         }
     }
 
     fun resetBookSeekSettings() {
         viewModelScope.launch {
-            runCatching { updateBookSettingsUseCase.resetForBook(bookId) }
+            runCatchingCancelable { updateBookSettingsUseCase.resetForBook(bookId) }
                 .onFailure { error ->
                     logger.e({ "Failed to reset book seek settings" }, error)
-                    reportError("Failed to reset seek settings")
+                    reportError(context.getString(R.string.failed_to_reset_seek_settings))
                 }
         }
     }
@@ -75,7 +79,7 @@ internal class PlayerSettingsHandler(
         autoVolumeLeveling: Boolean? = null,
     ) {
         viewModelScope.launch {
-            runCatching {
+            runCatchingCancelable {
                 settingsRepository.updateAudioSettings(
                     volumeBoost = volumeBoostLevel?.name,
                     skipSilence = skipSilence,
@@ -88,7 +92,7 @@ internal class PlayerSettingsHandler(
                 )
             }.onFailure { error ->
                 logger.e({ "Failed to update audio settings" }, error)
-                reportError("Failed to update audio settings")
+                reportError(context.getString(R.string.failed_to_update_audio_settings))
             }
         }
     }

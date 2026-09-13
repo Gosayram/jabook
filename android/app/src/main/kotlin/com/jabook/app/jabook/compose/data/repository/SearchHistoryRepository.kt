@@ -15,7 +15,7 @@
 package com.jabook.app.jabook.compose.data.repository
 
 import com.jabook.app.jabook.compose.data.local.dao.SearchHistoryDao
-import com.jabook.app.jabook.compose.data.local.entity.toSearchHistoryEntity
+import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
 import com.jabook.app.jabook.compose.data.local.entity.toSearchHistoryItem
 import com.jabook.app.jabook.compose.domain.model.SearchHistoryItem
 import kotlinx.coroutines.flow.Flow
@@ -42,18 +42,28 @@ public class SearchHistoryRepository
 
         /**
          * Save a search query to history.
+         * Deduplicates by normalized query: updates timestamp if exists, inserts otherwise.
          */
         public suspend fun saveSearch(
             query: String,
             resultCount: Int = 0,
         ) {
-            searchHistoryDao.insertSearch(
-                SearchHistoryItem(
-                    query = query,
-                    timestamp = System.currentTimeMillis(),
-                    resultCount = resultCount,
-                ).toSearchHistoryEntity(),
-            )
+            val trimmed = query.trim().replace(Regex("\\s+"), " ")
+            if (trimmed.isBlank()) return
+            val normalized = trimmed.lowercase()
+            val existing = searchHistoryDao.findByNormalizedQuery(normalized)
+            if (existing != null) {
+                searchHistoryDao.updateTimestamp(existing.id, System.currentTimeMillis(), resultCount)
+            } else {
+                searchHistoryDao.insertSearch(
+                    SearchHistoryEntity(
+                        query = trimmed,
+                        normalizedQuery = normalized,
+                        timestamp = System.currentTimeMillis(),
+                        resultCount = resultCount,
+                    ),
+                )
+            }
             // Trim old history to keep database size manageable
             searchHistoryDao.trimHistory(keepCount = 50)
         }

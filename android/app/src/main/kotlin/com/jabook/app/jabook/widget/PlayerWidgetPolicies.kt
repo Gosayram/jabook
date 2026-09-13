@@ -79,24 +79,27 @@ internal object WidgetCoverLoadPolicy {
 
 internal object WidgetDeepLinkPolicy {
     private const val PLAYER_ROUTE: String = "jabook://player"
+    private const val LIBRARY_ROUTE: String = "jabook://library"
     internal const val QUERY_WIDGET_ID: String = "widgetId"
-    internal const val QUERY_BOOK_ID: String = "bookId"
 
     internal fun buildPlayerDeepLink(
         currentBookId: String?,
         appWidgetId: Int,
     ): Uri {
-        val builder =
-            Uri
-                .parse(PLAYER_ROUTE)
-                .buildUpon()
-                .appendQueryParameter(QUERY_WIDGET_ID, appWidgetId.coerceAtLeast(0).toString())
-
-        if (!currentBookId.isNullOrBlank()) {
-            builder.appendQueryParameter(QUERY_BOOK_ID, currentBookId)
-        }
-
-        return builder.build()
+        val route =
+            if (currentBookId.isNullOrBlank()) {
+                Uri.parse(LIBRARY_ROUTE)
+            } else {
+                Uri
+                    .parse(PLAYER_ROUTE)
+                    .buildUpon()
+                    .appendPath(currentBookId)
+                    .build()
+            }
+        return route
+            .buildUpon()
+            .appendQueryParameter(QUERY_WIDGET_ID, appWidgetId.coerceAtLeast(0).toString())
+            .build()
     }
 }
 

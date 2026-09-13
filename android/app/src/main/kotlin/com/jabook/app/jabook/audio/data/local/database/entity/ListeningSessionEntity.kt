@@ -14,11 +14,13 @@
 
 package com.jabook.app.jabook.audio.data.local.database.entity
 
+import androidx.annotation.Keep
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
+@Keep
 @Entity(
     tableName = "listening_sessions",
     indices = [
@@ -46,6 +48,8 @@ public data class ListeningSessionEntity(
     val chapterIndex: Int,
     @ColumnInfo(name = "updated_at")
     val updatedAt: Long = System.currentTimeMillis(),
+    @ColumnInfo(name = "is_crashed")
+    val isCrashed: Boolean = false,
 )
 
 public data class ListeningDayStatEntity(

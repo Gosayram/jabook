@@ -15,9 +15,8 @@
 package com.jabook.app.jabook.audio.data.local.dao
 
 import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Upsert
 import com.jabook.app.jabook.audio.data.local.database.entity.SavedPlayerStateEntity
 
 /**
@@ -40,7 +39,7 @@ public interface SavedPlayerStateDao {
     /**
      * Inserts or updates a saved player state.
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     public suspend fun upsertState(state: SavedPlayerStateEntity)
 
     /**

@@ -53,4 +53,27 @@ class BookStructureHeuristicsTest {
 
         assertEquals(BookStructureType.NESTED_SERIES, result)
     }
+
+    @Test
+    fun `classify treats malformed or incomplete file names as unknown`() {
+        val malformedFileSets =
+            listOf(
+                emptyList(),
+                listOf(""),
+                listOf("\u0000"),
+                listOf("9999-chapter.mp3", "9998-chapter.mp3", "9997-chapter.mp3"),
+                listOf("  ", "...", "chapter"),
+            )
+
+        malformedFileSets.forEach { fileNames ->
+            assertEquals(
+                BookStructureType.UNKNOWN,
+                BookStructureHeuristics.classify(
+                    fileNames = fileNames,
+                    hasNestedDirectories = false,
+                    singleFileDurationMs = -1L,
+                ),
+            )
+        }
+    }
 }

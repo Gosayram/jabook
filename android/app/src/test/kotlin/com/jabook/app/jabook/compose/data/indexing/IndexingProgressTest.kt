@@ -24,12 +24,14 @@ class IndexingProgressTest {
         val progress =
             IndexingProgress
                 .InProgress(
-                    currentForum = "forum",
-                    currentForumIndex = 1,
-                    totalForums = 5,
-                    currentPage = 10,
-                    topicsIndexed = 100,
-                ).progress
+                    IndexProgress(
+                        currentForumName = "forum",
+                        currentForumPage = 10,
+                        totalForumsCompleted = 1,
+                        totalForums = 5,
+                        topicsFound = 100,
+                    ),
+                ).detail.percentComplete
 
         assertFalse(progress.isNaN())
         assertFalse(progress.isInfinite())
@@ -41,12 +43,12 @@ class IndexingProgressTest {
         val progress =
             IndexingProgress
                 .InProgress(
-                    currentForum = "forum",
-                    currentForumIndex = 0,
-                    totalForums = 0,
-                    currentPage = 1,
-                    topicsIndexed = 0,
-                ).progress
+                    IndexProgress(
+                        currentForumName = "forum",
+                        currentForumPage = 1,
+                        totalForums = 0,
+                    ),
+                ).detail.percentComplete
 
         assertTrue(progress == 0f)
     }

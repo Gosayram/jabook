@@ -14,10 +14,6 @@
 
 package com.jabook.app.jabook.compose.domain.model
 
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.material3.windowsizeclass.WindowSizeClass
-import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
-
 /**
  * Display modes for books in the library.
  *
@@ -63,21 +59,6 @@ public enum class BookDisplayMode {
      * Checks if the mode is a list variant.
      */
     public fun isList(): Boolean = !isGrid()
-
-    /**
-     * Returns GridCells configuration for this mode based on WindowSizeClass.
-     *
-     * Uses Material 3 adaptive guidelines for better responsiveness.
-     *
-     * @param windowSizeClass Window size class for adaptive layout
-     * @return GridCells configuration or null for list modes
-     */
-    public fun getGridCells(windowSizeClass: WindowSizeClass): GridCells? =
-        when (this) {
-            GRID_COMPACT -> GridCells.Fixed(AdaptiveUtils.getCompactGridColumns(windowSizeClass))
-            GRID_COMFORTABLE -> GridCells.Fixed(AdaptiveUtils.getComfortableGridColumns(windowSizeClass))
-            LIST_COMPACT, LIST_DEFAULT -> null // Not applicable for lists
-        }
 
     /**
      * Returns cover size for list modes in dp.

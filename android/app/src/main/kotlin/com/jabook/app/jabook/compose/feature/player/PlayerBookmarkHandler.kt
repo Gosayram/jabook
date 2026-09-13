@@ -14,6 +14,8 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
+import android.content.Context
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.Logger
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.repository.BookmarkRepository
@@ -38,24 +40,29 @@ internal class PlayerBookmarkHandler(
     private val bookmarkRepository: BookmarkRepository,
     private val uiState: StateFlow<PlayerState>,
     private val bookmarks: StateFlow<List<BookmarkItem>>,
+    private val playerController: com.jabook.app.jabook.compose.feature.player.controller.AudioPlayerController,
     private val viewModelScope: CoroutineScope,
     private val loggerFactory: LoggerFactory,
+    private val context: Context,
     private val reportError: (String) -> Unit,
 ) {
     private val logger: Logger = loggerFactory.get("PlayerBookmarkHandler")
 
     fun addBookmarkAtCurrentPosition(noteText: String? = null) {
         val state = uiState.value as? PlayerState.Active ?: return
+        val chapterDurationMs = state.currentChapter?.duration?.inWholeMilliseconds ?: 0L
+        val positionMs = playerController.currentPosition.value
         viewModelScope.launch {
             bookmarkRepository
                 .addBookmark(
                     bookId = state.book.id,
                     chapterIndex = state.currentChapterIndex,
-                    positionMs = state.currentPosition,
+                    positionMs = positionMs,
                     noteText = noteText,
+                    chapterDurationMs = chapterDurationMs,
                 ).onFailure { error ->
                     logger.e({ "Failed to add bookmark" }, error)
-                    reportError("Failed to add bookmark")
+                    reportError(context.getString(R.string.failed_to_add_bookmark))
                 }
         }
     }
@@ -67,6 +74,11 @@ internal class PlayerBookmarkHandler(
         onCreated: (BookmarkItem?) -> Unit = {},
     ) {
         val state = uiState.value as? PlayerState.Active ?: return
+        val chapterDurationMs =
+            state.chapters
+                .getOrNull(chapterIndex)
+                ?.duration
+                ?.inWholeMilliseconds ?: 0L
         viewModelScope.launch {
             val result =
                 bookmarkRepository.addBookmark(
@@ -74,12 +86,13 @@ internal class PlayerBookmarkHandler(
                     chapterIndex = chapterIndex,
                     positionMs = positionMs,
                     noteText = noteText,
+                    chapterDurationMs = chapterDurationMs,
                 )
             result
                 .onSuccess { bookmark -> onCreated(bookmark) }
                 .onFailure { error ->
                     logger.e({ "Failed to add bookmark at custom position" }, error)
-                    reportError("Failed to add bookmark")
+                    reportError(context.getString(R.string.failed_to_add_bookmark))
                     onCreated(null)
                 }
         }
@@ -100,7 +113,7 @@ internal class PlayerBookmarkHandler(
                     ),
                 ).onFailure { error ->
                     logger.e({ "Failed to update bookmark note" }, error)
-                    reportError("Failed to update bookmark")
+                    reportError(context.getString(R.string.failed_to_update_bookmark))
                 }
         }
     }
@@ -116,6 +129,15 @@ internal class PlayerBookmarkHandler(
         }
     }
 
+    fun restoreBookmark(bookmark: BookmarkItem) {
+        viewModelScope.launch {
+            bookmarkRepository.restoreBookmark(bookmark).onFailure { error ->
+                logger.e({ "Failed to restore bookmark" }, error)
+                reportError(context.getString(R.string.failed_to_add_bookmark))
+            }
+        }
+    }
+
     private fun resolveDeleteBookmarkFailureReason(result: Result<Unit>): String? =
-        result.exceptionOrNull()?.let { "Failed to delete bookmark: ${it.message}" }
+        result.exceptionOrNull()?.let { "${context.getString(R.string.failed_to_delete_bookmark)}: ${it.message}" }
 }

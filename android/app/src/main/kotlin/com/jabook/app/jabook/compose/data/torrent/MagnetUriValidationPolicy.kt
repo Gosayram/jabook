@@ -55,13 +55,42 @@ public object MagnetUriValidationPolicy {
                 }?.substringAfter("=", "")
                 ?.trim()
                 ?: return null
-        val xt = URLDecoder.decode(xtEncoded, StandardCharsets.UTF_8.name())
+        // Malformed percent-escapes (%zz, truncated %e0) throw IllegalArgumentException;
+        // app is exported+BROWSABLE for magnet:, so remote links must not crash Main.
+        val xt =
+            runCatching { URLDecoder.decode(xtEncoded, StandardCharsets.UTF_8.name()) }.getOrNull()
+                ?: return null
         if (!xt.startsWith("urn:btih:", ignoreCase = true)) return null
         val infoHash = xt.substringAfter("urn:btih:", "").trim()
         return when {
             hexRegex.matches(infoHash) -> infoHash.lowercase()
-            base32Regex.matches(infoHash) -> infoHash.uppercase()
+            base32Regex.matches(infoHash) -> base32ToHex(infoHash)
             else -> null
         }
+    }
+
+    private const val BASE32_ALPHABET = "abcdefghijklmnopqrstuvwxyz234567"
+
+    /**
+     * RFC4648 base32 (32 chars) → 20-byte lowercase hex, matching the canonical
+     * hex form used everywhere else as info-hash key. Returns null on decode failure.
+     */
+    private fun base32ToHex(input: String): String? {
+        var buffer = 0L
+        var bits = 0
+        val bytes = ByteArray(20)
+        var index = 0
+        for (character in input.lowercase()) {
+            val value = BASE32_ALPHABET.indexOf(character)
+            if (value < 0) return null
+            buffer = (buffer shl 5) or value.toLong()
+            bits += 5
+            if (bits >= 8) {
+                bytes[index++] = ((buffer shr (bits - 8)) and 0xFF).toByte()
+                bits -= 8
+            }
+        }
+        if (index != bytes.size) return null
+        return bytes.joinToString("") { "%02x".format(it) }
     }
 }

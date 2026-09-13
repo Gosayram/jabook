@@ -14,11 +14,9 @@
 
 package com.jabook.app.jabook.compose.domain.usecase.library
 
-import com.jabook.app.jabook.compose.data.local.dao.BooksDao
+import com.jabook.app.jabook.compose.data.repository.BooksRepository
 import com.jabook.app.jabook.compose.domain.model.Book
-import com.jabook.app.jabook.compose.domain.model.toBooks
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 /**
@@ -30,7 +28,7 @@ import javax.inject.Inject
 public class GetRecentlyPlayedBooksUseCase
     @Inject
     constructor(
-        private val booksDao: BooksDao,
+        private val booksRepository: BooksRepository,
     ) {
         /**
          * Get recently played books.
@@ -38,5 +36,5 @@ public class GetRecentlyPlayedBooksUseCase
          * @param limit Maximum number of books to return (default: 10)
          * @return Flow of recently played books
          */
-        public operator fun invoke(limit: Int = 10): Flow<List<Book>> = booksDao.getRecentlyPlayedBooksFlow(limit).map { it.toBooks() }
+        public operator fun invoke(limit: Int = 10): Flow<List<Book>> = booksRepository.getRecentlyPlayedBooks(limit)
     }

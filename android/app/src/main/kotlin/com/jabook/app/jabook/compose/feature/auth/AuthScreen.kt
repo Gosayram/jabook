@@ -14,7 +14,6 @@
 
 package com.jabook.app.jabook.compose.feature.auth
 
-import android.view.WindowManager
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -22,12 +21,19 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -52,11 +58,12 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,6 +71,7 @@ import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
@@ -72,16 +80,14 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
+import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
+import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
+import com.jabook.app.jabook.compose.designsystem.component.RemoteImage
 import com.jabook.app.jabook.compose.domain.model.AuthStatus
 import com.jabook.app.jabook.compose.domain.model.CaptchaData
-import com.jabook.app.jabook.utils.componentActivity
 
 @Composable
 public fun AuthScreen(
@@ -92,14 +98,15 @@ public fun AuthScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val authStatus by viewModel.authStatus.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val lifecycleOwner = LocalLifecycleOwner.current
 
     val navigationClickGuard = remember { NavigationClickGuard() }
     val currentView = LocalView.current
+    val currentOnNavigateBack by rememberUpdatedState(onNavigateBack)
+    val currentOnNavigateToWebView by rememberUpdatedState(onNavigateToWebView)
 
-    var username by remember { mutableStateOf("") }
+    var username by rememberSaveable { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var rememberMe by remember { mutableStateOf(true) }
+    var rememberMe by rememberSaveable { mutableStateOf(true) }
     var passwordVisible by remember { mutableStateOf(false) }
 
     // Constants for padding
@@ -109,65 +116,43 @@ public fun AuthScreen(
     // Handle WebView Login Navigation
     LaunchedEffect(uiState.showWebViewLogin) {
         if (uiState.showWebViewLogin) {
-            navigationClickGuard.run { onNavigateToWebView(viewModel.getLoginUrl()) }
-        }
-    }
-
-    // Protect credentials screen from screenshots/recording while it is visible.
-    DisposableEffect(currentView) {
-        val window = currentView.context.componentActivity.window
-        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        onDispose {
-            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        }
-    }
-
-    // Sync cookies on Resume (returning from WebView)
-    DisposableEffect(lifecycleOwner) {
-        val observer =
-            LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_RESUME) {
-                    if (uiState.showWebViewLogin) {
-                        viewModel.onWebViewLoginCompleted()
-                    }
-                }
-            }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
-
-    LaunchedEffect(uiState.error) {
-        uiState.error?.let {
-            snackbarHostState.showSnackbar(it)
+            viewModel.consumeWebViewLoginRequest()
+            val loginUrl = viewModel.prepareWebViewLogin()
+            navigationClickGuard.run { currentOnNavigateToWebView(loginUrl) }
         }
     }
 
     LaunchedEffect(authStatus) {
         if (authStatus is AuthStatus.Authenticated) {
-            navigationClickGuard.run { onNavigateBack() }
+            navigationClickGuard.run { currentOnNavigateBack() }
         }
     }
 
-    // Pre-fill if saved credentials exist
-    LaunchedEffect(uiState.savedCredentials) {
-        uiState.savedCredentials?.let {
-            username = it.username
-            password = it.password
-        }
+    // A stored password never enters Compose state; only pre-fill the non-secret username.
+    LaunchedEffect(uiState.savedUsername) {
+        uiState.savedUsername?.let { username = it }
     }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        // No TopAppBar: keep top/horizontal insets (status bar), drop bottom (consumed by NavigationSuiteScaffold).
+        contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
     ) { paddingValues ->
         Column(
             modifier =
                 Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
+                    .imePadding()
                     .padding(24.dp)
-                    .verticalScroll(rememberScrollState()),
+                    .verticalScroll(rememberScrollState())
+                    .then(
+                        run {
+                            val wsc = LocalWindowSizeClass.current
+                            val maxW = wsc?.let { AdaptiveUtils.getMaxContentWidth(it) }
+                            if (maxW != null) Modifier.widthIn(max = maxW) else Modifier
+                        },
+                    ),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
@@ -211,6 +196,8 @@ public fun AuthScreen(
                             contentType = ContentType.Username
                         },
                 singleLine = true,
+                isError = uiState.error != null,
+                supportingText = { uiState.error?.let { Text(it) } },
                 keyboardOptions =
                     KeyboardOptions(
                         keyboardType = KeyboardType.Text,
@@ -258,6 +245,8 @@ public fun AuthScreen(
                             contentType = ContentType.Password
                         },
                 singleLine = true,
+                isError = uiState.error != null,
+                supportingText = { uiState.error?.let { Text(it) } },
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 shape = MaterialTheme.shapes.medium,
@@ -267,11 +256,18 @@ public fun AuthScreen(
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .toggleable(
+                            value = rememberMe,
+                            role = Role.Checkbox,
+                            onValueChange = { rememberMe = it },
+                        ),
             ) {
                 Checkbox(
                     checked = rememberMe,
-                    onCheckedChange = { rememberMe = it },
+                    onCheckedChange = null,
                 )
                 Text(
                     text = stringResource(R.string.rememberMe),
@@ -376,8 +372,10 @@ public fun CaptchaDialog(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                AsyncImage(
-                    model = captchaData.url,
+                // RemoteImage adds placeholder/loading/error UI around the captcha; the
+                // request rebuilds automatically when the refresh key (captchaData.url) changes.
+                RemoteImage(
+                    src = captchaData.url,
                     contentDescription = stringResource(R.string.captchaImage),
                     modifier =
                         Modifier

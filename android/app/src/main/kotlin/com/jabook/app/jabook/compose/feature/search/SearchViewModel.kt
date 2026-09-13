@@ -32,6 +32,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -97,6 +98,7 @@ public class SearchViewModel
 
         // Raw results to support client-side filtering
         private val rawOnlineResults: MutableStateFlow<List<RutrackerSearchResult>> = MutableStateFlow(emptyList())
+        private var onlineSearchJob: Job? = null
 
         // UI state - derived from raw results and filters
         private val _uiState: MutableStateFlow<SearchUiState> = MutableStateFlow(SearchUiState.Idle)
@@ -148,6 +150,12 @@ public class SearchViewModel
          * Update search query.
          */
         public fun onSearchQueryChanged(query: String) {
+            if (query != _searchQuery.value) {
+                onlineSearchJob?.cancel()
+                rawOnlineResults.value = emptyList()
+                // Reset stale Success/Error from previous query so local results are reachable
+                if (_uiState.value !is SearchUiState.Idle) _uiState.value = SearchUiState.Idle
+            }
             _searchQuery.value = query
         }
 
@@ -171,6 +179,8 @@ public class SearchViewModel
          * Clear search query.
          */
         public fun clearSearch() {
+            onlineSearchJob?.cancel()
+            onlineSearchJob = null
             _searchQuery.value = ""
             rawOnlineResults.value = emptyList()
             _uiState.value = SearchUiState.Idle
@@ -183,66 +193,71 @@ public class SearchViewModel
             val query = _searchQuery.value
             if (query.isBlank()) return
 
-            logger.d { "🔍 Starting online search for query: '$query'" }
-            viewModelScope.launch {
-                _uiState.value = SearchUiState.Loading
+            logger.d { "Starting online search for query: '$query'" }
+            onlineSearchJob?.cancel()
+            onlineSearchJob =
+                viewModelScope.launch {
+                    _uiState.value = SearchUiState.Loading
 
-                searchRutrackerUseCase(query).collect { result ->
-                    when (result) {
-                        is Result.Success -> {
-                            logger.i { "✅ Search successful: received ${result.data.size} results for query '$query'" }
-                            // Log details about results
-                            if (result.data.isNotEmpty()) {
-                                val sample = result.data.take(3)
-                                sample.forEachIndexed { index, item ->
-                                    logger.d {
-                                        "  Result[$index]: topicId='${item.topicId}', " +
-                                            "title='${item.title.take(50)}', " +
-                                            "author='${item.author.take(30)}', " +
-                                            "coverUrl=${if (item.coverUrl.isNullOrBlank()) "null" else "present"}, " +
-                                            "valid=${item.isValid()}"
+                    searchRutrackerUseCase(query).collect { result ->
+                        if (_searchQuery.value != query) return@collect
+                        when (result) {
+                            is Result.Success -> {
+                                logger.i { "Search successful: received ${result.data.size} results for query '$query'" }
+                                // Log details about results
+                                if (result.data.isNotEmpty()) {
+                                    val sample = result.data.take(3)
+                                    sample.forEachIndexed { index, item ->
+                                        logger.d {
+                                            "  Result[$index]: topicId='${item.topicId}', " +
+                                                "title='${item.title.take(50)}', " +
+                                                "author='${item.author.take(30)}', " +
+                                                "coverUrl=${if (item.coverUrl.isNullOrBlank()) "null" else "present"}, " +
+                                                "valid=${item.isValid()}"
+                                        }
                                     }
+                                } else {
+                                    logger.w { "Search returned empty results for query '$query'" }
                                 }
-                            } else {
-                                logger.w { "⚠️ Search returned empty results for query '$query'" }
+                                rawOnlineResults.value = result.data
+                                recalculateUiState()
+                                // ponytail: auto-save on successful search; trim handled in repo
+                                saveSearchToHistory(query, result.data.size)
                             }
-                            rawOnlineResults.value = result.data
-                            recalculateUiState()
-                        }
-                        is Result.Error -> {
-                            // Get error message from typed error
-                            val errorMessage = result.error.message
-                            val errorCause = result.error.cause
-                            logger.e(
-                                errorCause,
-                                { "❌ Search failed for query '$query': $errorMessage" },
-                            )
-                            rawOnlineResults.value = emptyList()
-                            _uiState.value = SearchUiState.Error(errorMessage)
-                        }
-                        is Result.Loading -> {
-                            // Already in loading state
-                            logger.d { "⏳ Search in progress for query '$query'" }
+                            is Result.Error -> {
+                                // Get error message from typed error
+                                val errorMessage = result.error.message
+                                val errorCause = result.error.cause
+                                logger.e(
+                                    errorCause,
+                                    { "Search failed for query '$query': $errorMessage" },
+                                )
+                                rawOnlineResults.value = emptyList()
+                                _uiState.value = SearchUiState.Error(errorMessage)
+                            }
+                            is Result.Loading -> {
+                                // Already in loading state
+                                logger.d { "Search in progress for query '$query'" }
+                            }
                         }
                     }
                 }
-            }
         }
 
         private fun recalculateUiState() {
             val currentRaw = rawOnlineResults.value
             if (currentRaw.isEmpty() && _uiState.value !is SearchUiState.Success) {
-                logger.d { "⏭️ Skipping UI state recalculation: no raw results" }
+                logger.d { "Skipping UI state recalculation: no raw results" }
                 return
             }
 
             logger.d {
-                "🔄 Recalculating UI state: ${currentRaw.size} raw results, " +
+                "Recalculating UI state: ${currentRaw.size} raw results, " +
                     "filters=${_filters.value}, sortOrder=${_sortOrder.value}"
             }
             val filtered = applyFiltersAndSort(currentRaw)
             logger.d {
-                "✅ UI state updated: ${filtered.size} filtered results (from ${currentRaw.size} raw)"
+                "UI state updated: ${filtered.size} filtered results (from ${currentRaw.size} raw)"
             }
 
             _uiState.value =
@@ -268,6 +283,17 @@ public class SearchViewModel
                         val minOk = f.minSize?.let { sizeBytes >= it } ?: true
                         val maxOk = f.maxSize?.let { sizeBytes <= it } ?: true
                         minOk && maxOk
+                    }
+            }
+            if (f.qualityFilter != com.jabook.app.jabook.compose.domain.model.QualityFilter.ALL) {
+                processing =
+                    processing.filter { result ->
+                        val bitrate = extractBitrate(result)
+                        when (f.qualityFilter) {
+                            com.jabook.app.jabook.compose.domain.model.QualityFilter.HIGH -> bitrate >= 256
+                            com.jabook.app.jabook.compose.domain.model.QualityFilter.STANDARD -> bitrate >= 128
+                            com.jabook.app.jabook.compose.domain.model.QualityFilter.LOW -> bitrate in 1..<128
+                        }
                     }
             }
 
@@ -298,6 +324,31 @@ public class SearchViewModel
                 unit.contains("KB") -> (value * 1024).toLong()
                 else -> value.toLong()
             }
+        }
+
+        /**
+         * Extracts bitrate in kbit/s from a search result for quality filtering.
+         * Falls back to 128 kbit/s (standard) when unknown.
+         */
+        private fun extractBitrate(result: RutrackerSearchResult): Int {
+            val title = result.title.lowercase()
+            // Try to find bitrate patterns like "128kbps", "320 kbit", "192 kbps"
+            val bitratePattern = Regex("(\\d{2,3})\\s*kbit")
+            val match = bitratePattern.find(title)
+            if (match != null) {
+                return match.groupValues[1].toIntOrNull() ?: 128
+            }
+            // Heuristic: FLAC/lossless = high quality
+            if (title.contains("flac") || title.contains("lossless") || title.contains("alac")) {
+                return 320
+            }
+            // Heuristic: AAC/M4B with bitrate
+            val aacPattern = Regex("(\\d{2,3})\\s*kbit")
+            val aacMatch = aacPattern.find(title)
+            if (aacMatch != null) {
+                return aacMatch.groupValues[1].toIntOrNull() ?: 128
+            }
+            return 128 // default standard
         }
 
         /**

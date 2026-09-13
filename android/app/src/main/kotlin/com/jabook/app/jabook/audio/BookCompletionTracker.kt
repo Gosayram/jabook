@@ -16,6 +16,7 @@ package com.jabook.app.jabook.audio
 
 import android.content.Context
 import android.content.Intent
+import android.os.Looper
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import com.jabook.app.jabook.util.LogUtils
@@ -55,17 +56,19 @@ internal class BookCompletionTracker(
     private val saveCurrentPosition: () -> Unit,
     private val getCurrentBookId: () -> String?,
     private val markBookCompleted: ((String) -> Unit)?,
+    private val getRepeatMode: () -> Int = { Player.REPEAT_MODE_OFF },
     private val scheduleNotificationUpdate: () -> Unit = {},
+    private val prepareNextChapter: ((Int) -> Unit)? = null,
 ) {
     private var positionCheckJob: Job? = null
     private var lastPosition: Long = -1L
     private var positionStoppedCount: Int = 0
     private var positionStoppedStartTime: Long = -1L
+    private var prefetchedNextIndex: Int = -1
 
     private val positionCheckIntervalMs: Long = 1000L
     private val positionStoppedThreshold: Int = 3
     private val maxPositionStoppedTimeMs: Long = 10_000L
-    private val smartCompletionThresholdMs: Long = 180_000L
 
     /** Starts periodic position checking for book completion detection. */
     fun startPositionCheck() {
@@ -76,6 +79,8 @@ internal class BookCompletionTracker(
         positionCheckJob =
             scope.launch {
                 while (coroutineContext.isActive) {
+                    // ponytail: player getters must stay on Main (SimpleBasePlayer.verifyApplicationThread)
+                    check(Looper.getMainLooper() == Looper.myLooper()) { "player getters must stay on Main" }
                     if (getIsBookCompleted()) break
                     val player = getActivePlayer()
                     if (player.playbackState == Player.STATE_ENDED) break
@@ -88,18 +93,11 @@ internal class BookCompletionTracker(
 
                     if (currentIndex >= totalTracks - 1) {
                         if (duration != C.TIME_UNSET && duration > 0) {
-                            if (currentPosition >= duration) {
-                                handleBookCompletion(player, currentIndex)
-                                break
-                            }
-                            val remaining = duration - currentPosition
-                            if (remaining in (eofThresholdMs + 1)..smartCompletionThresholdMs) {
-                                handleBookCompletion(player, currentIndex)
-                                break
-                            }
-                            if (remaining <= eofThresholdMs) {
-                                handleBookCompletion(player, currentIndex)
-                                break
+                            if (!player.isPlaying) {
+                                if (currentPosition >= duration || duration - currentPosition <= eofThresholdMs) {
+                                    handleBookCompletion(player, currentIndex)
+                                    break
+                                }
                             }
                         }
                         if (checkPositionStopped(player, currentPosition, duration, eofThresholdMs)) {
@@ -109,6 +107,17 @@ internal class BookCompletionTracker(
                         lastPosition = currentPosition
                     } else {
                         resetPositionTrackingState()
+                        // Predictive prefetch: prepare next chapter 30s before end
+                        if (duration != C.TIME_UNSET && duration > 0 && currentIndex >= 0) {
+                            val remaining = duration - currentPosition
+                            if (remaining <= 30_000L && remaining > 0) {
+                                val nextIndex = currentIndex + 1
+                                if (nextIndex < totalTracks && nextIndex != prefetchedNextIndex) {
+                                    prefetchedNextIndex = nextIndex
+                                    prepareNextChapter?.invoke(nextIndex)
+                                }
+                            }
+                        }
                     }
 
                     if (currentIndex >= totalTracks - 1 &&
@@ -148,6 +157,7 @@ internal class BookCompletionTracker(
         source: String = "position_check",
     ): Boolean {
         if (getIsBookCompleted()) return false
+        if (getRepeatMode() != Player.REPEAT_MODE_OFF) return false
         val totalTracks = getActualPlaylistSize()
         if (totalTracks <= 0) return false
 
@@ -195,6 +205,11 @@ internal class BookCompletionTracker(
         duration: Long,
         eofThresholdMs: Long,
     ): Boolean {
+        if (player.isPlaying) {
+            positionStoppedCount = 0
+            positionStoppedStartTime = -1L
+            return false
+        }
         if (lastPosition < 0 || currentPosition != lastPosition) {
             positionStoppedCount = 0
             positionStoppedStartTime = -1L
@@ -202,10 +217,9 @@ internal class BookCompletionTracker(
         }
         val currentTime = System.currentTimeMillis()
         if (positionStoppedStartTime < 0) positionStoppedStartTime = currentTime
-        val wasPlayingRecently = player.isPlaying || player.playWhenReady
         val isNearEnd = duration != C.TIME_UNSET && duration > 0 && currentPosition >= duration - (eofThresholdMs * 2)
         val stoppedTimeMs = currentTime - positionStoppedStartTime
-        if (wasPlayingRecently || isNearEnd || stoppedTimeMs >= maxPositionStoppedTimeMs) {
+        if (isNearEnd || stoppedTimeMs >= maxPositionStoppedTimeMs) {
             positionStoppedCount++
             return positionStoppedCount >= positionStoppedThreshold || stoppedTimeMs >= maxPositionStoppedTimeMs
         }

@@ -14,23 +14,12 @@
 
 package com.jabook.app.jabook.compose.di
 
-import android.content.Context
-import androidx.test.core.app.ApplicationProvider
+import com.jabook.app.jabook.compose.data.local.JABOOK_DB_VERSION
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
 
-@RunWith(RobolectricTestRunner::class)
 class DatabaseModuleMigrationSmokeTest {
-    private lateinit var context: Context
-
-    @Before
-    fun setUp() {
-        context = ApplicationProvider.getApplicationContext()
-    }
-
     @Test
     fun `migration contract includes 14 to 22 chain`() {
         val migrationPairs =
@@ -55,13 +44,8 @@ class DatabaseModuleMigrationSmokeTest {
 
     @Test
     fun `migration pairs are sequential without gaps`() {
-        val migrations = DatabaseModule.configuredMigrations.sortedBy { it.startVersion }
-        var expectedVersion = 1
-        for (migration in migrations) {
-            // Check that starting version matches expected (accounting for skipped versions)
-            if (migration.startVersion == expectedVersion) {
-                expectedVersion = migration.endVersion + 1
-            }
-        }
+        val migrations = DatabaseModule.configuredMigrations.map { it.startVersion to it.endVersion }.sortedBy { it.first }
+
+        assertEquals((1 until JABOOK_DB_VERSION).map { it to it + 1 }, migrations)
     }
 }

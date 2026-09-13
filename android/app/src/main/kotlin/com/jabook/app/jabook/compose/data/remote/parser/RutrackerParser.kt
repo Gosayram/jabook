@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.remote.parser
 
+import com.google.re2j.Pattern
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.core.util.PerfTrace
 import com.jabook.app.jabook.compose.data.remote.RuTrackerError
@@ -22,6 +23,7 @@ import com.jabook.app.jabook.compose.data.remote.model.SearchResult
 import com.jabook.app.jabook.compose.data.remote.model.TopicDetails
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
+import java.io.ByteArrayOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -53,6 +55,45 @@ public class RutrackerParser
         private val logger = loggerFactory.get("RutrackerParser")
 
         public companion object {
+            /**
+             * Upper bound for a single HTML response. Jsoup.parse builds the full DOM in RAM,
+             * so an uncapped multi-MB body from a broken mirror is an OOM vector on 2GB devices.
+             */
+            internal const val MAX_HTML_BYTES = 8 * 1024 * 1024
+
+            /**
+             * Reads a response body with [MAX_HTML_BYTES] cap. Throws IllegalStateException
+             * over the cap — all call sites run inside withOperation/try-catch and surface
+             * it as a user-visible error, not a crash.
+             *
+             * Enforces the cap DURING the copy: `bytes()` would materialize the full
+             * response before the old post-hoc check could run, so the guard could not
+             * prevent the OOM it exists for. Known contentLength > cap is rejected before
+             * reading; unknown-length (chunked) bodies abort once the cap is exceeded.
+             */
+            internal fun readCappedBody(body: okhttp3.ResponseBody?): ByteArray {
+                if (body == null) return ByteArray(0)
+                val contentLength = body.contentLength()
+                if (contentLength > MAX_HTML_BYTES) {
+                    body.close()
+                    throw IllegalStateException("Response too large: $contentLength bytes")
+                }
+                return body.use { response ->
+                    val input = response.byteStream()
+                    val output = ByteArrayOutputStream(if (contentLength > 0) contentLength.toInt() else 64 * 1024)
+                    val chunk = ByteArray(64 * 1024)
+                    var total = 0
+                    while (true) {
+                        val read = input.read(chunk)
+                        if (read < 0) break
+                        total += read
+                        check(total <= MAX_HTML_BYTES) { "Response too large: $total bytes" }
+                        output.write(chunk, 0, read)
+                    }
+                    output.toByteArray()
+                }
+            }
+
             // CSS Selectors for search results - UPDATED for 2025 based on robust Dart implementation
             // Primary and fallback selectors for rows
             // Note: Some forums may have td.vf-col-icon, so we need to handle parent tr
@@ -70,28 +111,75 @@ public class RutrackerParser
 
             private const val TITLE_SELECTOR = "a[id^='tt-'], a.tt-text, a.torTopic:not(.t-is-unread)"
             private const val AUTHOR_SELECTOR = "a.topicAuthor, a.pmed, a[href*='profile.php']"
-            private const val SIZE_SELECTOR = "a.f-dl, a.dl-stub, span.small, td.small, div.small"
 
             // Seeders/Leechers: include both with and without 'b' tag, and generic classes
-            private const val SEEDERS_SELECTOR = "span.seedmed b, b.seedmed, span.seed b, .seed b, .seedmed, .seed"
-            private const val LEECHERS_SELECTOR = "span.leechmed b, b.leechmed, span.leech b, .leech b, .leechmed, .leech"
 
             // Additional selectors
             private const val TOPIC_ID_ATTR = "data-topic_id"
             private const val MAGNET_LINK_SELECTOR = "a.magnet-link, a[href^='magnet:']"
-            private const val DOWNLOADS_SELECTOR = "td.vf-col-replies b"
             private const val DOWNLOAD_HREF_SELECTOR = "a[href^=\"dl.php?t=\"]"
 
             // CSS Selectors for topic details
             private const val POST_BODY_SELECTOR = ".post_body, .post-body"
             private const val MAIN_TITLE_SELECTOR = "h1.maintitle a, h1.maintitle"
             private const val TOR_SIZE_SELECTOR = "#tor-size-humn"
+
+            // Regex constants (avoid recompilation in hot paths).
+            // re2j (Google RE2, linear time): these run on attacker-controlled RuTracker
+            // HTML/text — java.util.regex backtracking on such input is a ReDoS vector.
+            private val SEEDERS_FALLBACK_REGEX = Pattern.compile("Сиды?:\\s*(\\d+)", Pattern.CASE_INSENSITIVE)
+            private val LEECHERS_FALLBACK_REGEX = Pattern.compile("Личи?:\\s*(\\d+)", Pattern.CASE_INSENSITIVE)
+
+            // RE2 has no lookahead: `(.+?)(?=\n|X|$)` rewritten as `(.+?)(?:\n|X|$)`.
+            // Lazy capture stops at the same place; group(1) is identical (only group(0)
+            // additionally consumes the stop token — every call site reads group(1) only).
+            private val AUTHOR_FALLBACK_REGEX = Pattern.compile("Автор[:\\s]+(.+?)(?:\\n|Исполнитель|Год|$)")
+            private val PERFORMER_FALLBACK_REGEX = Pattern.compile("Исполнитель[:\\s]+(.+?)(?:\\n|Год|Жанр|$)")
+            private val DURATION_FALLBACK_REGEX = Pattern.compile("Время звучания[:\\s]+(.+?)(?:\\n|$)")
+            private val BITRATE_FALLBACK_REGEX = Pattern.compile("Битрейт[:\\s]+(.+?)(?:\\n|$)")
+            private val GENRE_FALLBACK_REGEX = Pattern.compile("Жанр[:\\s]+(.+?)(?:\\n|$)")
+            private val SERIES_PATTERNS =
+                listOf(
+                    Pattern.compile("Цикл/серия[:\\s]+(.+?)(?:\\n|Номер|Жанр|$)", Pattern.CASE_INSENSITIVE),
+                    Pattern.compile("Цикл[:\\s]+[\"']?(.+?)[\"']?(?:\\n|$)", Pattern.CASE_INSENSITIVE),
+                    Pattern.compile("Серия[:\\s]+(.+?)(?:\\n|$)", Pattern.CASE_INSENSITIVE),
+                )
+            private val SERIES_HTML_REGEX = Pattern.compile(":\\s*(.+?)(?:\\n|<|$)")
+            private val PAGINATION_TOTAL_REGEX = Pattern.compile("Страница\\s+\\d+\\s+из\\s+(\\d+)", Pattern.CASE_INSENSITIVE)
+            private val PAGINATION_CURRENT_REGEX = Pattern.compile("Страница\\s+(\\d+)", Pattern.CASE_INSENSITIVE)
+            private val TRAILING_BRACKET_REGEX = Pattern.compile("\\s*\\[([^\\]]+)\\]\\s*$")
+            private val SQUARE_BRACKETS_REGEX = Pattern.compile("\\[.*?\\]")
+            private val BR_REGEX = Pattern.compile("<br\\s*/?>", Pattern.CASE_INSENSITIVE)
+            private val POST_BR_REGEX = Pattern.compile("<span class=\"post-br\"><br\\s*/?></span>", Pattern.CASE_INSENSITIVE)
+            private val WHITESPACE_REGEX = Pattern.compile("\\s+")
+
+            /** Title cleaning: precompiled so cleanTitle() does not rebuild 30+ patterns per topic. */
+            private val QUALITY_INDICATOR_REGEX =
+                Pattern.compile(
+                    "\\b(WEB-DL|WEBRip|BDRip|DVDRip|HDTV|BluRay|Blu-Ray|BD-Rip|Web-DL|WebRip)\\b",
+                    Pattern.CASE_INSENSITIVE,
+                )
+            private val FILE_FORMAT_REGEX =
+                Pattern.compile(
+                    "\\b(MKV|MP4|AVI|MOV|WMV|FLV|M4V|MP3|AAC|FLAC|OGG|WAV|M4A)\\b",
+                    Pattern.CASE_INSENSITIVE,
+                )
+            private val RESOLUTION_REGEX = Pattern.compile("\\b\\d{3,4}[pi]\\b", Pattern.CASE_INSENSITIVE)
         }
 
         /**
          * Get base URL for current mirror (for Jsoup parsing).
          */
         private fun getBaseUrl(): String = "${mirrorManager.getBaseUrl()}/forum/"
+
+        /**
+         * Decode raw bytes to string using encoding detection.
+         * Exposed for ForumIndexer health checks on already-consumed bodies.
+         */
+        public fun decodeBytes(
+            rawBytes: ByteArray,
+            contentType: String?,
+        ): String = decoder.decode(rawBytes, contentType)
 
         /**
          * Parse search results from raw bytes with encoding detection.
@@ -108,7 +196,7 @@ public class RutrackerParser
             contentType: String? = null,
         ): ParsingResult<List<SearchResult>> =
             PerfTrace.section(name = "RutrackerParser.parseSearchResultsWithEncoding") {
-                // Decode with simple decoder (matching Flutter implementation)
+                // Decode with simple decoder
                 val decodedHtml = decoder.decode(bytes, contentType)
 
                 // Parse the decoded HTML
@@ -251,7 +339,7 @@ public class RutrackerParser
                             results.add(result)
                             if (index < 3) {
                                 logger.d {
-                                    "✅ Row $index parsed: topicId=${result.topicId}, title='${result.title.take(
+                                    "Row $index parsed: topicId=${result.topicId}, title='${result.title.take(
                                         40,
                                     )}'"
                                 }
@@ -266,15 +354,13 @@ public class RutrackerParser
                                 val hasTitle: Boolean = row.selectFirst(TITLE_SELECTOR) != null
                                 val topicIdAttr = row.attr(TOPIC_ID_ATTR)
                                 val rowId = row.attr("id")
-                                val topicId = topicIdAttr.ifEmpty { rowId.removePrefix("tr-") }
+                                val topicId = topicIdAttr.ifEmpty { extractTopicIdFromRowId(rowId) ?: "" }
 
                                 // Try to extract topicId from title link as fallback
                                 val topicIdFromLink =
                                     row
                                         .selectFirst(TITLE_SELECTOR)
-                                        ?.absUrl("href")
-                                        ?.substringAfter("t=")
-                                        ?.substringBefore("&")
+                                        ?.queryParamOrNull("t")
                                         ?: ""
 
                                 val finalTopicId = topicId.ifEmpty { topicIdFromLink }
@@ -285,7 +371,7 @@ public class RutrackerParser
                                 val titleHtml = titleElement?.html()?.take(100) ?: ""
 
                                 logger.w {
-                                    "⚠️ Row $index failed to parse: tag=$rowTag, " +
+                                    "Row $index failed to parse: tag=$rowTag, " +
                                         "classes='$rowClasses', hasTitle=$hasTitle, " +
                                         "topicId='$finalTopicId', titleText='$titleText', " +
                                         "titleHtml='$titleHtml'"
@@ -307,7 +393,7 @@ public class RutrackerParser
                                 e.message != null -> "${e.javaClass.simpleName}: ${e.message}"
                                 else -> e.javaClass.simpleName
                             }
-                        logger.e({ "❌ Error parsing row $index: $errorDetails" }, e)
+                        logger.e({ "Error parsing row $index: $errorDetails" }, e)
                         errors.add(
                             ParsingError(
                                 field = "row_$index",
@@ -331,7 +417,7 @@ public class RutrackerParser
                         e.message != null -> "${e.javaClass.simpleName}: ${e.message}"
                         else -> e.javaClass.simpleName
                     }
-                logger.e({ "❌ Failed to parse search results: $errorDetails (HTML size: ${rawBytes.size} bytes)" }, e)
+                logger.e({ "Failed to parse search results: $errorDetails (HTML size: ${rawBytes.size} bytes)" }, e)
                 errors.add(
                     ParsingError(
                         field = "document",
@@ -380,7 +466,7 @@ public class RutrackerParser
             bytes: ByteArray,
             contentType: String? = null,
         ): ParsingResult<List<SearchResult>> {
-            // Decode with simple decoder (matching Flutter implementation)
+            // Decode with simple decoder
             val decodedHtml = decoder.decode(bytes, contentType)
 
             // Parse the decoded HTML with forum-specific validation
@@ -434,7 +520,7 @@ public class RutrackerParser
                         // Check if we found tr elements or something else
                         val firstElement = found.firstOrNull()
                         if (firstElement == null) {
-                            logger.w { "  ⚠️ Found elements but first() returned null" }
+                            logger.w { "  Found elements but first() returned null" }
                             continue
                         }
                         val elementTag = firstElement.tagName()
@@ -443,7 +529,7 @@ public class RutrackerParser
                         // If we found td instead of tr, we need to find parent tr
                         val actualRows =
                             if (elementTag == "td") {
-                                logger.w { "  ⚠️ Selector found <td> instead of <tr>, looking for parent <tr>" }
+                                logger.w { "  Selector found <td> instead of <tr>, looking for parent <tr>" }
                                 found
                                     .mapNotNull { td ->
                                         td.parent()?.takeIf { parent -> parent.tagName() == "tr" }
@@ -477,10 +563,10 @@ public class RutrackerParser
                         if (validRows.isNotEmpty()) {
                             rows = org.jsoup.select.Elements(validRows)
                             successfulSelector = selector
-                            logger.d { "✅ Found ${rows.size} valid rows using selector: $selector" }
+                            logger.d { "Found ${rows.size} valid rows using selector: $selector" }
                             break
                         } else {
-                            logger.w { "  ⚠️ Selector '$selector' found ${actualRows.size} rows but none are valid" }
+                            logger.w { "  Selector '$selector' found ${actualRows.size} rows but none are valid" }
                         }
 
                         // If selected rows were all invalid, try next selector
@@ -551,7 +637,7 @@ public class RutrackerParser
                                 val topicId = row.attr(TOPIC_ID_ATTR).ifEmpty { row.attr("id") }
 
                                 logger.w {
-                                    "⚠️ Row $index failed to parse: tag=$rowTag, " +
+                                    "Row $index failed to parse: tag=$rowTag, " +
                                         "classes='$rowClasses', hasTitle=$hasTitle, topicId='$topicId'"
                                 }
 
@@ -571,7 +657,7 @@ public class RutrackerParser
                                 e.message != null -> "${e.javaClass.simpleName}: ${e.message}"
                                 else -> e.javaClass.simpleName
                             }
-                        logger.e({ "❌ Error parsing row $index: $errorDetails" }, e)
+                        logger.e({ "Error parsing row $index: $errorDetails" }, e)
                         errors.add(
                             ParsingError(
                                 field = "row_$index",
@@ -595,7 +681,7 @@ public class RutrackerParser
                         e.message != null -> "${e.javaClass.simpleName}: ${e.message}"
                         else -> e.javaClass.simpleName
                     }
-                logger.e({ "❌ Failed to parse forum page: $errorDetails (HTML size: ${rawBytes.size} bytes)" }, e)
+                logger.e({ "Failed to parse forum page: $errorDetails (HTML size: ${rawBytes.size} bytes)" }, e)
                 errors.add(
                     ParsingError(
                         field = "document",
@@ -616,9 +702,20 @@ public class RutrackerParser
             body: okhttp3.ResponseBody,
             forumId: String,
         ): ForumPageResult {
-            // Convert ResponseBody to ByteArray for encoding-aware parsing
-            val rawBytes = body.bytes()
+            val rawBytes = readCappedBody(body)
             val contentType = body.contentType()?.toString()
+            return parseForumPageFromBytes(rawBytes, contentType, forumId)
+        }
+
+        /**
+         * Parse forum page from pre-read bytes (avoids double body consumption).
+         * Used by ForumIndexer when it needs the raw bytes for health checks.
+         */
+        public fun parseForumPageFromBytes(
+            rawBytes: ByteArray,
+            contentType: String?,
+            forumId: String,
+        ): ForumPageResult {
             logger.d { "Parsing forum $forumId page: ${rawBytes.size} bytes, content-type: $contentType" }
             val result = parseForumPageWithEncoding(rawBytes, contentType)
 
@@ -649,7 +746,7 @@ public class RutrackerParser
                     }
                     is ParsingResult.Failure -> {
                         logger.e {
-                            "❌ Forum $forumId: parsing failed - ${result.errors.size} errors (${rawBytes.size} bytes)"
+                            "Forum $forumId: parsing failed - ${result.errors.size} errors (${rawBytes.size} bytes)"
                         }
                         result.errors.take(10).forEach { error ->
                             // Limit to first 10 errors to avoid log spam
@@ -713,20 +810,15 @@ public class RutrackerParser
                     } else {
                         // Method 2: Check pagination text "Страница X из Y"
                         val paginationText = document.select("#pagination, .nav").toStr()
-                        val pageMatch =
-                            Regex(
-                                "Страница\\s+\\d+\\s+из\\s+(\\d+)",
-                                RegexOption.IGNORE_CASE,
-                            ).find(paginationText)
+                        val pageMatch = PAGINATION_TOTAL_REGEX.findFirst(paginationText)
                         if (pageMatch != null) {
                             val currentPage =
-                                Regex("Страница\\s+(\\d+)", RegexOption.IGNORE_CASE)
-                                    .find(paginationText)
-                                    ?.groupValues
-                                    ?.get(1)
+                                PAGINATION_CURRENT_REGEX
+                                    .findFirst(paginationText)
+                                    ?.group(1)
                                     ?.toIntOrNull()
                                     ?: 1
-                            val totalPages = pageMatch.groupValues[1].toIntOrNull() ?: 1
+                            val totalPages = pageMatch.group(1)?.toIntOrNull() ?: 1
                             val hasMore = currentPage < totalPages
                             logger.d {
                                 "Forum $forumId: pagination shows page $currentPage of $totalPages, hasMore=$hasMore"
@@ -780,7 +872,7 @@ public class RutrackerParser
                 }
 
                 if (rows.isEmpty()) {
-                    logger.w { "⚠️ NO ROWS FOUND with any selector! Running diagnostics..." }
+                    logger.w { "NO ROWS FOUND with any selector! Running diagnostics..." }
 
                     // === DIAGNOSTIC LOGGING ===
 
@@ -799,19 +891,19 @@ public class RutrackerParser
                             .text()
                             .contains("ошибка", ignoreCase = true)
 
-                    if (isLoginPage) logger.w { "❌ LOGIN PAGE DETECTED!" }
-                    if (isCaptchaPage) logger.w { "❌ CAPTCHA PAGE DETECTED!" }
-                    if (isErrorPage) logger.w { "❌ ERROR PAGE DETECTED!" }
+                    if (isLoginPage) logger.w { "LOGIN PAGE DETECTED!" }
+                    if (isCaptchaPage) logger.w { "CAPTCHA PAGE DETECTED!" }
+                    if (isErrorPage) logger.w { "ERROR PAGE DETECTED!" }
 
                     // 2. Log HTML structure
                     val tables = document.select("table")
-                    logger.w { "📊 Found ${tables.size} table(s)" }
+                    logger.w { "Found ${tables.size} table(s)" }
                     tables.take(5).forEachIndexed { i, table ->
                         logger.w { "  Table $i: class='${table.className()}' id='${table.id()}'" }
                     }
 
                     val allRows = document.select("tr")
-                    logger.w { "📋 Total tr elements: ${allRows.size}" }
+                    logger.w { "Total tr elements: ${allRows.size}" }
 
                     // Check each selector individually
                     ROW_SELECTORS.forEach { selector ->
@@ -827,16 +919,16 @@ public class RutrackerParser
 
                     // 3. Page metadata
                     val pageTitle = document.selectFirst("title")?.toStr() ?: "No title"
-                    logger.w { "📝 Page Title: $pageTitle" }
+                    logger.w { "Page Title: $pageTitle" }
 
                     // 4. HTML preview
-                    val htmlPreview = html.take(500).replace(Regex("\\s+"), " ")
-                    logger.w { "📄 HTML Preview: $htmlPreview..." }
+                    val htmlPreview = html.take(500).replace(WHITESPACE_REGEX, " ")
+                    logger.w { "HTML Preview: $htmlPreview..." }
 
                     // 5. Check for common page elements
                     val hasMainContent = document.select("#main_content, #page_content").isNotEmpty()
                     val hasForumTable = document.select(".forumline, .vf-table").isNotEmpty()
-                    logger.w { "🔍 Page elements: mainContent=$hasMainContent, forumTable=$hasForumTable" }
+                    logger.w { "Page elements: mainContent=$hasMainContent, forumTable=$hasForumTable" }
 
                     return emptyList()
                 }
@@ -850,20 +942,26 @@ public class RutrackerParser
                             results.add(result)
                             // Log first 3 successful results
                             if (idx < 3) {
-                                logger.d { "✓ Result $idx: ${result.title} by ${result.author}" }
+                                logger.d { "Result $idx: ${result.title} by ${result.author}" }
                             }
                         }
                     } catch (e: Exception) {
-                        logger.e({ "✗ Failed to parse row $idx" }, e)
+                        logger.e({ "Failed to parse row $idx" }, e)
                     }
                 }
 
-                logger.d { "✅ Successfully parsed ${results.size}/${rows.size} results" }
+                logger.d { "Successfully parsed ${results.size}/${rows.size} results" }
                 return results
             } catch (e: Exception) {
-                logger.e({ "❌ Failed to parse search results" }, e)
+                logger.e({ "Failed to parse search results" }, e)
                 return emptyList()
             }
+        }
+
+        /** Extracts numeric topic id from row id attribute: handles "tr-123", "trs-tr-123", "123". */
+        private fun extractTopicIdFromRowId(idAttr: String): String? {
+            if (idAttr.isBlank()) return null
+            return idAttr.substringAfterLast("tr-", idAttr).takeIf { it.isNotBlank() && it.all(Char::isDigit) }
         }
 
         private fun parseSearchResultRow(row: Element): SearchResult? {
@@ -871,16 +969,13 @@ public class RutrackerParser
             val topicId =
                 row.attr(TOPIC_ID_ATTR).ifEmpty {
                     // Fallback: extract from row id attribute
-                    row.attr("id").removePrefix("tr-").ifEmpty {
+                    extractTopicIdFromRowId(row.attr("id")).orEmpty().ifEmpty {
                         // Last resort: extract from title link href
-                        // Use absUrl() for proper absolute URL resolution
                         row
                             .selectFirst(TITLE_SELECTOR)
-                            ?.absUrl("href")
-                            ?.substringAfter("t=")
-                            ?.substringBefore("&")
+                            ?.queryParamOrNull("t")
                             ?: run {
-                                logger.d { "⚠️ No topicId found in row" }
+                                logger.d { "No topicId found in row" }
                                 return null
                             }
                     }
@@ -888,7 +983,7 @@ public class RutrackerParser
 
             if (topicId.isEmpty()) {
                 // Common for header rows or ads, detailed logging usually not needed unless debugging structure
-                logger.d { "⚠️ Empty topicId in row" }
+                logger.d { "Empty topicId in row" }
                 return null
             }
 
@@ -896,7 +991,7 @@ public class RutrackerParser
             val titleElement = row.selectFirst(TITLE_SELECTOR)
             if (titleElement == null) {
                 logger.w {
-                    "⚠️ No title element found for topic $topicId. " +
+                    "No title element found for topic $topicId. " +
                         "Row HTML: ${row.html().take(200)}"
                 }
                 return null
@@ -911,7 +1006,7 @@ public class RutrackerParser
                 val finalTitle = titleFromHref ?: titleFromText ?: titleFromOwnText
                 if (finalTitle == null) {
                     logger.w {
-                        "⚠️ Empty title for topic $topicId: " +
+                        "Empty title for topic $topicId: " +
                             "href='${titleElement.attr("href")}', " +
                             "html='${titleElement.html().take(100)}', " +
                             "outerHtml='${titleElement.outerHtml().take(150)}'"
@@ -1070,25 +1165,53 @@ public class RutrackerParser
             )
         }
 
+        // Ponytail: non-author words that should prevent false-positive author extraction from titles
+        private val nonAuthorWords =
+            listOf(
+                "Аудиокнига",
+                "Сборник",
+                "Лекция",
+                "Подкаст",
+                "Радио",
+                "Часть",
+                "Книга",
+                "Том",
+                "Выпуск",
+                "Эпизод",
+                "Серия",
+                "Диск",
+            )
+
         /**
          * Extract author from title string.
          * Assumes format "Author - Title" or "Author / Title".
+         * Validates the potential author looks like a name to avoid false positives
+         * on titles like "Аудиокнига - Часть 1".
          */
         private fun extractAuthorFromTitle(title: String): String? {
-            // Split by common separators
-            val separators = listOf(" - ", " / ", " – ", " — ") // including ndash, mdash
+            val separators = listOf(" - ", " / ", " – ", " — ")
 
             for (separator in separators) {
                 if (title.contains(separator)) {
                     val parts = title.split(separator, limit = 2)
                     if (parts.isNotEmpty()) {
                         val potentialAuthor = parts[0].trim()
-                        // Basic validation: Author name shouldn't be too long or contain weird chars
-                        // Allow letters, dots, spaces, hyphens
+                        // Skip if it contains common non-author words
+                        if (nonAuthorWords.any { potentialAuthor.contains(it, ignoreCase = true) }) {
+                            continue
+                        }
+                        // Basic validation: 2-60 chars, no long numbers
                         if (potentialAuthor.length in 2..60 &&
                             !potentialAuthor.contains(Regex("[0-9]{3,}"))
-                        ) { // simple heuristic: no long numbers
-                            return potentialAuthor
+                        ) {
+                            // Additional heuristic: looks like a name if starts with capital,
+                            // has 2+ words, or contains a dot (e.g. "Л.Н. Толстой")
+                            val startsWithCapital = potentialAuthor.first().isUpperCase()
+                            val wordCount = potentialAuthor.split(Regex("\\s+")).size
+                            val hasDot = potentialAuthor.contains(".")
+                            if (startsWithCapital && (wordCount >= 2 || hasDot)) {
+                                return potentialAuthor
+                            }
                         }
                     }
                 }
@@ -1131,9 +1254,26 @@ public class RutrackerParser
                     // Extract post body for metadata
                     val postBody = document.selectFirst(POST_BODY_SELECTOR)
 
-                    // Extract size
-                    val sizeElement = document.selectFirst(TOR_SIZE_SELECTOR)
-                    val size = sizeElement?.toStr() ?: "Unknown"
+                    // Extract size with fallbacks
+                    val sizeElement =
+                        document.selectFirst(TOR_SIZE_SELECTOR)
+                            ?: postBody?.selectFirst("#tor-size-hf, span#tor-size-humn")
+                            ?: postBody?.selectFirst(".attach_link span, .tor-size span")
+                    var size = sizeElement?.toStr() ?: "Unknown"
+                    // Fallback: look for "Размер" label and extract text after it
+                    if (size == "Unknown" && postBody != null) {
+                        val sizeLabel = postBody.select("span.post-b").firstOrNull { it.text().contains("Размер") }
+                        val sizeText =
+                            sizeLabel
+                                ?.nextSibling()
+                                ?.toString()
+                                ?.trim()
+                                ?.removePrefix(":")
+                                ?.trim()
+                        if (!sizeText.isNullOrEmpty()) {
+                            size = sizeText
+                        }
+                    }
 
                     // Extract magnet link
                     // Use absUrl() for proper absolute URL resolution (magnet: links are already absolute)
@@ -1161,9 +1301,9 @@ public class RutrackerParser
                     val descriptionHtml =
                         postBody?.html()?.let { html ->
                             // Clean HTML: using DOM manipulation
-                            val cleaned = cleanDescriptionHtml(html, metadata)
-                            // Ensure all links have absolute URLs (now handled in cleanDescriptionHtml)
-                            cleaned
+                            // Sanitize at the parser boundary: metadata stripping is not a
+                            // whitelist — on* attrs / javascript: hrefs would leak otherwise.
+                            HtmlSanitizer.sanitize(cleanDescriptionHtml(html, metadata))
                         }
 
                     // Extract description - clean text from cleaned HTML
@@ -1244,12 +1384,15 @@ public class RutrackerParser
             if (paginationText.isBlank()) return 1 to 1
 
             // Regex for "Страница X из Y" (Page X of Y)
-            val regex = Regex("Страница\\s+(\\d+)\\s+из\\s+(\\d+)", RegexOption.IGNORE_CASE)
-            val match = regex.find(paginationText)
+            val match = PAGINATION_TOTAL_REGEX.findFirst(paginationText)
 
             return if (match != null) {
-                val current = match.groupValues[1].toIntOrNull() ?: 1
-                val total = match.groupValues[2].toIntOrNull() ?: 1
+                val current =
+                    PAGINATION_CURRENT_REGEX
+                        .findFirst(paginationText)
+                        ?.group(1)
+                        ?.toIntOrNull() ?: 1
+                val total = match.group(1)?.toIntOrNull() ?: 1
                 current to total
             } else {
                 1 to 1
@@ -1280,13 +1423,11 @@ public class RutrackerParser
                 }
             }
 
-            // Fallback: try to extract from text
+            // Fallback: try to extract from text (toStr() strips HTML, so no <b> tags)
             val seedText = document.select("span.seed, .seed").toStr()
-            val regex = "Сиды?:\\s*<b>?(\\d+)</b>?".toRegex(RegexOption.IGNORE_CASE)
-            regex
-                .find(seedText)
-                ?.groupValues
-                ?.get(1)
+            SEEDERS_FALLBACK_REGEX
+                .findFirst(seedText)
+                ?.group(1)
                 ?.toIntOrNull()
                 ?.let { return it }
 
@@ -1317,13 +1458,11 @@ public class RutrackerParser
                 }
             }
 
-            // Fallback: try to extract from text
+            // Fallback: try to extract from text (toStr() strips HTML, so no <b> tags)
             val leechText = document.selectFirst("span.leech, .leech")?.toStr() ?: ""
-            val regex = "Личи?:\\s*<b>?(\\d+)</b>?".toRegex(RegexOption.IGNORE_CASE)
-            regex
-                .find(leechText)
-                ?.groupValues
-                ?.get(1)
+            LEECHERS_FALLBACK_REGEX
+                .findFirst(leechText)
+                ?.group(1)
                 ?.toIntOrNull()
                 ?.let { return it }
 
@@ -1358,14 +1497,21 @@ public class RutrackerParser
                             val current = metadata["author"] ?: ""
                             metadata["author"] = if (current.isEmpty()) value else "$current $value"
                         }
-                        // Performer
+                        // "Под редакцией" maps to author (for edited collections)
+                        label.contains("Под редакцией", ignoreCase = true) -> {
+                            val current = metadata["author"] ?: ""
+                            metadata["author"] = if (current.isEmpty()) value else "$current $value"
+                        }
+                        // Performer — also match "Читает" alias
                         label.contains("Исполнитель", ignoreCase = true) ||
-                            label.contains("Narrator", ignoreCase = true) -> {
+                            label.contains("Narrator", ignoreCase = true) ||
+                            label.contains("Читает", ignoreCase = true) -> {
                             metadata["performer"] = value
                         }
                         // Duration
                         label.contains("Время звучания", ignoreCase = true) ||
-                            label.contains("Duration", ignoreCase = true) -> {
+                            label.contains("Duration", ignoreCase = true) ||
+                            label.contains("Общая продолжительность раздачи", ignoreCase = true) -> {
                             metadata["duration"] = value
                         }
                         // Audio Codec
@@ -1405,11 +1551,12 @@ public class RutrackerParser
                                 metadata["bitrate"] = value
                             }
                         }
-                        // Year/Date
+                        // Year/Date — match both "Год выпуска" and "Год"
                         label.contains(
                             "Год выпуска",
                             ignoreCase = true,
                         ) ||
+                            label.equals("Год", ignoreCase = true) ||
                             label.contains("Year", ignoreCase = true) -> {
                             metadata["addedDate"] = value
                         }
@@ -1423,7 +1570,8 @@ public class RutrackerParser
                         }
                         // Publisher
                         label.contains("Издательство", ignoreCase = true) ||
-                            label.contains("Publisher", ignoreCase = true) -> {
+                            label.contains("Publisher", ignoreCase = true) ||
+                            label.contains("Страна (Издатель)", ignoreCase = true) -> {
                             metadata["publisher"] = value
                         }
                         // Correction (Корректор)
@@ -1432,7 +1580,6 @@ public class RutrackerParser
                             metadata["correction"] = value
                         }
                         // Poster Author (Авторский постер)
-                        // Handle tricky cases like "Авторский постер: :"
                         label.contains("Авторский постер", ignoreCase = true) ||
                             label.contains("Poster", ignoreCase = true) -> {
                             val cleanValue = value.removePrefix(":").trim()
@@ -1450,6 +1597,16 @@ public class RutrackerParser
                         label.contains("Музыка", ignoreCase = true) || label.contains("Music", ignoreCase = true) -> {
                             metadata["music"] = value
                         }
+                        // Тип записи → additionalInfo (not genre)
+                        label.contains("Тип записи", ignoreCase = true) -> {
+                            metadata["additionalInfo"] = value
+                        }
+                        // Формат → codec fallback
+                        label.contains("Формат", ignoreCase = true) -> {
+                            if (metadata["codec"].isNullOrBlank()) {
+                                metadata["codec"] = value
+                            }
+                        }
                     }
                 }
             }
@@ -1457,33 +1614,24 @@ public class RutrackerParser
             if (metadata.isEmpty()) {
                 val text = postBody.wholeText()
                 // Author (fallback)
-                "Автор[:\\s]+(.+?)(?=\\n|Исполнитель|Год|$)".toRegex().find(text)?.groupValues?.get(1)?.trim()?.let {
+                AUTHOR_FALLBACK_REGEX.findFirst(text)?.group(1)?.trim()?.let {
                     metadata["author"] = it
                 }
                 // Performer
-                "Исполнитель[:\\s]+(.+?)(?=\\n|Год|Жанр|$)".toRegex().find(text)?.groupValues?.get(1)?.trim()?.let {
+                PERFORMER_FALLBACK_REGEX.findFirst(text)?.group(1)?.trim()?.let {
                     metadata["performer"] = it
                 }
                 // Duration
-                "Время звучания[:\\s]+(.+?)(?=\\n|$)".toRegex().find(text)?.groupValues?.get(1)?.trim()?.let {
+                DURATION_FALLBACK_REGEX.findFirst(text)?.group(1)?.trim()?.let {
                     metadata["duration"] = it
                 }
                 // Bitrate
-                "Битрейт[:\\s]+(.+?)(?=\\n|$)".toRegex().find(text)?.groupValues?.get(1)?.trim()?.let {
+                BITRATE_FALLBACK_REGEX.findFirst(text)?.group(1)?.trim()?.let {
                     metadata["bitrate"] = it
                 }
             }
 
             return metadata
-        }
-
-        private fun extractCoverUrl(postBody: Element?): String? {
-            if (postBody == null) return null
-
-            // Look for first image in post
-            // Use absUrl() for proper absolute URL resolution (requires baseUri in parse())
-            val img = postBody.selectFirst("img[src]")
-            return img?.absUrl("src")
         }
 
         private fun extractGenres(postBody: Element?): List<String> {
@@ -1510,8 +1658,7 @@ public class RutrackerParser
             // Strategy 2: Regex fallback (using wholeText to preserve newlines)
             if (genreText == null) {
                 val text = postBody.wholeText()
-                val genrePattern = "Жанр[:\\s]+(.+?)(?=\\n|$)".toRegex()
-                genreText = genrePattern.find(text)?.groupValues?.get(1)
+                genreText = GENRE_FALLBACK_REGEX.findFirst(text)?.group(1)
             }
 
             return genreText
@@ -1530,18 +1677,10 @@ public class RutrackerParser
 
             val text = postBody.toStr()
             // Try multiple patterns
-            val patterns =
-                listOf(
-                    "Цикл/серия[:\\s]+(.+?)(?=\\n|Номер|Жанр|$)".toRegex(RegexOption.IGNORE_CASE),
-                    "Цикл[:\\s]+[\"']?(.+?)[\"']?(?=\\n|$)".toRegex(RegexOption.IGNORE_CASE),
-                    "Серия[:\\s]+(.+?)(?=\\n|$)".toRegex(RegexOption.IGNORE_CASE),
-                )
-
-            for (pattern in patterns) {
+            for (pattern in SERIES_PATTERNS) {
                 pattern
-                    .find(text)
-                    ?.groupValues
-                    ?.get(1)
+                    .findFirst(text)
+                    ?.group(1)
                     ?.trim()
                     ?.let { return it }
             }
@@ -1551,10 +1690,9 @@ public class RutrackerParser
                 val label = span.toStr().trim()
                 if (label.contains("Цикл", ignoreCase = true) || label.contains("Серия", ignoreCase = true)) {
                     val nextText = span.nextSibling()?.toString() ?: ""
-                    val match = ":\\s*(.+?)(?=\\n|<|$)".toRegex().find(nextText)
+                    val match = SERIES_HTML_REGEX.findFirst(nextText)
                     match
-                        ?.groupValues
-                        ?.get(1)
+                        ?.group(1)
                         ?.trim()
                         ?.let { return it }
                 }
@@ -1759,11 +1897,17 @@ public class RutrackerParser
                             break
                         }
 
-                        // Stop if we hit another metadata label (safety check, though usually separated by br)
+                        // Stop if we hit <span class="post-br"><br></span> (alternative line break)
+                        if (current is org.jsoup.nodes.Element &&
+                            current.hasClass("post-br") &&
+                            current.selectFirst("br") != null
+                        ) {
+                            current.remove()
+                            break
+                        }
+
+                        // Stop if we hit another metadata label (safety check)
                         if (current is org.jsoup.nodes.Element && current.hasClass("post-b")) {
-                            // Oops, we went too far (maybe missing br).
-                            // But wait, our loop will handle this next span.
-                            // We should probably stop removing *values* if we see a new label.
                             break
                         }
 
@@ -1875,15 +2019,11 @@ public class RutrackerParser
 
                         // Extract avatar URL and normalize CDN domain
                         val avatarElement = parentRow.selectFirst("p.avatar img")
-                        var avatarUrl =
+                        // absUrl resolves against base URI (active mirror) set in Jsoup.parse()
+                        val avatarUrl =
                             avatarElement
-                                ?.attr("src")
+                                ?.absUrl("src")
                                 ?.takeIf { it.isNotEmpty() }
-
-                        // Root relative URLs
-                        if (avatarUrl != null && avatarUrl.startsWith("/")) {
-                            avatarUrl = "https://rutracker.net$avatarUrl"
-                        }
 
                         val normalizedAvatarUrl = avatarUrl?.let { coverExtractor.normalizeUrl(it) }
 
@@ -1893,11 +2033,9 @@ public class RutrackerParser
                             html?.let { htmlContent ->
                                 // Convert <br> tags to newlines, then extract text
                                 htmlContent
-                                    .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
-                                    .replace(
-                                        Regex("<span class=\"post-br\"><br\\s*/?></span>", RegexOption.IGNORE_CASE),
-                                        "\n",
-                                    ).let {
+                                    .replace(BR_REGEX, "\n")
+                                    .replace(POST_BR_REGEX, "\n")
+                                    .let {
                                         org.jsoup.Jsoup
                                             .parse(it)
                                             .toStr()
@@ -1905,7 +2043,7 @@ public class RutrackerParser
                             } ?: postBody.toStr().trim()
 
                         // Clean HTML: normalize <br> tags, quotes and preserve links
-                        val cleanedHtml = html?.let { processCommentHtml(it).body().html() }
+                        val cleanedHtml = html?.let { HtmlSanitizer.sanitize(processCommentHtml(it).body().html()) }
 
                         if (text.isNotEmpty() && text.length > 10) { // Filter out very short comments
                             comments.add(
@@ -1978,15 +2116,11 @@ public class RutrackerParser
 
                     // Extract avatar URL and normalize CDN domain
                     val avatarElement = postRow.selectFirst("p.avatar img")
-                    var avatarUrl =
+                    // absUrl resolves against base URI (active mirror) set in Jsoup.parse()
+                    val avatarUrl =
                         avatarElement
-                            ?.attr("src")
+                            ?.absUrl("src")
                             ?.takeIf { it.isNotEmpty() }
-
-                    // Root relative URLs
-                    if (avatarUrl != null && avatarUrl.startsWith("/")) {
-                        avatarUrl = "https://rutracker.net$avatarUrl"
-                    }
 
                     val normalizedAvatarUrl = avatarUrl?.let { coverExtractor.normalizeUrl(it) }
 
@@ -1996,11 +2130,9 @@ public class RutrackerParser
                         html?.let { htmlContent ->
                             // Convert <br> tags to newlines, then extract text
                             htmlContent
-                                .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
-                                .replace(
-                                    Regex("<span class=\"post-br\"><br\\s*/?></span>", RegexOption.IGNORE_CASE),
-                                    "\n",
-                                ).let {
+                                .replace(BR_REGEX, "\n")
+                                .replace(POST_BR_REGEX, "\n")
+                                .let {
                                     org.jsoup.Jsoup
                                         .parse(it)
                                         .toStr()
@@ -2020,7 +2152,7 @@ public class RutrackerParser
                                 doc.body().append("<br><div class='signature'>${signatureDoc.body().html()}</div>")
                             }
 
-                            doc.body().html()
+                            doc.body().html().let { HtmlSanitizer.sanitize(it) }
                         }
 
                     if (text.isNotEmpty() && text.length > 10) { // Filter out very short comments
@@ -2053,8 +2185,8 @@ public class RutrackerParser
             // Normalize <br> and <span class="post-br">
             val intermediate =
                 rawHtml
-                    .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "<br>")
-                    .replace(Regex("<span class=\"post-br\"><br\\s*/?></span>", RegexOption.IGNORE_CASE), "<br>")
+                    .replace(BR_REGEX, "<br>")
+                    .replace(POST_BR_REGEX, "<br>")
 
             // Parse with baseUri for proper absolute URL resolution
             val doc = org.jsoup.Jsoup.parse(intermediate, getBaseUrl())
@@ -2073,6 +2205,10 @@ public class RutrackerParser
                     link.attr("href", doc.baseUri() + href.removePrefix("/"))
                 }
             }
+            // Drop non-renderable elements: their inner text (JS/CSS) would otherwise
+            // leak into extracted comment text as visible garbage. Visible formatting
+            // (b/i/u/blockquote/a/img) is preserved — renderers whitelist downstream.
+            doc.select("script, style, iframe, object, embed, form, input, button, noscript").remove()
             return doc
         }
 
@@ -2114,12 +2250,10 @@ public class RutrackerParser
             // Use selectStream() for lazy evaluation of large lists (jsoup 1.19.1+)
             val links = postBody.select("a[href*=\"viewtopic.php?t=\"]")
             for (link in links) {
-                // Use absUrl() for proper absolute URL resolution
-                val href = link.absUrl("href")
-                val topicId = href.substringAfter("t=").substringBefore("&")
+                val topicId = link.queryParamOrNull("t") ?: continue
                 val title = link.text()
 
-                if (topicId.isNotEmpty() && title.isNotEmpty()) {
+                if (title.isNotEmpty()) {
                     related.add(RelatedBook(topicId, title))
                 }
             }
@@ -2142,58 +2276,46 @@ public class RutrackerParser
         private fun cleanTitle(rawTitle: String): String {
             var cleaned = rawTitle
 
-            // Remove content in square brackets: [1962, СССР, рисованный мультфильм]
-            cleaned = cleaned.replace(Regex("\\[.*?\\]"), "")
+            // Extract the trailing [...] before other cleanup so format removal
+            // (MP3, FLAC, ...) never strips tokens from a preserved block.
+            // Trailing bracket WITH commas = metadata block: strip brackets, keep full text.
+            // Trailing bracket WITHOUT commas = tag: remove entirely.
+            var metadata: String? = null
+            val trailingMatch = TRAILING_BRACKET_REGEX.findFirst(cleaned)
+            if (trailingMatch != null) {
+                val inner =
+                    trailingMatch
+                        .group(1)
+                        .orEmpty()
+                        .replace(WHITESPACE_REGEX, " ")
+                        .trim()
+                cleaned = cleaned.substring(0, trailingMatch.start()).trim()
+                if (inner.contains(",")) {
+                    metadata = inner
+                }
+            }
+
+            // Remove remaining content in square brackets (category tags like [Аудио], [MP3])
+            cleaned = cleaned.replace(SQUARE_BRACKETS_REGEX, "")
 
             // Remove quality indicators
-            val qualityPatterns =
-                listOf(
-                    "WEB-DL",
-                    "WEBRip",
-                    "BDRip",
-                    "DVDRip",
-                    "HDTV",
-                    "BluRay",
-                    "Blu-Ray",
-                    "BD-Rip",
-                    "Web-DL",
-                    "WebRip",
-                )
-            for (pattern in qualityPatterns) {
-                cleaned = cleaned.replace(Regex("\\b$pattern\\b", RegexOption.IGNORE_CASE), "")
-            }
+            cleaned = cleaned.replace(QUALITY_INDICATOR_REGEX, "")
 
             // Remove resolutions: 1080p, 720p, 2160p, etc.
-            cleaned = cleaned.replace(Regex("\\b\\d{3,4}[pi]\\b", RegexOption.IGNORE_CASE), "")
+            cleaned = cleaned.replace(RESOLUTION_REGEX, "")
 
             // Remove file formats
-            val formatPatterns =
-                listOf(
-                    "MKV",
-                    "MP4",
-                    "AVI",
-                    "MOV",
-                    "WMV",
-                    "FLV",
-                    "M4V",
-                    "MP3",
-                    "AAC",
-                    "FLAC",
-                    "OGG",
-                    "WAV",
-                    "M4A",
-                )
-            for (pattern in formatPatterns) {
-                cleaned = cleaned.replace(Regex("\\b$pattern\\b", RegexOption.IGNORE_CASE), "")
-            }
+            cleaned = cleaned.replace(FILE_FORMAT_REGEX, "")
 
             // Remove extra whitespace and trim
-            cleaned = cleaned.replace(Regex("\\s+"), " ").trim()
+            cleaned = cleaned.replace(WHITESPACE_REGEX, " ").trim()
 
             // Remove trailing/leading dashes, commas, and periods
             cleaned = cleaned.trim('-', ',', '.', ' ')
 
-            return cleaned.ifEmpty { rawTitle } // Return original if cleaning results in empty string
+            // Re-attach the preserved metadata block verbatim
+            val result = if (metadata != null) "$cleaned $metadata".trim() else cleaned
+            return result.ifEmpty { rawTitle } // Return original if cleaning results in empty string
         }
 
         /**
@@ -2248,7 +2370,7 @@ public class RutrackerParser
             // - No login form present
             // - Logout link present
             // - User profile links
-            val hasLoginForm = lowerHtml.contains("name=\\\"login_username\\\"")
+            val hasLoginForm = lowerHtml.contains("name=\"login_username\"") || lowerHtml.contains("name='login_username'")
             val hasLogout =
                 lowerHtml.contains("login.php?logout=1") ||
                     lowerHtml.contains("mode=logout")

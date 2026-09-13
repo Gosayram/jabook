@@ -14,7 +14,6 @@
 
 package com.jabook.app.jabook.compose.feature.onboarding
 
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -43,6 +42,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -53,13 +53,16 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.paneTitle
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.jabook.R
-import com.jabook.app.jabook.compose.core.theme.MotionTokens
+import com.jabook.app.jabook.compose.core.theme.LocalJabookMotionScheme
+import com.jabook.app.jabook.compose.core.util.rememberReduceMotion
 import com.jabook.app.jabook.compose.feature.permissions.PermissionScreen
 import kotlinx.coroutines.launch
 import kotlin.math.absoluteValue
@@ -74,21 +77,29 @@ public fun OnboardingScreen(
     viewModel: OnboardingViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val currentOnFinish by rememberUpdatedState(onFinish)
 
     LaunchedEffect(uiState.isFinished) {
         if (uiState.isFinished) {
-            onFinish()
+            currentOnFinish()
         }
     }
+
+    // Respect reduced-motion settings (shared policy: any of the three
+    // system animation scales at 0x — see ReducedMotionPolicy)
+    val motionScheme = LocalJabookMotionScheme.current
+    val reducedMotion = rememberReduceMotion()
 
     androidx.compose.animation.Crossfade(
         targetState = uiState.currentStep,
         label = "OnboardingStepTransition",
         animationSpec =
-            tween(
-                durationMillis = MotionTokens.LONG2,
-                easing = MotionTokens.EmphasizedDecelerate,
-            ),
+            if (reducedMotion) {
+                androidx.compose.animation.core
+                    .snap()
+            } else {
+                motionScheme.defaultEffectsSpec()
+            },
     ) { step ->
         Surface(
             color = MaterialTheme.colorScheme.background,
@@ -99,12 +110,14 @@ public fun OnboardingScreen(
                     WelcomeStep(
                         isBeta = isBeta,
                         onNext = { viewModel.nextStep() },
+                        onSkip = { viewModel.finishOnboarding() },
                     )
                 OnboardingStep.FEATURES ->
                     FeaturesStep(
                         isBeta = isBeta,
                         onNext = { viewModel.nextStep() },
                         onBack = { viewModel.previousStep() },
+                        onSkip = { viewModel.finishOnboarding() },
                     )
                 OnboardingStep.PERMISSIONS ->
                     OnboardingPermissionStep(
@@ -120,6 +133,7 @@ public fun OnboardingScreen(
 private fun WelcomeStep(
     isBeta: Boolean,
     onNext: () -> Unit,
+    onSkip: () -> Unit = onNext,
 ) {
     val imageRes = if (isBeta) R.drawable.onboarding_welcome_beta else R.drawable.onboarding_welcome_prod
 
@@ -159,6 +173,19 @@ private fun WelcomeStep(
                     .navigationBarsPadding(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            // Skip button (top-right)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(
+                    onClick = onSkip,
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color.White.copy(alpha = 0.7f)),
+                ) {
+                    Text(stringResource(R.string.onboardingSkip))
+                }
+            }
+
             Spacer(modifier = Modifier.weight(1f))
 
             Text(
@@ -229,17 +256,43 @@ private fun FeaturesStep(
     isBeta: Boolean,
     onNext: () -> Unit,
     onBack: () -> Unit,
+    onSkip: () -> Unit = onNext,
 ) {
     val pagerState = rememberPagerState(pageCount = { 3 })
+    val pagerPaneTitle = stringResource(R.string.pageOfPages, pagerState.currentPage + 1, 3)
 
     Box(modifier = Modifier.fillMaxSize()) {
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier.fillMaxSize(),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .semantics { paneTitle = pagerPaneTitle },
         ) { page ->
             // Calculate absolute offset for this page
             val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
             FeaturePage(page, isBeta, pageOffset)
+        }
+
+        // Skip button (top-right)
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(24.dp)
+                    .navigationBarsPadding(),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(
+                    onClick = onSkip,
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color.White.copy(alpha = 0.7f)),
+                ) {
+                    Text(stringResource(R.string.onboardingSkip))
+                }
+            }
         }
 
         // Navigation and Indicators overlay
@@ -476,6 +529,6 @@ public fun animateDpAsState(
 ): State<androidx.compose.ui.unit.Dp> =
     androidx.compose.animation.core.animateDpAsState(
         targetValue = targetValue,
-        animationSpec = tween(300),
+        animationSpec = LocalJabookMotionScheme.current.fastSpatialSpec(),
         label = label,
     )

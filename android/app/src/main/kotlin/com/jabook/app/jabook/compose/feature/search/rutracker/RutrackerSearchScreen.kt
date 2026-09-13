@@ -25,11 +25,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Sort
@@ -48,7 +50,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -57,13 +58,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
-import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -72,6 +73,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -80,8 +82,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
+import com.jabook.app.jabook.compose.core.theme.SurfaceElevationTokens
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.CoverWaterfallPolicy
+import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
+import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
 import com.jabook.app.jabook.compose.designsystem.component.RemoteImage
 import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -90,10 +95,12 @@ import kotlinx.coroutines.flow.distinctUntilChanged
  * RuTracker search screen.
  *
  * Demonstrates integration of all RuTracker components:
- * - RutrackerSimpleDecoder (simple encoding decoder matching Flutter)
+ * - RutrackerSimpleDecoder (simple encoding decoder)
  * - RutrackerParser with cascading selectors
  * - ParsingResult error handling
  * - MirrorManager, proper headers
+ *
+ * @param initialQuery Optional query pre-filled and searched once on first composition
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
@@ -101,21 +108,19 @@ public fun RutrackerSearchScreen(
     onNavigateBack: () -> Unit,
     onTopicClick: (String) -> Unit,
     modifier: Modifier = Modifier,
+    initialQuery: String? = null,
     viewModel: RutrackerSearchViewModel = hiltViewModel(),
     indexingViewModel: com.jabook.app.jabook.compose.feature.indexing.IndexingViewModel = hiltViewModel(),
 ) {
     // Get window size class for adaptive sizing
     val context = androidx.compose.ui.platform.LocalContext.current
-    val activity =
-        context as? android.app.Activity
-            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-    val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
-    val windowSizeClass = AdaptiveUtils.resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
+    val windowSizeClass = LocalWindowSizeClass.current
     val contentPadding = AdaptiveUtils.getContentPaddingOrDefault(windowSizeClass)
     val itemSpacing = AdaptiveUtils.getItemSpacingOrDefault(windowSizeClass)
 
-    var searchQuery by remember { mutableStateOf("") }
+    var searchQuery by rememberSaveable { mutableStateOf(initialQuery.orEmpty()) }
     val searchState by viewModel.searchState.collectAsStateWithLifecycle()
+    val recentTopics by viewModel.recentTopics.collectAsStateWithLifecycle()
     val filters by viewModel.filters.collectAsStateWithLifecycle()
     val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
 
@@ -123,6 +128,7 @@ public fun RutrackerSearchScreen(
     val indexingProgress by indexingViewModel.indexingProgress.collectAsStateWithLifecycle()
     val isIndexing by indexingViewModel.isIndexing.collectAsStateWithLifecycle()
     val indexSize by indexingViewModel.indexSize.collectAsStateWithLifecycle()
+    val forumStatuses by indexingViewModel.forumStatuses.collectAsStateWithLifecycle()
     val navigationClickGuard = remember { NavigationClickGuard() }
     val safeNavigateBack = dropUnlessResumed { navigationClickGuard.run(onNavigateBack) }
     var showIndexingDialog by remember { mutableStateOf(false) }
@@ -138,10 +144,20 @@ public fun RutrackerSearchScreen(
         indexCheckCompleted = true
     }
 
+    // ponytail: one-shot init — re-fire after process recreation is harmless (cached results)
+    LaunchedEffect(Unit) {
+        initialQuery?.takeIf { it.isNotBlank() }?.let(viewModel::search)
+    }
+
+    LaunchedEffect(indexSize) {
+        if (indexSize > 0) viewModel.loadRecentTopics()
+    }
+
     // Show indexing dialog when indexing is active
     if (showIndexingDialog && indexingProgress !is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Idle) {
         com.jabook.app.jabook.compose.feature.indexing.IndexingProgressDialog(
             progress = indexingProgress,
+            forumStatuses = forumStatuses,
             onDismiss = {
                 if (indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed ||
                     indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Error
@@ -383,15 +399,47 @@ public fun RutrackerSearchScreen(
             // Results
             when (val state = searchState) {
                 is SearchState.Empty -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            stringResource(R.string.enter_search_query),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                    if (recentTopics.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                stringResource(R.string.enter_search_query),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    } else {
+                        // ponytail: дата индексации, не релиза — см. OfflineSearchDao.getRecentTopics
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(itemSpacing),
+                            contentPadding = PaddingValues(vertical = itemSpacing),
+                        ) {
+                            item {
+                                Text(
+                                    text = stringResource(R.string.recently_indexed_title),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                            }
+                            item {
+                                Text(
+                                    text = stringResource(R.string.recently_indexed_subtitle),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            items(recentTopics, key = { it.result.topicId }) { uiModel ->
+                                SearchResultCard(
+                                    result = uiModel.result,
+                                    isInLibrary = uiModel.isInLibrary,
+                                    onClick = { onTopicClick(uiModel.result.topicId) },
+                                    onCoverNeeded = viewModel::requestCoverLoad,
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -495,14 +543,12 @@ private fun FilterBottomSheet(
     var tempMinSizeMb by remember { mutableIntStateOf(filters.minSizeMb ?: 0) }
     var tempMaxSizeMb by remember { mutableIntStateOf(filters.maxSizeMb ?: 0) }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        modifier = modifier,
-    ) {
+    JabookModalBottomSheet(onDismissRequest = onDismiss, modifier = modifier) {
         Column(
             modifier =
                 Modifier
                     .fillMaxWidth()
+                    .imePadding()
                     .padding(16.dp),
         ) {
             Text(
@@ -518,6 +564,8 @@ private fun FilterBottomSheet(
                 onValueChange = { tempMinSeeders = it.toIntOrNull() ?: 0 },
                 label = { Text(stringResource(R.string.min_seeders)) },
                 modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -528,6 +576,8 @@ private fun FilterBottomSheet(
                 onValueChange = { tempMinSizeMb = it.toIntOrNull() ?: 0 },
                 label = { Text(stringResource(R.string.min_size_mb)) },
                 modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -538,6 +588,8 @@ private fun FilterBottomSheet(
                 onValueChange = { tempMaxSizeMb = it.toIntOrNull() ?: 0 },
                 label = { Text(stringResource(R.string.max_size_mb)) },
                 modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             )
 
             Spacer(modifier = Modifier.height(itemSpacing))
@@ -593,20 +645,15 @@ private fun SearchResultCard(
     onCoverNeeded: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val activity =
-        context as? android.app.Activity
-            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-    val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
-    val windowSizeClass = AdaptiveUtils.resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
+    val windowSizeClass = LocalWindowSizeClass.current
     val isCompact = windowSizeClass?.widthSizeClass == WindowWidthSizeClass.Compact
 
     Card(
         modifier =
             modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                .clickable(onClickLabel = stringResource(R.string.open_book), onClick = onClick),
+        elevation = CardDefaults.cardElevation(defaultElevation = SurfaceElevationTokens.Level2),
     ) {
         // Use adaptive padding and spacing
         val cardPadding = AdaptiveUtils.getCardPaddingOrDefault(windowSizeClass)
@@ -690,6 +737,12 @@ private fun SearchResultCard(
                 Text(
                     result.author,
                     style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                Text(
+                    result.category,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 

@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.remote.parser
 
+import com.google.re2j.Pattern
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.remote.model.AudioTrack
 import com.jabook.app.jabook.compose.data.remote.model.GeneralInfo
@@ -35,6 +36,18 @@ public class MediaInfoParser
         private val loggerFactory: LoggerFactory,
     ) {
         private val logger = loggerFactory.get("MediaInfoParser")
+
+        public companion object {
+            // re2j: MediaInfo text is attacker-controlled (from forum posts). The old
+            // java `(.+?)(?=\n|$)` lookahead is unsupported in RE2 — since `.` never
+            // matches `\n` here, it is exactly `([^\n]+)` (see extractField).
+            private val SECTION_GENERAL = Pattern.compile("^(General|Общее|Общая информация).*", Pattern.CASE_INSENSITIVE)
+            private val SECTION_VIDEO = Pattern.compile("^(Video|Видео).*", Pattern.CASE_INSENSITIVE)
+            private val SECTION_AUDIO = Pattern.compile("^(Audio|Аудио).*[#№]?\\s*\\d*", Pattern.CASE_INSENSITIVE)
+            private val SECTION_TEXT = Pattern.compile("^(Text|Текст|Субтитры).*[#№]?\\s*\\d*", Pattern.CASE_INSENSITIVE)
+            private val TRACK_NUM_REGEX = Pattern.compile("\\d+")
+            private val RESOLUTION_DIRECT = Pattern.compile("(\\d+)\\s*[xх×]\\s*(\\d+)", Pattern.CASE_INSENSITIVE)
+        }
 
         /**
          * Parse MediaInfo text into structured data.
@@ -83,34 +96,34 @@ public class MediaInfoParser
 
                 // Detect section headers (rus/eng)
                 when {
-                    trimmed.matches(Regex("^(General|Общее|Общая информация).*", RegexOption.IGNORE_CASE)) -> {
+                    SECTION_GENERAL.matches(trimmed) -> {
                         if (currentSection != "unknown") {
                             sections[currentSection.lowercase()] = currentContent.toString()
                         }
                         currentSection = "general"
                         currentContent.clear()
                     }
-                    trimmed.matches(Regex("^(Video|Видео).*", RegexOption.IGNORE_CASE)) -> {
+                    SECTION_VIDEO.matches(trimmed) -> {
                         if (currentSection != "unknown") {
                             sections[currentSection.lowercase()] = currentContent.toString()
                         }
                         currentSection = "video"
                         currentContent.clear()
                     }
-                    trimmed.matches(Regex("^(Audio|Аудио).*[#№]?\\s*\\d*", RegexOption.IGNORE_CASE)) -> {
+                    SECTION_AUDIO.matches(trimmed) -> {
                         if (currentSection != "unknown") {
                             sections[currentSection.lowercase()] = currentContent.toString()
                         }
                         // Store audio tracks separately
-                        val trackNum = Regex("\\d+").find(trimmed)?.value ?: "1"
+                        val trackNum = TRACK_NUM_REGEX.findFirst(trimmed)?.group() ?: "1"
                         currentSection = "audio_$trackNum"
                         currentContent.clear()
                     }
-                    trimmed.matches(Regex("^(Text|Текст|Субтитры).*[#№]?\\s*\\d*", RegexOption.IGNORE_CASE)) -> {
+                    SECTION_TEXT.matches(trimmed) -> {
                         if (currentSection != "unknown") {
                             sections[currentSection.lowercase()] = currentContent.toString()
                         }
-                        val trackNum = Regex("\\d+").find(trimmed)?.value ?: "1"
+                        val trackNum = TRACK_NUM_REGEX.findFirst(trimmed)?.group() ?: "1"
                         currentSection = "text_$trackNum"
                         currentContent.clear()
                     }
@@ -188,18 +201,18 @@ public class MediaInfoParser
             vararg fieldNames: String,
         ): String? {
             for (fieldName in fieldNames) {
+                val escaped = Regex.escape(fieldName)
+
                 // Try exact match with colon
-                val pattern1 = Regex("$fieldName\\s*[:：]\\s*(.+?)(?=(\\n|$))", RegexOption.IGNORE_CASE)
-                val match1 = pattern1.find(text)
+                val match1 = Pattern.compile("$escaped\\s*[:：]\\s*([^\\n]+)", Pattern.CASE_INSENSITIVE).findFirst(text)
                 if (match1 != null) {
-                    return match1.groupValues[1].trim()
+                    return match1.group(1)!!.trim()
                 }
 
                 // Try with "..." at end
-                val pattern2 = Regex("$fieldName\\s*[:：]\\s*(.+?)\\.\\.\\..*", RegexOption.IGNORE_CASE)
-                val match2 = pattern2.find(text)
+                val match2 = Pattern.compile("$escaped\\s*[:：]\\s*(.+?)\\.\\.\\..*", Pattern.CASE_INSENSITIVE).findFirst(text)
                 if (match2 != null) {
-                    return match2.groupValues[1].trim()
+                    return match2.group(1)!!.trim()
                 }
             }
 
@@ -212,10 +225,9 @@ public class MediaInfoParser
          */
         private fun extractResolution(text: String): String? {
             // Try direct resolution pattern (e.g., "1920 x 1080")
-            val directPattern = Regex("(\\d+)\\s*[xх×]\\s*(\\d+)", RegexOption.IGNORE_CASE)
-            val directMatch = directPattern.find(text)
+            val directMatch = RESOLUTION_DIRECT.findFirst(text)
             if (directMatch != null) {
-                return "${directMatch.groupValues[1]} x ${directMatch.groupValues[2]}"
+                return "${directMatch.group(1)} x ${directMatch.group(2)}"
             }
 
             // Try width/height separately

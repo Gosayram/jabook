@@ -66,6 +66,7 @@ public class CrashActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val stackTrace = intent.getStringExtra(EXTRA_STACK_TRACE) ?: getString(R.string.crashNoStackTrace)
+        clearPendingCrashReport()
 
         setContent {
             JabookTheme(darkTheme = true) {
@@ -94,6 +95,14 @@ public class CrashActivity : ComponentActivity() {
         startActivity(intent)
         finish()
         Runtime.getRuntime().exit(0)
+    }
+
+    private fun clearPendingCrashReport() {
+        // Delete ONLY the report file — this activity runs in the :crash process,
+        // and writing the shared prefs here would resurrect stale values when the
+        // main process flushes its own (cached) copy later. The main process
+        // self-heals the marker: its startup check clears it when the file is gone.
+        java.io.File(applicationContext.filesDir, "last_crash_report.txt").delete()
     }
 
     private fun copyToClipboard(text: String) {

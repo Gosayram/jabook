@@ -15,9 +15,12 @@
 package com.jabook.app.jabook.compose.feature.player
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -38,36 +41,45 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.jabook.app.jabook.R
 
 public data class PlayerStats(
     val audioFormat: String = "Unknown",
     val bitrate: String = "Unknown",
+    val sampleRate: String = "Unknown",
+    val channelLayout: String = "Unknown",
     val bufferHealth: String = "0s",
     val audioSessionId: String = "Unknown",
     val decoderName: String = "Unknown",
     val droppedFrames: Int = 0,
+    val isStreaming: Boolean = false,
+    val isAudioOffloaded: Boolean = false,
+    val audioQuality: com.jabook.app.jabook.audio.AudioQualityInfo? = null,
 )
 
 @Composable
 public fun StatsOverlay(
     stats: PlayerStats,
     onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
+    Box(
+        modifier =
+            modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.75f))
+                .clickable(onClick = onDismiss),
+        contentAlignment = Alignment.Center,
     ) {
         Column(
             modifier =
                 Modifier
                     .fillMaxWidth(0.9f)
                     .background(
-                        color = Color.Black.copy(alpha = 0.85f),
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
                         shape = RoundedCornerShape(16.dp),
-                    ).padding(16.dp),
+                    ).clickable(onClick = { })
+                    .padding(16.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -82,7 +94,7 @@ public fun StatsOverlay(
                 Text(
                     text = stringResource(R.string.statsForNerds),
                     style = MaterialTheme.typography.titleMedium,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f),
                 )
@@ -90,21 +102,59 @@ public fun StatsOverlay(
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = stringResource(R.string.close),
-                        tint = Color.White.copy(alpha = 0.7f),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            stats.audioQuality?.let { quality ->
+                com.jabook.app.jabook.compose.designsystem.component.QualityBadge(
+                    audioQuality = quality,
+                    showTierLabel = true,
+                    large = true,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                if (quality.tier == com.jabook.app.jabook.audio.QualityTier.LOW) {
+                    Text(
+                        text = stringResource(R.string.lowQualityWarning),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+
             StatItem(label = stringResource(R.string.audioFormat), value = stats.audioFormat)
             StatItem(label = stringResource(R.string.bitrate), value = stats.bitrate)
+            StatItem(label = stringResource(R.string.sampleRate), value = stats.sampleRate)
+            StatItem(label = stringResource(R.string.channelLayout), value = stats.channelLayout)
             StatItem(label = stringResource(R.string.decoder), value = stats.decoderName)
-            StatItem(label = stringResource(R.string.bufferHealth), value = stats.bufferHealth)
+            StatItem(
+                label = stringResource(R.string.bufferHealth),
+                value =
+                    if (stats.isStreaming) {
+                        stringResource(R.string.statsBufferStreaming, stats.bufferHealth)
+                    } else {
+                        stringResource(R.string.statsBufferLocal, stats.bufferHealth)
+                    },
+            )
             StatItem(label = stringResource(R.string.audioSessionId), value = stats.audioSessionId)
+            StatItem(
+                label = stringResource(R.string.audioOffload),
+                value = if (stats.isAudioOffloaded) stringResource(R.string.activeStatus) else stringResource(R.string.disabledStatus),
+            )
 
             if (stats.droppedFrames > 0) {
-                StatItem(label = stringResource(R.string.droppedFrames), value = stats.droppedFrames.toString(), color = Color.Red)
+                StatItem(
+                    label = stringResource(R.string.droppedFrames),
+                    value = stats.droppedFrames.toString(),
+                    color = MaterialTheme.colorScheme.error,
+                )
             }
         }
     }
@@ -121,13 +171,15 @@ private fun StatItem(
             Modifier
                 .fillMaxWidth()
                 .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "$label: ",
+            text = "$label:",
             style = MaterialTheme.typography.bodyMedium,
-            color = Color.White.copy(alpha = 0.7f),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontFamily = FontFamily.Monospace,
             fontSize = 12.sp,
+            modifier = Modifier.weight(1f),
         )
         Text(
             text = value,

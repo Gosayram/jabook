@@ -14,80 +14,91 @@
 
 package com.jabook.app.jabook.compose.feature.settings
 
-import android.content.ActivityNotFoundException
-import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
-import android.provider.Settings
-import android.text.format.DateUtils
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
-import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
+import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.constants.PlaybackSpeedConstants
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
+import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
+import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.data.model.AppTheme
 import com.jabook.app.jabook.compose.data.model.ScanProgress
+import com.jabook.app.jabook.compose.data.network.MirrorHealth
+import com.jabook.app.jabook.compose.data.permissions.PersistedTreeUriPermissionGuard
+import com.jabook.app.jabook.compose.designsystem.component.ConfirmDialog
+import com.jabook.app.jabook.compose.designsystem.component.endItemShape
+import com.jabook.app.jabook.compose.designsystem.component.leadingItemShape
+import com.jabook.app.jabook.compose.designsystem.component.middleItemShape
+import com.jabook.app.jabook.compose.feature.indexing.ForumSelection
+import com.jabook.app.jabook.compose.feature.library.ListeningHeatmap
+import com.jabook.app.jabook.compose.feature.library.shareYearRecap
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 private object GitHubUrls {
     public const val REPOSITORY = "https://github.com/Gosayram/jabook"
@@ -104,10 +115,17 @@ private object GitHubUrls {
 /**
  * Settings screen for app configuration.
  *
- * Sections:
- * - Appearance (theme)
- * - Playback (auto-play, speed)
- * - About (version, license)
+ * M3-compliant section order:
+ * 1. Profile
+ * 2. Account
+ * 3. Appearance (theme, colors, language, font, player cover)
+ * 4. Playback (speed, auto-play, seek, resume rewind, crossfade, skip silence)
+ * 5. Audio Processing (equalizer)
+ * 6. Library (scan, folders, statistics)
+ * 7. Downloads
+ * 8. Data Management (backup, cache, indexing)
+ * 9. Network (mirrors)
+ * 10. About
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
@@ -121,9 +139,24 @@ public fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
     indexingViewModel: com.jabook.app.jabook.compose.feature.indexing.IndexingViewModel = hiltViewModel(),
 ) {
-    // Get window size class for adaptive sizing
     val context = LocalContext.current
-    // Request notification permission for Android 13+
+    val persistedTreePermissionGuard =
+        remember(context) {
+            PersistedTreeUriPermissionGuard(
+                takePermission = { uri ->
+                    context.contentResolver.takePersistableUriPermission(
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                    )
+                },
+                releasePermission = {},
+                isPermissionPersisted = { uri ->
+                    context.contentResolver.persistedUriPermissions.any {
+                        it.uri == uri && it.isReadPermission && it.isWritePermission
+                    }
+                },
+            )
+        }
     val notificationPermissionLauncher =
         androidx.activity.compose.rememberLauncherForActivityResult(
             contract =
@@ -134,22 +167,22 @@ public fun SettingsScreen(
                 android.widget.Toast
                     .makeText(
                         context,
-                        "Разрешение на уведомления отклонено. Вы не увидите прогресс индексации.",
+                        context.getString(R.string.notificationPermissionDeniedToast),
                         android.widget.Toast.LENGTH_LONG,
                     ).show()
             }
         }
-    val activity =
-        context as? android.app.Activity
-            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-    val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
-    val windowSizeClass = AdaptiveUtils.resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
+    val windowSizeClass = LocalWindowSizeClass.current
     val contentPadding = AdaptiveUtils.getContentPaddingOrDefault(windowSizeClass)
     val itemSpacing = AdaptiveUtils.getItemSpacingOrDefault(windowSizeClass)
     val smallSpacing = AdaptiveUtils.getSmallSpacingOrDefault(windowSizeClass)
 
     val userPreferences by viewModel.userPreferences.collectAsStateWithLifecycle()
     val coroutineScope = rememberCoroutineScope()
+    val weeklyRecap by viewModel.weeklyRecapState.collectAsStateWithLifecycle()
+    val yearRecap by viewModel.yearRecapState.collectAsStateWithLifecycle()
+    val dailyListeningMinutes by viewModel.dailyListeningMinutes.collectAsStateWithLifecycle()
+    var showStatsExpanded by remember { mutableStateOf(false) }
 
     val navigationClickGuard = remember { NavigationClickGuard() }
     val safeNavigateToAuth = dropUnlessResumed { navigationClickGuard.run(onNavigateToAuth) }
@@ -158,10 +191,14 @@ public fun SettingsScreen(
     val safeNavigateToAudioSettings = dropUnlessResumed { navigationClickGuard.run(onNavigateToAudioSettings) }
     val safeNavigateToDownloads = dropUnlessResumed { navigationClickGuard.run(onNavigateToDownloads) }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.navSettingsText)) },
+                scrollBehavior = scrollBehavior,
             )
         },
         modifier = modifier,
@@ -171,9 +208,19 @@ public fun SettingsScreen(
                 Modifier
                     .fillMaxSize()
                     .padding(padding)
+                    .nestedScroll(scrollBehavior.nestedScrollConnection)
                     .verticalScroll(rememberScrollState()),
         ) {
-            // Authentication Section
+            // ─── 1. Profile ────────────────────────────────────────────────
+            ProfileHeader(
+                authStatus = viewModel.authStatus.collectAsStateWithLifecycle().value,
+                onSignIn = { safeNavigateToAuth() },
+                contentPadding = contentPadding,
+            )
+
+            HorizontalDivider()
+
+            // ─── 2. Account ────────────────────────────────────────────────
             val authStatus by viewModel.authStatus.collectAsStateWithLifecycle()
             SettingsSection(
                 title = stringResource(R.string.account),
@@ -193,6 +240,7 @@ public fun SettingsScreen(
                     SettingsItem(
                         title = stringResource(R.string.loginToRutracker),
                         subtitle = stringResource(R.string.requiredToDownloadTorrents),
+                        trailingIcon = Icons.Default.ChevronRight,
                         onClick = { safeNavigateToAuth() },
                     )
                 }
@@ -200,16 +248,1418 @@ public fun SettingsScreen(
 
             HorizontalDivider()
 
-            // Network & Mirrors Section
-            val currentMirror by viewModel.currentMirror.collectAsStateWithLifecycle()
-            val availableMirrors by viewModel.availableMirrors.collectAsStateWithLifecycle()
+            // ─── 3. Appearance ─────────────────────────────────────────────
             val protoSettings by viewModel.protoSettings.collectAsStateWithLifecycle()
 
-            // State for health checks and dialog
+            SettingsSection(
+                title = stringResource(R.string.appearance),
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+            )
+
+            // Language (consolidated from General + Appearance)
+            var selectedLang by remember(userPreferences?.languageCode) { mutableStateOf(userPreferences?.languageCode ?: "ru") }
+            StackedSegmentedControl(
+                label = stringResource(R.string.settingsLanguage),
+                options = listOf("Русский" to "ru", "English" to "en"),
+                selectedValue = selectedLang,
+                onSelect = { value: String ->
+                    selectedLang = value
+                    viewModel.updateLanguage(value)
+                },
+                contentPadding = contentPadding,
+            )
+
+            SettingsItemWithContent(
+                title = stringResource(R.string.themeTitle),
+                subtitle = stringResource(R.string.chooseAppTheme),
+            ) {
+                ThemeSelector(
+                    selectedTheme = userPreferences?.theme ?: AppTheme.SYSTEM,
+                    onThemeSelected = { theme -> viewModel.updateTheme(theme) },
+                )
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                SettingsSwitchItem(
+                    title = stringResource(R.string.dynamicColorsTitle),
+                    subtitle = stringResource(R.string.dynamicColorsDescription),
+                    checked = protoSettings.useDynamicColors,
+                    onCheckedChange = viewModel::updateDynamicColors,
+                    contentPadding = contentPadding,
+                    itemSpacing = itemSpacing,
+                    smallSpacing = smallSpacing,
+                )
+            }
+
+            SettingsItemWithContent(
+                title = stringResource(R.string.accentColorTitle),
+                subtitle = stringResource(R.string.accentColorDescription),
+            ) {
+                AccentSwatchSelector(
+                    selectedIndex = protoSettings.accentSwatchIndex,
+                    onSwatchSelected = { viewModel.updateAccentSwatchIndex(it) },
+                )
+            }
+
+            SettingsItemWithContent(
+                title = stringResource(R.string.fontTitle),
+                subtitle = stringResource(R.string.chooseFontFamily),
+            ) {
+                FontSelector(
+                    selectedFont = userPreferences?.font ?: com.jabook.app.jabook.compose.data.model.AppFont.DEFAULT,
+                    onFontSelected = { font -> viewModel.updateFont(font) },
+                )
+            }
+
+            // Player cover mode (moved from Device and Layout)
+            SettingsItemWithContent(
+                title = stringResource(R.string.playerCoverModeTitle),
+                subtitle = stringResource(R.string.playerCoverModeDescription),
+            ) {
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    listOf(
+                        0 to R.string.coverModeCard,
+                        1 to R.string.coverModeVinyl,
+                    ).forEachIndexed { index, (mode, labelRes) ->
+                        SegmentedButton(
+                            selected = protoSettings.playerCoverMode == mode,
+                            onClick = { viewModel.updatePlayerCoverMode(mode) },
+                            label = { Text(stringResource(labelRes)) },
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = 2),
+                        )
+                    }
+                }
+            }
+
+            // Layout mode override (adaptive / compact / expanded)
+            SettingsItemWithContent(
+                title = stringResource(R.string.layoutModeTitle),
+            ) {
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    listOf(
+                        AdaptiveUtils.LAYOUT_MODE_ADAPTIVE to R.string.layoutModeAdaptive,
+                        AdaptiveUtils.LAYOUT_MODE_COMPACT to R.string.layoutModeCompact,
+                        AdaptiveUtils.LAYOUT_MODE_EXPANDED to R.string.layoutModeExpanded,
+                    ).forEachIndexed { index, (mode, labelRes) ->
+                        SegmentedButton(
+                            selected = protoSettings.layoutMode == mode,
+                            onClick = { viewModel.updateLayoutMode(mode) },
+                            label = { Text(stringResource(labelRes)) },
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = 3),
+                        )
+                    }
+                }
+            }
+
+            HorizontalDivider()
+
+            // ─── 4. Playback ───────────────────────────────────────────────
+            SettingsSection(
+                title = stringResource(R.string.playback),
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+            )
+
+            SettingsSwitchItem(
+                title = stringResource(R.string.autoplayNextChapter),
+                subtitle = stringResource(R.string.automaticallyPlayNextChapterWhenCurrentEnds),
+                checked = userPreferences?.autoPlayNext ?: true,
+                onCheckedChange = viewModel::updateAutoPlayNext,
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
+            )
+
+            SettingsSliderItem(
+                title = stringResource(R.string.playbackSpeed),
+                sliderValue = userPreferences?.playbackSpeed ?: 1.0f,
+                onValueChange = { viewModel.updatePlaybackSpeed(it) },
+                valueRange = PlaybackSpeedConstants.MIN_SPEED..PlaybackSpeedConstants.MAX_SPEED,
+                steps = PlaybackSpeedConstants.SLIDER_STEPS,
+                valueFormatter = { PlaybackSpeedConstants.formatSpeed(it) },
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
+            )
+
+            SettingsSliderItem(
+                title = stringResource(R.string.rewindDurationTitle),
+                sliderValue = protoSettings.rewindDurationSeconds.toFloat(),
+                onValueChange = { viewModel.updateAudioSettings(rewindSeconds = it.toInt()) },
+                valueRange = 5f..60f,
+                steps = 10,
+                valueFormatter = { "${it.toInt()}s" },
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
+            )
+
+            SettingsSliderItem(
+                title = stringResource(R.string.forwardDurationTitle),
+                sliderValue = protoSettings.forwardDurationSeconds.toFloat(),
+                onValueChange = { viewModel.updateAudioSettings(forwardSeconds = it.toInt()) },
+                valueRange = 5f..120f,
+                steps = 22,
+                valueFormatter = { "${it.toInt()}s" },
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
+            )
+
+            // Resume rewind (inlined from AudioSettingsScreen)
+            SettingsItemWithContent(
+                title = stringResource(R.string.resume_rewind_title),
+                subtitle = stringResource(R.string.resume_rewind_desc),
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = protoSettings.resumeRewindMode == com.jabook.app.jabook.compose.data.preferences.ResumeRewindMode.SMART,
+                        onClick = {
+                            viewModel.updateAudioSettings(
+                                resumeRewindMode = com.jabook.app.jabook.compose.data.preferences.ResumeRewindMode.SMART,
+                            )
+                        },
+                        label = { Text(stringResource(R.string.resume_rewind_mode_smart)) },
+                        modifier =
+                            Modifier.semantics {
+                                role = Role.Checkbox
+                                selected =
+                                    protoSettings.resumeRewindMode == com.jabook.app.jabook.compose.data.preferences.ResumeRewindMode.SMART
+                            },
+                    )
+                    FilterChip(
+                        selected = protoSettings.resumeRewindMode == com.jabook.app.jabook.compose.data.preferences.ResumeRewindMode.FIXED,
+                        onClick = {
+                            viewModel.updateAudioSettings(
+                                resumeRewindMode = com.jabook.app.jabook.compose.data.preferences.ResumeRewindMode.FIXED,
+                            )
+                        },
+                        label = { Text(stringResource(R.string.resume_rewind_mode_fixed)) },
+                        modifier =
+                            Modifier.semantics {
+                                role = Role.Checkbox
+                                selected =
+                                    protoSettings.resumeRewindMode == com.jabook.app.jabook.compose.data.preferences.ResumeRewindMode.FIXED
+                            },
+                    )
+                }
+            }
+
+            if (protoSettings.resumeRewindMode == com.jabook.app.jabook.compose.data.preferences.ResumeRewindMode.FIXED) {
+                SettingsItemWithContent(
+                    title = stringResource(R.string.resume_rewind_fixed_title),
+                    subtitle = stringResource(R.string.resume_rewind_fixed_desc),
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(0, 5, 10, 30).forEach { seconds ->
+                            FilterChip(
+                                selected = protoSettings.resumeRewindSeconds == seconds,
+                                onClick = { viewModel.updateAudioSettings(resumeRewindSeconds = seconds) },
+                                label = { Text(stringResource(R.string.resume_rewind_option_seconds, seconds)) },
+                                modifier =
+                                    Modifier.semantics {
+                                        role = Role.Checkbox
+                                        selected =
+                                            protoSettings.resumeRewindSeconds == seconds
+                                    },
+                            )
+                        }
+                    }
+                }
+            } else {
+                SettingsSliderItem(
+                    title = stringResource(R.string.resume_rewind_aggressiveness_title),
+                    subtitle = stringResource(R.string.resume_rewind_aggressiveness_desc),
+                    sliderValue = protoSettings.resumeRewindAggressiveness,
+                    onValueChange = { viewModel.updateAudioSettings(resumeRewindAggressiveness = it) },
+                    valueRange = 0.5f..2.0f,
+                    steps = 14,
+                    valueFormatter = { String.format(Locale.getDefault(), "%.2fx", it) },
+                    contentPadding = contentPadding,
+                    itemSpacing = itemSpacing,
+                    smallSpacing = smallSpacing,
+                )
+            }
+
+            SettingsSwitchItem(
+                title = stringResource(R.string.sleep_timer_shake_extend_title),
+                subtitle = stringResource(R.string.sleep_timer_shake_extend_desc),
+                checked = protoSettings.sleepTimerShakeExtendEnabled,
+                onCheckedChange = { viewModel.updateAudioSettings(sleepTimerShakeExtendEnabled = it) },
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
+            )
+
+            SettingsSwitchItem(
+                title = stringResource(R.string.auto_sleep_timer_title),
+                subtitle = stringResource(R.string.auto_sleep_timer_desc),
+                checked = protoSettings.autoSleepTimerEnabled,
+                onCheckedChange = { viewModel.updateAudioSettings(autoSleepTimerEnabled = it) },
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
+            )
+
+            if (protoSettings.autoSleepTimerEnabled) {
+                SettingsItemWithContent(
+                    title = stringResource(R.string.auto_sleep_timer_duration),
+                    subtitle = stringResource(R.string.auto_sleep_timer_desc),
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(15, 30, 45, 60, 90).forEach { minutes ->
+                            FilterChip(
+                                selected = protoSettings.autoSleepTimerMinutes == minutes,
+                                onClick = { viewModel.updateAudioSettings(autoSleepTimerMinutes = minutes) },
+                                label = {
+                                    Text(
+                                        pluralStringResource(
+                                            R.plurals.durationMinutesFull,
+                                            minutes,
+                                            minutes,
+                                        ),
+                                    )
+                                },
+                                modifier =
+                                    Modifier.semantics {
+                                        role = Role.Checkbox
+                                        selected =
+                                            protoSettings.autoSleepTimerMinutes == minutes
+                                    },
+                            )
+                        }
+                    }
+                }
+            }
+
+            SettingsItemWithContent(
+                title = stringResource(R.string.hold_to_boost_speed_title),
+                subtitle = stringResource(R.string.hold_to_boost_speed_desc),
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(2.0f, 2.5f, 3.0f).forEach { speed ->
+                        FilterChip(
+                            selected = kotlin.math.abs(protoSettings.holdToBoostSpeed - speed) < 0.01f,
+                            onClick = { viewModel.updateAudioSettings(holdToBoostSpeed = speed) },
+                            label = { Text(stringResource(R.string.playback_speed_format, speed)) },
+                            modifier =
+                                Modifier.semantics {
+                                    role = Role.Checkbox
+                                    selected =
+                                        kotlin.math.abs(protoSettings.holdToBoostSpeed - speed) < 0.01f
+                                },
+                        )
+                    }
+                }
+            }
+
+            SettingsSwitchItem(
+                title = stringResource(R.string.auto_pip_title),
+                subtitle = stringResource(R.string.auto_pip_desc),
+                checked = protoSettings.autoPipEnabled,
+                onCheckedChange = { viewModel.updateAudioSettings(autoPipEnabled = it) },
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
+            )
+
+            SettingsSwitchItem(
+                title = stringResource(R.string.headset_autoplay_title),
+                subtitle = stringResource(R.string.headset_autoplay_desc),
+                checked = protoSettings.headsetAutoplayEnabled,
+                onCheckedChange = { viewModel.updateAudioSettings(headsetAutoplayEnabled = it) },
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
+            )
+
+            SettingsSwitchItem(
+                title = stringResource(R.string.notification_lockscreen_title),
+                subtitle = stringResource(R.string.notification_lockscreen_desc),
+                checked = !protoSettings.notificationLockscreenPrivate,
+                onCheckedChange = { viewModel.updateAudioSettings(notificationLockscreenPrivate = !it) },
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
+            )
+
+            // Crossfade
+            SettingsSwitchItem(
+                title = stringResource(R.string.crossfade_title),
+                subtitle = stringResource(R.string.crossfade_desc),
+                checked = protoSettings.crossfadeEnabled,
+                onCheckedChange = { viewModel.updateAudioSettings(crossfadeEnabled = it) },
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
+            )
+
+            if (protoSettings.crossfadeEnabled) {
+                SettingsSliderItem(
+                    title = stringResource(R.string.crossfade_duration),
+                    sliderValue = protoSettings.crossfadeDurationMs.toFloat(),
+                    onValueChange = { viewModel.updateAudioSettings(crossfadeDurationMs = it.toLong()) },
+                    valueRange = 1000f..10000f,
+                    steps = 8,
+                    valueFormatter = { "${(it / 1000).toInt()} s" },
+                    contentPadding = contentPadding,
+                    itemSpacing = itemSpacing,
+                    smallSpacing = smallSpacing,
+                )
+            }
+
+            // Crossfade between different books
+            SettingsSliderItem(
+                title = stringResource(R.string.crossfade_between_books_title),
+                subtitle = stringResource(R.string.crossfade_between_books_desc),
+                sliderValue = protoSettings.crossfadeBetweenBooksMs.toFloat(),
+                onValueChange = { viewModel.updateAudioSettings(crossfadeBetweenBooksMs = it.toLong()) },
+                valueRange = 0f..2000f,
+                steps = 19,
+                valueFormatter = { "${(it.toInt() / 100) * 100} ms" },
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
+            )
+
+            // Auto-rewind on pause
+            SettingsSwitchItem(
+                title = stringResource(R.string.auto_rewind_on_pause_title),
+                subtitle = stringResource(R.string.auto_rewind_on_pause_desc),
+                checked = protoSettings.autoRewindOnPause,
+                onCheckedChange = { viewModel.updateAudioSettings(autoRewindOnPause = it) },
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
+            )
+
+            if (protoSettings.autoRewindOnPause) {
+                SettingsSliderItem(
+                    title = stringResource(R.string.auto_rewind_seconds_title),
+                    sliderValue = protoSettings.autoRewindSeconds.toFloat(),
+                    onValueChange = { viewModel.updateAudioSettings(autoRewindSeconds = it.toInt()) },
+                    valueRange = 1f..10f,
+                    steps = 8,
+                    valueFormatter = { "${it.toInt()} s" },
+                    contentPadding = contentPadding,
+                    itemSpacing = itemSpacing,
+                    smallSpacing = smallSpacing,
+                )
+            }
+
+            // Skip Silence
+            SettingsSwitchItem(
+                title = stringResource(R.string.skip_silence_title),
+                subtitle = stringResource(R.string.skip_silence_desc),
+                checked = protoSettings.skipSilence,
+                onCheckedChange = { viewModel.updateAudioSettings(skipSilence = it) },
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
+            )
+
+            if (protoSettings.skipSilence) {
+                SettingsSliderItem(
+                    title = stringResource(R.string.skip_silence_threshold_title),
+                    subtitle = stringResource(R.string.skip_silence_threshold_desc),
+                    sliderValue = protoSettings.skipSilenceThresholdDb,
+                    onValueChange = { viewModel.updateAudioSettings(skipSilenceThresholdDb = it) },
+                    valueRange = -40f..-20f,
+                    steps = 19,
+                    valueFormatter = { "${it.toInt()} dB" },
+                    contentPadding = contentPadding,
+                    itemSpacing = itemSpacing,
+                    smallSpacing = smallSpacing,
+                )
+
+                SettingsSliderItem(
+                    title = stringResource(R.string.skip_silence_min_ms_title),
+                    subtitle = stringResource(R.string.skip_silence_min_ms_desc),
+                    sliderValue = protoSettings.skipSilenceMinMs.toFloat(),
+                    onValueChange = { viewModel.updateAudioSettings(skipSilenceMinMs = it.toInt()) },
+                    valueRange = 150f..300f,
+                    steps = 14,
+                    valueFormatter = { "${it.toInt()} ms" },
+                    contentPadding = contentPadding,
+                    itemSpacing = itemSpacing,
+                    smallSpacing = smallSpacing,
+                )
+
+                SettingsItemWithContent(
+                    title = stringResource(R.string.skip_silence_mode_title),
+                    subtitle = stringResource(R.string.skip_silence_mode_desc),
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = protoSettings.skipSilenceMode == com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode.SKIP,
+                            onClick = {
+                                viewModel.updateAudioSettings(
+                                    skipSilenceMode = com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode.SKIP,
+                                )
+                            },
+                            label = { Text(stringResource(R.string.skip_silence_mode_skip)) },
+                            modifier =
+                                Modifier.semantics {
+                                    role = Role.Checkbox
+                                    selected =
+                                        protoSettings.skipSilenceMode == com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode.SKIP
+                                },
+                        )
+                        FilterChip(
+                            selected =
+                                protoSettings.skipSilenceMode == com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode.SPEED_UP,
+                            onClick = {
+                                viewModel.updateAudioSettings(
+                                    skipSilenceMode = com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode.SPEED_UP,
+                                )
+                            },
+                            label = { Text(stringResource(R.string.skip_silence_mode_speed_up)) },
+                            modifier =
+                                Modifier.semantics {
+                                    role = Role.Checkbox
+                                    selected =
+                                        protoSettings.skipSilenceMode ==
+                                        com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode.SPEED_UP
+                                },
+                        )
+                    }
+                }
+            }
+
+            // Volume Normalization
+            SettingsSwitchItem(
+                title = stringResource(R.string.normalizeVolumeTitle),
+                subtitle = stringResource(R.string.normalizeVolumeDescription),
+                checked = protoSettings.normalizeVolume,
+                onCheckedChange = { viewModel.updateAudioSettings(normalizeVolume = it) },
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
+            )
+
+            // Reset Global Book Settings
+            var showResetBookSettingsDialog by remember { mutableStateOf(false) }
+
+            SettingsItem(
+                title = stringResource(R.string.resetAllBookSettings),
+                subtitle =
+                    stringResource(R.string.resetAllBookSettingsConfirmation)
+                        .lineSequence()
+                        .firstOrNull()
+                        ?.trim()
+                        .orEmpty(),
+                onClick = { showResetBookSettingsDialog = true },
+            )
+
+            if (showResetBookSettingsDialog) {
+                ConfirmDialog(
+                    title = stringResource(R.string.resetAllBookSettings),
+                    text = stringResource(R.string.resetAllBookSettingsConfirmation),
+                    confirmLabel = stringResource(R.string.resetButton),
+                    onConfirm = {
+                        viewModel.resetAllBookSettings()
+                        showResetBookSettingsDialog = false
+                    },
+                    onDismiss = { showResetBookSettingsDialog = false },
+                )
+            }
+
+            HorizontalDivider()
+
+            // ─── 5. Audio Processing ───────────────────────────────────────
+            SettingsSection(
+                title = stringResource(R.string.audioTitle),
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+            )
+
+            SettingsItem(
+                title = stringResource(R.string.audioSettingsTitle),
+                subtitle = stringResource(R.string.audioDescription),
+                onClick = { safeNavigateToAudioSettings() },
+            )
+
+            HorizontalDivider()
+
+            // ─── 6. Library ────────────────────────────────────────────────
+            SettingsSection(
+                title = stringResource(R.string.library),
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+            )
+
+            // ponytail: connected shapes demo (Grit ListItemExt: leading 16/4, middle 4, end 4/16)
+            val scanProgress by viewModel.scanProgress.collectAsStateWithLifecycle()
+            Column(
+                modifier = Modifier.padding(horizontal = contentPadding),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Surface(shape = leadingItemShape(), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                    SettingsItemWithContent(
+                        title = stringResource(R.string.scan_library),
+                        subtitle =
+                            when (val p = scanProgress) {
+                                is ScanProgress.Idle -> stringResource(R.string.tap_to_scan_now)
+                                is ScanProgress.Discovery -> stringResource(R.string.scan_status_discovery, p.fileCount)
+                                is ScanProgress.Parsing -> stringResource(R.string.scan_status_parsing, p.currentBook, p.progress, p.total)
+                                is ScanProgress.Saving -> stringResource(R.string.scan_status_saving)
+                                is ScanProgress.Completed ->
+                                    if (p.skippedPaths > 0) {
+                                        pluralStringResource(
+                                            R.plurals.scan_status_complete_plural,
+                                            p.booksAdded,
+                                            p.booksAdded,
+                                        ) +
+                                            " " + stringResource(R.string.scan_status_skipped_paths, p.skippedPaths)
+                                    } else {
+                                        pluralStringResource(
+                                            R.plurals.scan_status_complete_plural,
+                                            p.booksAdded,
+                                            p.booksAdded,
+                                        )
+                                    }
+                                is ScanProgress.Error -> stringResource(R.string.scan_status_error, p.message)
+                            },
+                        onClick =
+                            if (scanProgress is ScanProgress.Idle ||
+                                scanProgress is ScanProgress.Completed ||
+                                scanProgress is ScanProgress.Error
+                            ) {
+                                { viewModel.scanLibrary() }
+                            } else {
+                                null
+                            },
+                    ) {
+                        if (scanProgress is ScanProgress.Discovery ||
+                            scanProgress is ScanProgress.Parsing ||
+                            scanProgress is ScanProgress.Saving
+                        ) {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                androidx.compose.material3.LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                                    androidx.compose.material3.OutlinedButton(
+                                        onClick = { viewModel.cancelScan() },
+                                        modifier = Modifier.padding(top = 8.dp),
+                                    ) {
+                                        Text(stringResource(R.string.cancel))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Surface(shape = middleItemShape(), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                    SettingsItem(
+                        title = stringResource(R.string.libraryFoldersTitle),
+                        subtitle = stringResource(R.string.manageFoldersToScanForAudiobooks),
+                        onClick = { safeNavigateToScanSettings() },
+                    )
+                }
+                Surface(shape = endItemShape(), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                    SettingsSwitchItem(
+                        title = stringResource(R.string.normalizeChapterTitles),
+                        subtitle = stringResource(R.string.normalizeChapterTitlesDesc),
+                        checked = userPreferences?.normalizeChapterTitles ?: false,
+                        onCheckedChange = { viewModel.updateNormalizeChapterTitles(it) },
+                        contentPadding = contentPadding,
+                        itemSpacing = itemSpacing,
+                        smallSpacing = smallSpacing,
+                    )
+                }
+            }
+
+            // Statistics (moved into Library)
+            weeklyRecap?.let { recap ->
+                HorizontalDivider()
+
+                SettingsSection(
+                    title = stringResource(R.string.statistics),
+                    contentPadding = contentPadding,
+                    itemSpacing = itemSpacing,
+                )
+
+                WeeklyRecapCard(
+                    stats = recap,
+                    modifier = Modifier.padding(horizontal = contentPadding, vertical = 6.dp),
+                )
+                yearRecap?.let { recapYear ->
+                    YearRecapPromptCard(
+                        yearRecap = recapYear,
+                        onShareClick = { shareYearRecap(context, recapYear) },
+                        modifier = Modifier.padding(horizontal = contentPadding, vertical = 6.dp),
+                    )
+                }
+                if (showStatsExpanded) {
+                    ListeningHeatmap(
+                        data = dailyListeningMinutes,
+                        modifier = Modifier.padding(horizontal = contentPadding, vertical = 6.dp),
+                    )
+                }
+                TextButton(
+                    onClick = { showStatsExpanded = !showStatsExpanded },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = contentPadding),
+                ) {
+                    Icon(
+                        imageVector = if (showStatsExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        modifier = Modifier.padding(end = 8.dp),
+                    )
+                    Text(
+                        text =
+                            stringResource(
+                                if (showStatsExpanded) R.string.hideStatistics else R.string.showStatistics,
+                            ),
+                    )
+                }
+            }
+
+            HorizontalDivider()
+
+            // ─── 7. Downloads ──────────────────────────────────────────────
+            // Active Downloads Card
+            val activeDownloads by viewModel.activeDownloads.collectAsStateWithLifecycle()
+
+            if (activeDownloads.isNotEmpty()) {
+                val totalSpeed = activeDownloads.sumOf { it.downloadSpeed }
+                val downloadCount =
+                    activeDownloads.count {
+                        it.state == com.jabook.app.jabook.compose.data.torrent.TorrentState.DOWNLOADING
+                    }
+
+                SettingsItemWithContent(
+                    title = stringResource(R.string.active_downloads),
+                    subtitle =
+                        if (downloadCount > 0) {
+                            stringResource(
+                                R.string.downloading_count_speed,
+                                downloadCount,
+                                UiFormatters.formatSpeedBytes(totalSpeed.toLong()),
+                            )
+                        } else {
+                            pluralStringResource(
+                                R.plurals.downloads_active_plural,
+                                activeDownloads.size,
+                                activeDownloads.size,
+                            )
+                        },
+                    onClick = { safeNavigateToDownloads() },
+                ) {
+                    androidx.compose.material3.LinearProgressIndicator(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp),
+                    )
+                }
+
+                HorizontalDivider()
+            }
+
+            SettingsSection(
+                title = stringResource(R.string.downloads),
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+            )
+
+            val folderLauncher =
+                androidx.activity.compose.rememberLauncherForActivityResult(
+                    contract =
+                        androidx.activity.result.contract.ActivityResultContracts
+                            .OpenDocumentTree(),
+                ) { uri ->
+                    uri?.takeIf(persistedTreePermissionGuard::take)?.let {
+                        viewModel.updateDownloadPath(it.toString())
+                    }
+                }
+
+            SettingsItem(
+                title = stringResource(R.string.downloadLocationTitle),
+                subtitle =
+                    if (protoSettings.downloadPath.isNotEmpty()) {
+                        android.net.Uri
+                            .parse(protoSettings.downloadPath)
+                            .path ?: protoSettings.downloadPath
+                    } else {
+                        stringResource(R.string.internalAppStorageDefault)
+                    },
+                onClick = { folderLauncher.launch(null) },
+            )
+
+            SettingsSwitchItem(
+                title = stringResource(R.string.wifiOnly),
+                subtitle = stringResource(R.string.downloadOnlyViaWifi),
+                checked = protoSettings.wifiOnlyDownload,
+                onCheckedChange = { enabled -> viewModel.updateWifiOnly(enabled) },
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
+            )
+
+            SettingsSwitchItem(
+                title = stringResource(R.string.autoLoadCoversOnCellular),
+                subtitle = stringResource(R.string.autoLoadCoversOnCellularDesc),
+                checked = protoSettings.autoLoadCoversOnCellular,
+                onCheckedChange = viewModel::updateAutoLoadCoversOnCellular,
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
+            )
+
+            SettingsSwitchItem(
+                title = stringResource(R.string.limitDownloadSpeed),
+                subtitle = stringResource(R.string.setMaximumDownloadSpeed),
+                checked = protoSettings.limitDownloadSpeed,
+                onCheckedChange = viewModel::updateLimitDownloadSpeed,
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
+            )
+
+            if (protoSettings.limitDownloadSpeed) {
+                SettingsSliderItem(
+                    title = stringResource(R.string.maxSpeed),
+                    sliderValue = protoSettings.maxDownloadSpeedKb.toFloat(),
+                    onValueChange = { viewModel.updateMaxDownloadSpeed(it.toInt()) },
+                    valueRange = 100f..10000f,
+                    steps = 98,
+                    valueFormatter = { "${it.toInt()} KB/s" },
+                    contentPadding = contentPadding,
+                    itemSpacing = itemSpacing,
+                    smallSpacing = smallSpacing,
+                )
+            }
+
+            SettingsSliderItem(
+                title = stringResource(R.string.concurrentDownloads),
+                sliderValue = protoSettings.maxConcurrentDownloads.toFloat(),
+                onValueChange = { viewModel.updateMaxConcurrentDownloads(it.toInt()) },
+                valueRange = 1f..5f,
+                steps = 3,
+                valueFormatter = { "${it.toInt()}" },
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
+            )
+
+            Spacer(modifier = Modifier.height(itemSpacing))
+
+            val torrentStorageSize by viewModel.torrentStorageSize.collectAsStateWithLifecycle()
+            LaunchedEffect(protoSettings.downloadPath) {
+                viewModel.loadTorrentStorageSize()
+            }
+
+            SettingsItem(
+                title = stringResource(R.string.downloadsStorage),
+                subtitle = stringResource(R.string.storageUsedFormat, UiFormatters.formatFileSize(torrentStorageSize)),
+            )
+
+            var showDeleteAllDialog by remember { mutableStateOf(false) }
+
+            SettingsItem(
+                title = stringResource(R.string.deleteAllDownloads),
+                subtitle = stringResource(R.string.deleteAllDownloadsDesc),
+                onClick = { showDeleteAllDialog = true },
+            )
+
+            if (showDeleteAllDialog) {
+                ConfirmDialog(
+                    title = stringResource(R.string.deleteAllDownloads),
+                    text = stringResource(R.string.deleteAllConfirmation),
+                    confirmLabel = stringResource(R.string.deleteButton),
+                    onConfirm = {
+                        viewModel.deleteAllTorrents(true)
+                        showDeleteAllDialog = false
+                    },
+                    onDismiss = { showDeleteAllDialog = false },
+                )
+            }
+
+            HorizontalDivider()
+
+            // ─── 8. Data Management ────────────────────────────────────────
+            SettingsSection(
+                title = stringResource(R.string.dataManagement),
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+            )
+
+            // Backup & Restore
+            val backupState by viewModel.backupState.collectAsStateWithLifecycle()
+
+            var showImportConfirmation by remember { mutableStateOf(false) }
+            var selectedBackupUri by remember { mutableStateOf<android.net.Uri?>(null) }
+
+            val importFilePicker =
+                androidx.activity.compose.rememberLauncherForActivityResult(
+                    contract =
+                        androidx.activity.result.contract.ActivityResultContracts
+                            .GetContent(),
+                ) { uri: android.net.Uri? ->
+                    uri?.let {
+                        showImportConfirmation = true
+                        selectedBackupUri = it
+                    }
+                }
+
+            SettingsItem(
+                title = stringResource(R.string.exportDataButton),
+                subtitle = stringResource(R.string.saveSettingsAndLibraryToBackupFile),
+                onClick = { viewModel.exportData() },
+            )
+
+            SettingsItem(
+                title = stringResource(R.string.importDataButton),
+                subtitle = stringResource(R.string.restoreSettingsAndLibraryFromBackup),
+                onClick = {
+                    importFilePicker.launch("application/json")
+                },
+            )
+
+            if (showImportConfirmation) {
+                ConfirmDialog(
+                    title = stringResource(R.string.importBackup),
+                    text = stringResource(R.string.thisWillReplaceYourCurrentSettingsAreYouSureYouWan),
+                    confirmLabel = stringResource(R.string.importButton),
+                    onConfirm = {
+                        selectedBackupUri?.let { viewModel.importData(it) }
+                        showImportConfirmation = false
+                    },
+                    onDismiss = { showImportConfirmation = false },
+                )
+            }
+
+            LaunchedEffect(backupState) {
+                when (val state = backupState) {
+                    is BackupUiState.ExportReady -> {
+                        val intent =
+                            android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                type = "application/json"
+                                putExtra(android.content.Intent.EXTRA_STREAM, state.uri)
+                                putExtra(android.content.Intent.EXTRA_SUBJECT, context.getString(R.string.jabookBackup))
+                                putExtra(
+                                    android.content.Intent.EXTRA_TEXT,
+                                    context.getString(R.string.backupOfJabookSettingsAndData),
+                                )
+                                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                        context.startActivity(
+                            android.content.Intent.createChooser(intent, context.getString(R.string.exportBackup)),
+                        )
+                        viewModel.resetBackupState()
+                    }
+                    is BackupUiState.ImportComplete -> {
+                        android.widget.Toast
+                            .makeText(
+                                context,
+                                context.getString(R.string.importSuccessfulStats),
+                                android.widget.Toast.LENGTH_LONG,
+                            ).show()
+                        viewModel.resetBackupState()
+                    }
+                    is BackupUiState.Error -> {
+                        android.widget.Toast
+                            .makeText(context, state.message, android.widget.Toast.LENGTH_LONG)
+                            .show()
+                        viewModel.resetBackupState()
+                    }
+                    else -> {}
+                }
+            }
+
+            // Cache Management
+            val cacheStats by viewModel.cacheStats.collectAsStateWithLifecycle()
+            val cacheOperation by viewModel.cacheOperation.collectAsStateWithLifecycle()
+
+            var showClearCacheDialog by remember { mutableStateOf(false) }
+
+            LaunchedEffect(Unit) {
+                viewModel.loadCacheStatistics()
+            }
+
+            SettingsItem(
+                title = stringResource(R.string.totalCacheSize),
+                subtitle =
+                    cacheStats?.let { UiFormatters.formatFileSize(it.totalSize) }
+                        ?: if (cacheOperation is CacheOperationState.Loading) {
+                            stringResource(R.string.calculating)
+                        } else {
+                            stringResource(R.string.unknown)
+                        },
+            )
+
+            SettingsItem(
+                title = stringResource(R.string.lastCleanup),
+                subtitle =
+                    cacheStats?.let {
+                        if (it.lastCleanup > 0) {
+                            formatTimestamp(it.lastCleanup)
+                        } else {
+                            stringResource(R.string.neverDate)
+                        }
+                    } ?: "-",
+            )
+
+            SettingsItem(
+                title = stringResource(R.string.clearAllCacheButton),
+                subtitle =
+                    cacheStats?.let {
+                        stringResource(
+                            R.string.freeUpCacheSize,
+                            UiFormatters.formatFileSize(it.totalSize),
+                        )
+                    } ?: "",
+                onClick = {
+                    if (cacheOperation != CacheOperationState.Clearing) {
+                        showClearCacheDialog = true
+                    }
+                },
+            )
+
+            if (showClearCacheDialog) {
+                ConfirmDialog(
+                    title = stringResource(R.string.clearCache),
+                    text =
+                        stringResource(
+                            R.string.clearCacheConfirmation,
+                            cacheStats?.let { UiFormatters.formatFileSize(it.totalSize) } ?: stringResource(R.string.unknown),
+                        ),
+                    confirmLabel = stringResource(R.string.clearButton),
+                    onConfirm = {
+                        viewModel.clearCache()
+                        showClearCacheDialog = false
+                    },
+                    onDismiss = { showClearCacheDialog = false },
+                )
+            }
+
+            LaunchedEffect(cacheOperation) {
+                when (cacheOperation) {
+                    is CacheOperationState.Success -> {
+                        android.widget.Toast
+                            .makeText(
+                                context,
+                                context.getString(R.string.cacheClearedSuccessMessage),
+                                android.widget.Toast.LENGTH_SHORT,
+                            ).show()
+                        viewModel.resetCacheOperation()
+                    }
+                    is CacheOperationState.Error -> {
+                        val error = (cacheOperation as CacheOperationState.Error).message
+                        android.widget.Toast
+                            .makeText(context, error, android.widget.Toast.LENGTH_LONG)
+                            .show()
+                        viewModel.resetCacheOperation()
+                    }
+                    else -> {}
+                }
+            }
+
+            // Indexing
+            val indexingProgress by indexingViewModel.indexingProgress.collectAsStateWithLifecycle()
+            val isIndexing by indexingViewModel.isIndexing.collectAsStateWithLifecycle()
+            val indexingStartTime by indexingViewModel.indexingStartTime.collectAsStateWithLifecycle()
+            val clearingInProgress by indexingViewModel.clearingInProgress.collectAsStateWithLifecycle()
+            val forumStatuses by indexingViewModel.forumStatuses.collectAsStateWithLifecycle()
+
+            var showIndexingDialog by remember { mutableStateOf(false) }
+            var indexSize by remember { mutableStateOf(0) }
+            var indexMetadata by remember {
+                mutableStateOf<com.jabook.app.jabook.compose.data.local.dao.IndexMetadata?>(
+                    null,
+                )
+            }
+            var elapsedTimeStr by remember { mutableStateOf("") }
+
+            LaunchedEffect(isIndexing, indexingStartTime) {
+                if (isIndexing && indexingStartTime != null) {
+                    val start = indexingStartTime ?: return@LaunchedEffect
+                    while (true) {
+                        val duration = System.currentTimeMillis() - start
+                        elapsedTimeStr = UiFormatters.formatDuration(duration)
+                        kotlinx.coroutines.delay(1000L)
+                    }
+                } else {
+                    elapsedTimeStr = ""
+                }
+            }
+
+            LaunchedEffect(Unit) {
+                indexSize = indexingViewModel.getIndexSize()
+                indexMetadata = indexingViewModel.getIndexMetadata()
+            }
+
+            LaunchedEffect(indexingProgress) {
+                if (indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed) {
+                    indexSize = indexingViewModel.getIndexSize()
+                    indexMetadata = indexingViewModel.getIndexMetadata()
+                }
+            }
+
+            val indexTopicsCount = pluralStringResource(R.plurals.indexTopicsCount, indexSize, indexSize)
+
+            // Forum selection for indexing — explicit checkbox list ("check the
+            // forums we follow"). Same persistence: selected_forum_ids comma
+            // string, blank = all forums (proto field 74).
+            val allForumIds =
+                com.jabook.app.jabook.compose.data.remote.api.RutrackerApi.AUDIOBOOKS_FORUM_IDS
+                    .split(",")
+                    .map(String::trim)
+            val quickPreset = "574,1036" // ponytail: popular child forums
+            var selectedForums by rememberSaveable { mutableStateOf(protoSettings.selectedForumIds) }
+            var forumSelectorExpanded by rememberSaveable { mutableStateOf(false) }
+
+            LaunchedEffect(protoSettings.selectedForumIds) {
+                selectedForums = protoSettings.selectedForumIds
+            }
+
+            val effectiveForums = selectedForums.ifBlank { allForumIds.joinToString(",") }
+            val forumCount = effectiveForums.split(",").size
+
+            SettingsItem(
+                title = stringResource(R.string.forumsToIndex),
+                subtitle =
+                    if (selectedForums.isBlank()) {
+                        stringResource(R.string.allForumsCount, forumCount)
+                    } else {
+                        stringResource(R.string.selectedForumsCount, forumCount)
+                    },
+                onClick = { forumSelectorExpanded = !forumSelectorExpanded },
+            )
+
+            if (forumSelectorExpanded) {
+                Column(modifier = Modifier.padding(horizontal = contentPadding, vertical = 4.dp)) {
+                    // Toggles: All = blank string (index everything); Quick =
+                    // the two most popular child forums. Both preserved from
+                    // the previous chip UI.
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = selectedForums.isBlank(),
+                            onClick = {
+                                selectedForums = ""
+                                viewModel.updateSelectedForumIds("")
+                            },
+                            label = { Text(stringResource(R.string.all)) },
+                        )
+                        FilterChip(
+                            selected = selectedForums == quickPreset,
+                            onClick = {
+                                selectedForums = quickPreset
+                                viewModel.updateSelectedForumIds(quickPreset)
+                            },
+                            label = { Text(stringResource(R.string.quickForumsCount, 2)) },
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    // Checkbox rows — checked set derived from the stored string
+                    val checkedSet = ForumSelection.checkedIds(selectedForums, allForumIds)
+                    allForumIds.forEach { forumId ->
+                        val checked = forumId in checkedSet
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .toggleable(
+                                        value = checked,
+                                        role = Role.Checkbox,
+                                        onValueChange = {
+                                            val newChecked = ForumSelection.toggle(checkedSet, forumId)
+                                            val newIds = ForumSelection.toStored(newChecked, allForumIds)
+                                            selectedForums = newIds
+                                            viewModel.updateSelectedForumIds(newIds)
+                                        },
+                                    ),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Checkbox(checked = checked, onCheckedChange = null)
+                            Text(
+                                text = stringResource(R.string.forumId, forumId),
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.affectsOfflineIndexingOnly),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            // Quick indexing depth window: index only what's newer than N days
+            // (0 = legacy full crawl). Keeps the 3-day re-index fast.
+            val daysWindow = protoSettings.indexingDaysWindow
+            val windowOptions = listOf(1, 7, 14, 30, 0)
+            SettingsItemWithContent(
+                title = stringResource(R.string.indexingDepthWindow),
+                subtitle = stringResource(R.string.indexingDepthWindowHint),
+            ) {
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    windowOptions.forEachIndexed { index, days ->
+                        SegmentedButton(
+                            selected = daysWindow == days,
+                            onClick = { viewModel.updateIndexingDaysWindow(days) },
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = windowOptions.size),
+                        ) {
+                            Text(
+                                text =
+                                    if (days == 0) {
+                                        stringResource(R.string.all)
+                                    } else {
+                                        stringResource(R.string.indexingWindowDays, days)
+                                    },
+                                style = MaterialTheme.typography.labelMedium,
+                            )
+                        }
+                    }
+                }
+            }
+
+            SettingsItem(
+                title =
+                    if (indexSize == 0) {
+                        stringResource(R.string.indexNotCreatedTitle)
+                    } else {
+                        stringResource(R.string.indexStatusWithTopics, indexTopicsCount)
+                    },
+                subtitle =
+                    if (indexSize == 0) {
+                        stringResource(R.string.indexTapToCreate)
+                    } else {
+                        stringResource(R.string.indexTapToUpdate)
+                    },
+                onClick = {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                        if (context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
+                            android.content.pm.PackageManager.PERMISSION_GRANTED
+                        ) {
+                            notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                    }
+                    showIndexingDialog = true
+                    indexingViewModel.startIndexing(context)
+                },
+            )
+
+            if (isIndexing || indexSize > 0 || clearingInProgress) {
+                val statusOnlyProgress =
+                    (indexingProgress as? com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress)
+                        ?.detail
+                        ?.takeUnless { it.hasDetailedProgress }
+                SettingsItemWithContent(
+                    title =
+                        if (clearingInProgress) {
+                            stringResource(R.string.indexClearingTitle)
+                        } else {
+                            stringResource(R.string.indexingStatusTitle)
+                        },
+                    subtitle =
+                        when {
+                            clearingInProgress -> stringResource(R.string.pleaseWait)
+                            indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress -> {
+                                val progress = indexingProgress as com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress
+                                val timeText = if (elapsedTimeStr.isNotEmpty()) " • $elapsedTimeStr" else ""
+                                if (progress.detail.hasDetailedProgress) {
+                                    stringResource(
+                                        R.string.indexingCompactStatus,
+                                        progress.detail.currentForumName,
+                                        progress.detail.totalForumsCompleted + 1,
+                                        progress.detail.totalForums,
+                                        timeText,
+                                    )
+                                } else {
+                                    progress.detail.currentForumName
+                                        .ifBlank { stringResource(R.string.indexingPreparing) }
+                                }
+                            }
+                            indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed -> {
+                                val completed =
+                                    indexingProgress as com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed
+                                val displayCount =
+                                    if (indexSize > 0) {
+                                        indexSize
+                                    } else {
+                                        completed.totalTopics
+                                    }
+                                val durationMs =
+                                    (indexingProgress as com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed)
+                                        .durationMs
+                                val durationText =
+                                    if (durationMs > 0) {
+                                        stringResource(R.string.indexDurationSeconds, durationMs / 1000)
+                                    } else {
+                                        ""
+                                    }
+                                val completedTopicsCount =
+                                    pluralStringResource(
+                                        R.plurals.indexTopicsCount,
+                                        displayCount,
+                                        displayCount,
+                                    )
+                                stringResource(R.string.indexCompletedCompactStatus, completedTopicsCount, durationText)
+                            }
+                            indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Error ->
+                                stringResource(
+                                    R.string.errorWithMessage,
+                                    (indexingProgress as com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Error).message,
+                                )
+                            else -> stringResource(R.string.indexReadyToStart)
+                        },
+                    subtitleModifier =
+                        if (statusOnlyProgress != null) {
+                            Modifier.semantics { liveRegion = LiveRegionMode.Polite }
+                        } else {
+                            Modifier
+                        },
+                ) {
+                    if (isIndexing &&
+                        indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress
+                    ) {
+                        val progress = indexingProgress as com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress
+
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            if (progress.detail.hasDetailedProgress) {
+                                val progressValue = progress.detail.percentComplete
+                                androidx.compose.material3.LinearProgressIndicator(
+                                    progress = { progressValue },
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 8.dp),
+                                )
+                                val indexedTopics =
+                                    pluralStringResource(
+                                        R.plurals.indexTopicsCount,
+                                        progress.detail.topicsFound,
+                                        progress.detail.topicsFound,
+                                    )
+                                Text(
+                                    text =
+                                        stringResource(
+                                            R.string.indexProgressWithTopics,
+                                            (progressValue * 100).toInt(),
+                                            indexedTopics,
+                                        ),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 4.dp),
+                                )
+                            } else {
+                                androidx.compose.material3.LinearProgressIndicator(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 8.dp),
+                                )
+                            }
+                        }
+                    } else if (clearingInProgress) {
+                        androidx.compose.material3.LinearProgressIndicator(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp),
+                        )
+                    }
+                }
+
+                if (indexSize > 0 && !isIndexing && !clearingInProgress) {
+                    var showClearConfirmDialog by remember { mutableStateOf(false) }
+
+                    SettingsItem(
+                        title = stringResource(R.string.resetIndexTitle),
+                        subtitle = stringResource(R.string.resetIndexSubtitle, indexTopicsCount),
+                        onClick = {
+                            showClearConfirmDialog = true
+                        },
+                    )
+
+                    if (showClearConfirmDialog) {
+                        ConfirmDialog(
+                            title = stringResource(R.string.resetIndexDialogTitle),
+                            text = stringResource(R.string.resetIndexDialogMessage, indexTopicsCount),
+                            confirmLabel = stringResource(R.string.reset),
+                            onConfirm = {
+                                showClearConfirmDialog = false
+                                coroutineScope.launch {
+                                    val success = indexingViewModel.clearIndex()
+                                    if (success) {
+                                        indexSize = indexingViewModel.getIndexSize()
+                                        indexMetadata = indexingViewModel.getIndexMetadata()
+                                    }
+                                }
+                            },
+                            onDismiss = { showClearConfirmDialog = false },
+                        )
+                    }
+                }
+
+                indexMetadata?.let { metadata ->
+                    if (indexSize > 0) {
+                        val oldestDate =
+                            metadata.oldest?.let { timestamp ->
+                                java.time.Instant
+                                    .ofEpochMilli(timestamp)
+                                    .atZone(java.time.ZoneId.systemDefault())
+                                    .format(
+                                        java.time.format.DateTimeFormatter
+                                            .ofPattern("dd.MM.yyyy"),
+                                    )
+                            } ?: stringResource(R.string.unknown)
+                        val newestDate =
+                            metadata.newest?.let { timestamp ->
+                                java.time.Instant
+                                    .ofEpochMilli(timestamp)
+                                    .atZone(java.time.ZoneId.systemDefault())
+                                    .format(
+                                        java.time.format.DateTimeFormatter
+                                            .ofPattern("dd.MM.yyyy"),
+                                    )
+                            } ?: stringResource(R.string.unknown)
+
+                        SettingsItem(
+                            title = stringResource(R.string.indexCheckTitle),
+                            subtitle = stringResource(R.string.indexCheckSubtitle, indexTopicsCount, oldestDate, newestDate),
+                        )
+                    }
+                }
+            }
+
+            if (showIndexingDialog &&
+                indexingProgress !is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Idle
+            ) {
+                com.jabook.app.jabook.compose.feature.indexing.IndexingProgressDialog(
+                    progress = indexingProgress,
+                    indexSize = indexSize,
+                    forumStatuses = forumStatuses,
+                    onDismiss = {
+                        if (indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed ||
+                            indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Error
+                        ) {
+                            showIndexingDialog = false
+                            coroutineScope.launch {
+                                indexSize = indexingViewModel.getIndexSize()
+                            }
+                        }
+                    },
+                    onHide = {
+                        showIndexingDialog = false
+                        indexingViewModel.startIndexingInBackground(context)
+                    },
+                )
+            }
+
+            HorizontalDivider()
+
+            // ─── 9. Network ────────────────────────────────────────────────
+            val currentMirror by viewModel.currentMirror.collectAsStateWithLifecycle()
+            val availableMirrors by viewModel.availableMirrors.collectAsStateWithLifecycle()
+
             var showAddMirrorDialog by remember { mutableStateOf(false) }
-            var customMirrorUrl by remember { mutableStateOf("") }
+            var customMirrorUrl by rememberSaveable { mutableStateOf("") }
             var healthCheckInProgress by remember { mutableStateOf<String?>(null) }
-            val healthStatus = remember { mutableStateOf<Map<String, Boolean?>>(emptyMap()) }
+            val healthStatus = remember { mutableStateOf<Map<String, MirrorHealth?>>(emptyMap()) }
 
             SettingsSection(
                 title = stringResource(R.string.networkAndMirrors),
@@ -222,7 +1672,6 @@ public fun SettingsScreen(
                 subtitle = currentMirror,
             )
 
-            // Mirror selection radio buttons
             Column(
                 modifier =
                     Modifier
@@ -238,9 +1687,9 @@ public fun SettingsScreen(
                         onSelected = { viewModel.updateMirror(mirror) },
                         onCheckHealth = {
                             healthCheckInProgress = mirror
-                            viewModel.checkMirrorHealth(mirror) { isHealthy ->
+                            viewModel.checkMirrorHealth(mirror) { health ->
                                 healthCheckInProgress = null
-                                healthStatus.value = healthStatus.value + (mirror to isHealthy)
+                                healthStatus.value = healthStatus.value + (mirror to health)
                             }
                         },
                         onRemove =
@@ -274,7 +1723,6 @@ public fun SettingsScreen(
                 },
             )
 
-            // Custom mirror dialog
             if (showAddMirrorDialog) {
                 AddMirrorDialog(
                     currentValue = customMirrorUrl,
@@ -314,945 +1762,7 @@ public fun SettingsScreen(
 
             HorizontalDivider()
 
-            // Indexing Section
-            val indexingProgress by indexingViewModel.indexingProgress.collectAsStateWithLifecycle()
-            val isIndexing by indexingViewModel.isIndexing.collectAsStateWithLifecycle()
-            val indexingStartTime by indexingViewModel.indexingStartTime.collectAsStateWithLifecycle()
-            val clearingInProgress by indexingViewModel.clearingInProgress.collectAsStateWithLifecycle()
-
-            var showIndexingDialog by remember { mutableStateOf(false) }
-            var indexSize by remember { mutableStateOf(0) }
-            var indexMetadata by remember {
-                mutableStateOf<com.jabook.app.jabook.compose.data.local.dao.IndexMetadata?>(
-                    null,
-                )
-            }
-            var elapsedTimeStr by remember { mutableStateOf("") }
-
-            // Timer for elapsed time
-            LaunchedEffect(isIndexing, indexingStartTime) {
-                if (isIndexing && indexingStartTime != null) {
-                    while (true) {
-                        val duration = System.currentTimeMillis() - indexingStartTime!!
-                        val seconds = duration / 1000
-                        elapsedTimeStr = DateUtils.formatElapsedTime(seconds)
-                        kotlinx.coroutines.delay(1000L)
-                    }
-                } else {
-                    elapsedTimeStr = ""
-                }
-            }
-
-            LaunchedEffect(Unit) {
-                indexSize = indexingViewModel.getIndexSize()
-                indexMetadata = indexingViewModel.getIndexMetadata()
-            }
-
-            // Update index size when indexing completes - use database as single source of truth
-            LaunchedEffect(indexingProgress) {
-                if (indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed) {
-                    // Immediately refresh index size from database after completion
-                    indexSize = indexingViewModel.getIndexSize()
-                    indexMetadata = indexingViewModel.getIndexMetadata()
-                }
-            }
-
-            SettingsSection(
-                title = stringResource(R.string.indexingForumsSectionTitle),
-                contentPadding = contentPadding,
-                itemSpacing = itemSpacing,
-            )
-
-            val context = androidx.compose.ui.platform.LocalContext.current
-            val indexTopicsCount = pluralStringResource(R.plurals.indexTopicsCount, indexSize, indexSize)
-            SettingsItem(
-                title =
-                    if (indexSize == 0) {
-                        stringResource(R.string.indexNotCreatedTitle)
-                    } else {
-                        stringResource(R.string.indexStatusWithTopics, indexTopicsCount)
-                    },
-                subtitle =
-                    if (indexSize == 0) {
-                        stringResource(R.string.indexTapToCreate)
-                    } else {
-                        stringResource(R.string.indexTapToUpdate)
-                    },
-                onClick = {
-                    // Check and request notification permission on Android 13+
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                        if (context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
-                            android.content.pm.PackageManager.PERMISSION_GRANTED
-                        ) {
-                            notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
-                        }
-                    }
-                    showIndexingDialog = true
-                    indexingViewModel.startIndexing(context)
-                },
-            )
-
-            if (isIndexing || indexSize > 0 || clearingInProgress) {
-                SettingsItem(
-                    title =
-                        if (clearingInProgress) {
-                            stringResource(R.string.indexClearingTitle)
-                        } else {
-                            stringResource(R.string.indexingStatusTitle)
-                        },
-                    subtitle =
-                        when {
-                            clearingInProgress -> stringResource(R.string.pleaseWait)
-                            indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress -> {
-                                val progress = indexingProgress as com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress
-                                val timeText = if (elapsedTimeStr.isNotEmpty()) " • $elapsedTimeStr" else ""
-                                stringResource(
-                                    R.string.indexingCompactStatus,
-                                    progress.currentForum,
-                                    progress.currentForumIndex + 1,
-                                    progress.totalForums,
-                                    timeText,
-                                )
-                            }
-                            indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed -> {
-                                // Use indexSize from database as single source of truth
-                                val completed =
-                                    indexingProgress as com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed
-                                val displayCount =
-                                    if (indexSize > 0) {
-                                        indexSize
-                                    } else {
-                                        completed.totalTopics
-                                    }
-                                val durationMs =
-                                    (indexingProgress as com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed)
-                                        .durationMs
-                                val durationText =
-                                    if (durationMs > 0) {
-                                        stringResource(R.string.indexDurationSeconds, durationMs / 1000)
-                                    } else {
-                                        ""
-                                    }
-                                val completedTopicsCount =
-                                    pluralStringResource(
-                                        R.plurals.indexTopicsCount,
-                                        displayCount,
-                                        displayCount,
-                                    )
-                                stringResource(R.string.indexCompletedCompactStatus, completedTopicsCount, durationText)
-                            }
-                            indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Error ->
-                                stringResource(
-                                    R.string.errorWithMessage,
-                                    (indexingProgress as com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Error).message,
-                                )
-                            else -> stringResource(R.string.indexReadyToStart)
-                        },
-                ) {
-                    // Show progress bar during indexing or clearing
-                    if (isIndexing &&
-                        indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress
-                    ) {
-                        val progress = indexingProgress as com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress
-                        val progressValue = progress.currentForumIndex.toFloat() / progress.totalForums.toFloat()
-
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            androidx.compose.material3.LinearProgressIndicator(
-                                progress = { progressValue },
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .padding(top = 8.dp),
-                            )
-                            // Progress text
-                            val indexedTopics =
-                                pluralStringResource(
-                                    R.plurals.indexTopicsCount,
-                                    progress.topicsIndexed,
-                                    progress.topicsIndexed,
-                                )
-                            Text(
-                                text =
-                                    stringResource(
-                                        R.string.indexProgressWithTopics,
-                                        (progressValue * 100).toInt(),
-                                        indexedTopics,
-                                    ),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 4.dp),
-                            )
-                        }
-                    } else if (clearingInProgress) {
-                        androidx.compose.material3.LinearProgressIndicator(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 8.dp),
-                        )
-                    }
-                }
-
-                // Add clear index button if index exists and not busy
-                if (indexSize > 0 && !isIndexing && !clearingInProgress) {
-                    var showClearConfirmDialog by remember { mutableStateOf(false) }
-
-                    SettingsItem(
-                        title = stringResource(R.string.resetIndexTitle),
-                        subtitle = stringResource(R.string.resetIndexSubtitle, indexTopicsCount),
-                        onClick = {
-                            showClearConfirmDialog = true
-                        },
-                    )
-
-                    if (showClearConfirmDialog) {
-                        androidx.compose.material3.AlertDialog(
-                            onDismissRequest = { showClearConfirmDialog = false },
-                            title = { Text(stringResource(R.string.resetIndexDialogTitle)) },
-                            text = {
-                                Text(
-                                    stringResource(R.string.resetIndexDialogMessage, indexTopicsCount),
-                                )
-                            },
-                            confirmButton = {
-                                androidx.compose.material3.TextButton(
-                                    onClick = {
-                                        showClearConfirmDialog = false
-                                        coroutineScope.launch {
-                                            val success = indexingViewModel.clearIndex()
-                                            if (success) {
-                                                indexSize = indexingViewModel.getIndexSize()
-                                                indexMetadata = indexingViewModel.getIndexMetadata()
-                                            }
-                                        }
-                                    },
-                                ) {
-                                    Text(stringResource(R.string.reset))
-                                }
-                            },
-                            dismissButton = {
-                                androidx.compose.material3.TextButton(onClick = { showClearConfirmDialog = false }) {
-                                    Text(stringResource(R.string.cancel))
-                                }
-                            },
-                        )
-                    }
-                }
-
-                // Show index metadata if available
-                indexMetadata?.let { metadata ->
-                    if (indexSize > 0) {
-                        val oldestDate =
-                            metadata.oldest?.let { timestamp ->
-                                java.text
-                                    .SimpleDateFormat("dd.MM.yyyy", java.util.Locale.getDefault())
-                                    .format(java.util.Date(timestamp))
-                            } ?: stringResource(R.string.unknown)
-                        val newestDate =
-                            metadata.newest?.let { timestamp ->
-                                java.text
-                                    .SimpleDateFormat("dd.MM.yyyy", java.util.Locale.getDefault())
-                                    .format(java.util.Date(timestamp))
-                            } ?: stringResource(R.string.unknown)
-
-                        SettingsItem(
-                            title = stringResource(R.string.indexCheckTitle),
-                            subtitle = stringResource(R.string.indexCheckSubtitle, indexTopicsCount, oldestDate, newestDate),
-                        )
-                    }
-                }
-            }
-
-            // Indexing progress dialog
-            if (showIndexingDialog &&
-                indexingProgress !is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Idle
-            ) {
-                val context = androidx.compose.ui.platform.LocalContext.current
-                com.jabook.app.jabook.compose.feature.indexing.IndexingProgressDialog(
-                    progress = indexingProgress,
-                    indexSize = indexSize, // Pass current index size from database as single source of truth
-                    onDismiss = {
-                        if (indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed ||
-                            indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Error
-                        ) {
-                            showIndexingDialog = false
-                            // Refresh index size from database after indexing completes
-                            coroutineScope.launch {
-                                indexSize = indexingViewModel.getIndexSize()
-                            }
-                        }
-                    },
-                    onHide = {
-                        // Hide dialog and start foreground service to continue indexing in background
-                        showIndexingDialog = false
-                        indexingViewModel.startIndexingInBackground(context)
-                    },
-                )
-            }
-
-            HorizontalDivider()
-
-            // Library Section
-            SettingsSection(
-                title = stringResource(R.string.library),
-                contentPadding = contentPadding,
-                itemSpacing = itemSpacing,
-            )
-
-            // Scan Progress
-            val scanProgress by viewModel.scanProgress.collectAsStateWithLifecycle()
-            SettingsItem(
-                title = stringResource(R.string.scan_library),
-                subtitle =
-                    when (val p = scanProgress) {
-                        is ScanProgress.Idle -> stringResource(R.string.tap_to_scan_now)
-                        is ScanProgress.Discovery -> stringResource(R.string.scan_status_discovery, p.fileCount)
-                        is ScanProgress.Parsing ->
-                            stringResource(
-                                R.string.scan_status_parsing,
-                                p.currentBook,
-                                p.progress,
-                                p.total,
-                            )
-                        is ScanProgress.Saving -> stringResource(R.string.scan_status_saving)
-                        is ScanProgress.Completed ->
-                            pluralStringResource(
-                                R.plurals.scan_status_complete_plural,
-                                p.booksAdded,
-                                p.booksAdded,
-                            )
-                        is ScanProgress.Error -> stringResource(R.string.scan_status_error, p.message)
-                    },
-                onClick =
-                    if (scanProgress is ScanProgress.Idle ||
-                        scanProgress is ScanProgress.Completed ||
-                        scanProgress is ScanProgress.Error
-                    ) {
-                        { viewModel.scanLibrary() }
-                    } else {
-                        null
-                    },
-            ) {
-                // Show progress bar for active states
-                // Show progress bar for active states
-                if (scanProgress is ScanProgress.Discovery ||
-                    scanProgress is ScanProgress.Parsing ||
-                    scanProgress is ScanProgress.Saving
-                ) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        androidx.compose.material3.LinearProgressIndicator(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 8.dp),
-                        )
-                        androidx.compose.foundation.layout.Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End,
-                        ) {
-                            androidx.compose.material3.OutlinedButton(
-                                onClick = { viewModel.cancelScan() },
-                                modifier = Modifier.padding(top = 8.dp),
-                            ) {
-                                Text(stringResource(R.string.cancel))
-                            }
-                        }
-                    }
-                }
-            }
-
-            SettingsItem(
-                title = stringResource(R.string.libraryFoldersTitle),
-                subtitle = stringResource(R.string.manageFoldersToScanForAudiobooks),
-                onClick = { safeNavigateToScanSettings() },
-            )
-
-            // Chapter Normalization Toggle
-            val userPrefs by viewModel.userPreferences.collectAsStateWithLifecycle()
-            SettingsSwitchItem(
-                title = stringResource(R.string.normalizeChapterTitles),
-                subtitle = stringResource(R.string.normalizeChapterTitlesDesc),
-                checked = userPrefs?.normalizeChapterTitles ?: false,
-                onCheckedChange = { viewModel.updateNormalizeChapterTitles(it) },
-                contentPadding = contentPadding,
-                itemSpacing = itemSpacing,
-                smallSpacing = smallSpacing,
-            )
-
-            HorizontalDivider()
-
-            // Audio Section
-            SettingsSection(
-                title = stringResource(R.string.audioTitle),
-                contentPadding = contentPadding,
-                itemSpacing = itemSpacing,
-            )
-
-            SettingsItem(
-                title = stringResource(R.string.audioSettingsTitle),
-                subtitle = stringResource(R.string.audioDescription),
-                onClick = { safeNavigateToAudioSettings() },
-            )
-
-            HorizontalDivider()
-
-            // Active Downloads Card
-            val activeDownloads by viewModel.activeDownloads.collectAsStateWithLifecycle()
-
-            if (activeDownloads.isNotEmpty()) {
-                val totalSpeed = activeDownloads.sumOf { it.downloadSpeed }
-                val downloadCount =
-                    activeDownloads.count {
-                        it.state == com.jabook.app.jabook.compose.data.torrent.TorrentState.DOWNLOADING
-                    }
-
-                SettingsItem(
-                    title = stringResource(R.string.active_downloads),
-                    subtitle =
-                        if (downloadCount > 0) {
-                            stringResource(
-                                R.string.downloading_count_speed,
-                                downloadCount,
-                                formatBytes(totalSpeed.toLong()) + "/s",
-                            )
-                        } else {
-                            pluralStringResource(
-                                R.plurals.downloads_active_plural,
-                                activeDownloads.size,
-                                activeDownloads.size,
-                            )
-                        },
-                    onClick = { safeNavigateToDownloads() },
-                ) {
-                    androidx.compose.material3.LinearProgressIndicator(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(top = 8.dp),
-                        // If we have active downloads, show indeterminate if speed > 0, else determinate
-                        // Since we don't have total progress easily aggregated, keep it indeterminate for now
-                        // or ideally calculate average progress
-                    )
-                }
-
-                HorizontalDivider()
-            }
-
-            // Downloads Section
-            SettingsSection(
-                title = stringResource(R.string.downloads),
-                contentPadding = contentPadding,
-                itemSpacing = itemSpacing,
-            )
-
-            val folderLauncher =
-                androidx.activity.compose.rememberLauncherForActivityResult(
-                    contract =
-                        androidx.activity.result.contract.ActivityResultContracts
-                            .OpenDocumentTree(),
-                ) { uri ->
-                    uri?.let {
-                        val takeFlags =
-                            android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                                android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                        context.contentResolver.takePersistableUriPermission(it, takeFlags)
-                        viewModel.updateDownloadPath(it.toString())
-                    }
-                }
-
-            SettingsItem(
-                title = stringResource(R.string.downloadLocationTitle),
-                subtitle =
-                    if (protoSettings.downloadPath.isNotEmpty()) {
-                        android.net.Uri
-                            .parse(protoSettings.downloadPath)
-                            .path ?: protoSettings.downloadPath
-                    } else {
-                        stringResource(R.string.internalAppStorageDefault)
-                    },
-                onClick = { folderLauncher.launch(null) },
-            )
-
-            SettingsSwitchItem(
-                title = stringResource(R.string.wifiOnly),
-                subtitle = stringResource(R.string.downloadOnlyViaWifi),
-                checked = protoSettings.wifiOnlyDownload,
-                onCheckedChange = { enabled -> viewModel.updateWifiOnly(enabled) },
-                contentPadding = contentPadding,
-                itemSpacing = itemSpacing,
-                smallSpacing = smallSpacing,
-            )
-
-            SettingsSwitchItem(
-                title = stringResource(R.string.autoLoadCoversOnCellular),
-                subtitle = stringResource(R.string.autoLoadCoversOnCellularDesc),
-                checked = protoSettings.autoLoadCoversOnCellular,
-                onCheckedChange = viewModel::updateAutoLoadCoversOnCellular,
-                contentPadding = contentPadding,
-                itemSpacing = itemSpacing,
-                smallSpacing = smallSpacing,
-            )
-
-            // Bandwidth Limiting
-            SettingsSwitchItem(
-                title = stringResource(R.string.limitDownloadSpeed),
-                subtitle = stringResource(R.string.setMaximumDownloadSpeed),
-                checked = protoSettings.limitDownloadSpeed,
-                onCheckedChange = viewModel::updateLimitDownloadSpeed,
-                contentPadding = contentPadding,
-                itemSpacing = itemSpacing,
-                smallSpacing = smallSpacing,
-            )
-
-            if (protoSettings.limitDownloadSpeed) {
-                SettingsSliderItem(
-                    title = stringResource(R.string.maxSpeed),
-                    sliderValue = protoSettings.maxDownloadSpeedKb.toFloat(),
-                    onValueChange = { viewModel.updateMaxDownloadSpeed(it.toInt()) },
-                    valueRange = 100f..10000f,
-                    steps = 98,
-                    valueFormatter = { "${it.toInt()} KB/s" },
-                    contentPadding = contentPadding,
-                    itemSpacing = itemSpacing,
-                    smallSpacing = smallSpacing,
-                )
-            }
-
-            // Concurrent Downloads
-            SettingsSliderItem(
-                title = stringResource(R.string.concurrentDownloads),
-                sliderValue = protoSettings.maxConcurrentDownloads.toFloat(),
-                onValueChange = { viewModel.updateMaxConcurrentDownloads(it.toInt()) },
-                valueRange = 1f..5f,
-                steps = 3,
-                valueFormatter = { "${it.toInt()}" },
-                contentPadding = contentPadding,
-                itemSpacing = itemSpacing,
-                smallSpacing = smallSpacing,
-            )
-
-            Spacer(modifier = Modifier.height(itemSpacing))
-
-            // Storage Usage
-            val torrentStorageSize by viewModel.torrentStorageSize.collectAsStateWithLifecycle()
-            LaunchedEffect(protoSettings.downloadPath) {
-                viewModel.loadTorrentStorageSize()
-            }
-
-            SettingsItem(
-                title = stringResource(R.string.downloadsStorage),
-                subtitle = stringResource(R.string.storageUsedFormat, formatBytes(torrentStorageSize)),
-            )
-
-            var showDeleteAllDialog by remember { mutableStateOf(false) }
-
-            SettingsItem(
-                title = stringResource(R.string.deleteAllDownloads),
-                subtitle = stringResource(R.string.deleteAllDownloadsDesc),
-                onClick = { showDeleteAllDialog = true },
-            )
-
-            if (showDeleteAllDialog) {
-                AlertDialog(
-                    onDismissRequest = { showDeleteAllDialog = false },
-                    title = { Text(stringResource(R.string.deleteAllDownloads)) },
-                    text = { Text(stringResource(R.string.deleteAllConfirmation)) },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                viewModel.deleteAllTorrents(true)
-                                showDeleteAllDialog = false
-                            },
-                        ) {
-                            Text(stringResource(R.string.deleteButton))
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showDeleteAllDialog = false }) {
-                            Text(stringResource(R.string.cancel))
-                        }
-                    },
-                )
-            }
-
-            HorizontalDivider()
-
-            // Backup & Restore Section
-            SettingsSection(
-                title = stringResource(R.string.backupRestoreTitle),
-                contentPadding = contentPadding,
-                itemSpacing = itemSpacing,
-            )
-
-            val backupState by viewModel.backupState.collectAsStateWithLifecycle()
-
-            // State for import dialog
-            var showImportConfirmation by remember { mutableStateOf(false) }
-            var selectedBackupUri by remember { mutableStateOf<android.net.Uri?>(null) }
-
-            // File picker for import
-            val importFilePicker =
-                androidx.activity.compose.rememberLauncherForActivityResult(
-                    contract =
-                        androidx.activity.result.contract.ActivityResultContracts
-                            .GetContent(),
-                ) { uri: android.net.Uri? ->
-                    uri?.let {
-                        // Show confirmation dialog
-                        showImportConfirmation = true
-                        selectedBackupUri = it
-                    }
-                }
-
-            SettingsItem(
-                title = stringResource(R.string.exportDataButton),
-                subtitle = stringResource(R.string.saveSettingsAndLibraryToBackupFile),
-                onClick = { viewModel.exportData() },
-            )
-
-            SettingsItem(
-                title = stringResource(R.string.importDataButton),
-                subtitle = stringResource(R.string.restoreSettingsAndLibraryFromBackup),
-                onClick = {
-                    // Launch file picker for JSON files
-                    importFilePicker.launch("application/json")
-                },
-            )
-
-            // Import Confirmation Dialog
-            if (showImportConfirmation) {
-                AlertDialog(
-                    onDismissRequest = { showImportConfirmation = false },
-                    title = { Text(stringResource(R.string.importBackup)) },
-                    text = {
-                        Text(
-                            stringResource(R.string.thisWillReplaceYourCurrentSettingsAreYouSureYouWan),
-                        )
-                    },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                selectedBackupUri?.let { viewModel.importData(it) }
-                                showImportConfirmation = false
-                            },
-                        ) {
-                            Text(stringResource(R.string.importButton))
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showImportConfirmation = false }) {
-                            Text(stringResource(R.string.cancel))
-                        }
-                    },
-                )
-            }
-
-            // Handle Export Success - Share file
-            LaunchedEffect(backupState) {
-                if (backupState is BackupUiState.ExportReady) {
-                    val uri = (backupState as BackupUiState.ExportReady).uri
-                    val intent =
-                        android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                            type = "application/json"
-                            putExtra(android.content.Intent.EXTRA_STREAM, uri)
-                            putExtra(android.content.Intent.EXTRA_SUBJECT, context.getString(R.string.jabookBackup))
-                            putExtra(
-                                android.content.Intent.EXTRA_TEXT,
-                                context.getString(R.string.backupOfJabookSettingsAndData),
-                            )
-                            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        }
-                    context.startActivity(
-                        android.content.Intent.createChooser(intent, context.getString(R.string.exportBackup)),
-                    )
-                    viewModel.resetBackupState()
-                }
-            }
-
-            // Handle Import Success - Show statistics
-            LaunchedEffect(backupState) {
-                if (backupState is BackupUiState.ImportComplete) {
-                    val stats = (backupState as BackupUiState.ImportComplete).stats
-                    android.widget.Toast
-                        .makeText(
-                            context,
-                            context.getString(R.string.importSuccessfulStats),
-                            android.widget.Toast.LENGTH_LONG,
-                        ).show()
-                    viewModel.resetBackupState()
-                }
-            }
-
-            // Handle Errors
-            LaunchedEffect(backupState) {
-                if (backupState is BackupUiState.Error) {
-                    val error = (backupState as BackupUiState.Error).message
-                    android.widget.Toast
-                        .makeText(context, error, android.widget.Toast.LENGTH_LONG)
-                        .show()
-                    viewModel.resetBackupState()
-                }
-            }
-
-            HorizontalDivider()
-
-            // Cache Management Section
-            SettingsSection(
-                title = stringResource(R.string.cacheManagement),
-                contentPadding = contentPadding,
-                itemSpacing = itemSpacing,
-            )
-
-            val cacheStats by viewModel.cacheStats.collectAsStateWithLifecycle()
-            val cacheOperation by viewModel.cacheOperation.collectAsStateWithLifecycle()
-
-            // State for clear cache dialog
-            var showClearCacheDialog by remember { mutableStateOf(false) }
-
-            // Load cache statistics on first composition
-            LaunchedEffect(Unit) {
-                viewModel.loadCacheStatistics()
-            }
-
-            // Total cache size
-            SettingsItem(
-                title = stringResource(R.string.totalCacheSize),
-                subtitle =
-                    cacheStats?.let { formatBytes(it.totalSize) }
-                        ?: if (cacheOperation is CacheOperationState.Loading) {
-                            stringResource(
-                                R.string.calculating,
-                            )
-                        } else {
-                            stringResource(R.string.unknown)
-                        },
-            )
-
-            // Last cleanup timestamp
-            SettingsItem(
-                title = stringResource(R.string.lastCleanup),
-                subtitle =
-                    cacheStats?.let {
-                        if (it.lastCleanup > 0) {
-                            formatTimestamp(it.lastCleanup)
-                        } else {
-                            stringResource(R.string.neverDate)
-                        }
-                    } ?: "-",
-            )
-
-            // Clear all cache button
-            SettingsItem(
-                title = stringResource(R.string.clearAllCacheButton),
-                subtitle =
-                    cacheStats?.let {
-                        stringResource(
-                            R.string.freeUpCacheSize,
-                            formatBytes(it.totalSize),
-                        )
-                    } ?: "",
-                onClick = {
-                    if (cacheOperation != CacheOperationState.Clearing) {
-                        showClearCacheDialog = true
-                    }
-                },
-            )
-
-            // Clear cache confirmation dialog
-            if (showClearCacheDialog) {
-                AlertDialog(
-                    onDismissRequest = { showClearCacheDialog = false },
-                    title = { Text(stringResource(R.string.clearCache)) },
-                    text = {
-                        Text(
-                            stringResource(
-                                R.string.clearCacheConfirmation,
-                                cacheStats?.let { formatBytes(it.totalSize) } ?: stringResource(R.string.unknown),
-                            ),
-                        )
-                    },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                viewModel.clearCache()
-                                showClearCacheDialog = false
-                            },
-                        ) {
-                            Text(stringResource(R.string.clearButton))
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showClearCacheDialog = false }) {
-                            Text(stringResource(R.string.cancel))
-                        }
-                    },
-                )
-            }
-
-            // Show toast on success/error
-            LaunchedEffect(cacheOperation) {
-                when (cacheOperation) {
-                    is CacheOperationState.Success -> {
-                        android.widget.Toast
-                            .makeText(
-                                context,
-                                context.getString(R.string.cacheClearedSuccessMessage),
-                                android.widget.Toast.LENGTH_SHORT,
-                            ).show()
-                        viewModel.resetCacheOperation()
-                    }
-                    is CacheOperationState.Error -> {
-                        val error = (cacheOperation as CacheOperationState.Error).message
-                        android.widget.Toast
-                            .makeText(context, error, android.widget.Toast.LENGTH_LONG)
-                            .show()
-                        viewModel.resetCacheOperation()
-                    }
-                    else -> {}
-                }
-            }
-
-            HorizontalDivider()
-
-            // Appearance Section
-            SettingsSection(
-                title = stringResource(R.string.appearance),
-                contentPadding = contentPadding,
-                itemSpacing = itemSpacing,
-            )
-
-            SettingsItem(
-                title = stringResource(R.string.themeTitle),
-                subtitle = stringResource(R.string.chooseAppTheme),
-            ) {
-                ThemeSelector(
-                    selectedTheme = userPreferences?.theme ?: AppTheme.SYSTEM,
-                    onThemeSelected = { theme -> viewModel.updateTheme(theme) },
-                )
-            }
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                SettingsSwitchItem(
-                    title = stringResource(R.string.dynamicColorsTitle),
-                    subtitle = stringResource(R.string.dynamicColorsDescription),
-                    checked = protoSettings.useDynamicColors,
-                    onCheckedChange = viewModel::updateDynamicColors,
-                    contentPadding = contentPadding,
-                    itemSpacing = itemSpacing,
-                    smallSpacing = smallSpacing,
-                )
-            }
-
-            SettingsItem(
-                title = stringResource(R.string.languageSettingsLabel),
-                subtitle = stringResource(R.string.languageDescription),
-                onClick = { openSystemLanguageSettings(context) },
-            )
-
-            SettingsItem(
-                title = stringResource(R.string.fontTitle),
-                subtitle = stringResource(R.string.chooseFontFamily),
-            ) {
-                FontSelector(
-                    selectedFont = userPreferences?.font ?: com.jabook.app.jabook.compose.data.model.AppFont.DEFAULT,
-                    onFontSelected = { font -> viewModel.updateFont(font) },
-                )
-            }
-
-            HorizontalDivider()
-
-            // Playback Section
-            SettingsSection(
-                title = stringResource(R.string.playback),
-                contentPadding = contentPadding,
-                itemSpacing = itemSpacing,
-            )
-
-            SettingsSwitchItem(
-                title = stringResource(R.string.autoplayNextChapter),
-                subtitle = stringResource(R.string.automaticallyPlayNextChapterWhenCurrentEnds),
-                checked = userPreferences?.autoPlayNext ?: true,
-                onCheckedChange = viewModel::updateAutoPlayNext,
-                contentPadding = contentPadding,
-                itemSpacing = itemSpacing,
-                smallSpacing = smallSpacing,
-            )
-
-            // Playback Speed
-            SettingsSliderItem(
-                title = stringResource(R.string.playbackSpeed),
-                sliderValue = userPreferences?.playbackSpeed ?: 1.0f,
-                onValueChange = { viewModel.updatePlaybackSpeed(it) },
-                valueRange = PlaybackSpeedConstants.MIN_SPEED..PlaybackSpeedConstants.MAX_SPEED,
-                steps = PlaybackSpeedConstants.SLIDER_STEPS,
-                valueFormatter = { PlaybackSpeedConstants.formatSpeed(it) },
-                contentPadding = contentPadding,
-                itemSpacing = itemSpacing,
-                smallSpacing = smallSpacing,
-            )
-
-            // Seek Intervals
-            SettingsSliderItem(
-                title = stringResource(R.string.rewindDurationTitle),
-                sliderValue = protoSettings.rewindDurationSeconds.toFloat(),
-                onValueChange = { viewModel.updateAudioSettings(rewindSeconds = it.toInt()) },
-                valueRange = 5f..60f,
-                steps = 10,
-                valueFormatter = { "${it.toInt()}s" },
-                contentPadding = contentPadding,
-                itemSpacing = itemSpacing,
-                smallSpacing = smallSpacing,
-            )
-
-            SettingsSliderItem(
-                title = stringResource(R.string.forwardDurationTitle),
-                sliderValue = protoSettings.forwardDurationSeconds.toFloat(),
-                onValueChange = { viewModel.updateAudioSettings(forwardSeconds = it.toInt()) },
-                valueRange = 5f..120f,
-                steps = 22,
-                valueFormatter = { "${it.toInt()}s" },
-                contentPadding = contentPadding,
-                itemSpacing = itemSpacing,
-                smallSpacing = smallSpacing,
-            )
-
-            // Reset Global Book Settings
-            var showResetBookSettingsDialog by remember { mutableStateOf(false) }
-
-            SettingsItem(
-                title = stringResource(R.string.resetAllBookSettings),
-                subtitle =
-                    stringResource(R.string.resetAllBookSettingsConfirmation)
-                        .substringBefore(stringResource(R.string.n)), // Use first line as subtitle or full desc
-                onClick = { showResetBookSettingsDialog = true },
-            )
-
-            if (showResetBookSettingsDialog) {
-                AlertDialog(
-                    onDismissRequest = { showResetBookSettingsDialog = false },
-                    title = { Text(stringResource(R.string.resetAllBookSettings)) },
-                    text = { Text(stringResource(R.string.resetAllBookSettingsConfirmation)) },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                viewModel.resetAllBookSettings()
-                                showResetBookSettingsDialog = false
-                            },
-                        ) {
-                            Text(stringResource(R.string.resetButton))
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showResetBookSettingsDialog = false }) {
-                            Text(stringResource(R.string.cancel))
-                        }
-                    },
-                )
-            }
-
-            HorizontalDivider()
-
-            // About Section
+            // ─── 10. About ─────────────────────────────────────────────────
             SettingsSection(
                 title = stringResource(R.string.aboutTitle),
                 contentPadding = contentPadding,
@@ -1268,8 +1778,6 @@ public fun SettingsScreen(
                     context.startActivity(intent)
                 },
             )
-
-            HorizontalDivider()
 
             SettingsItem(
                 title = stringResource(R.string.openSourceLicenses),
@@ -1323,18 +1831,19 @@ public fun SettingsScreen(
                 },
             )
 
-            // Developer Tools Section
-            SettingsSection(
-                title = stringResource(R.string.developer),
-                contentPadding = contentPadding,
-                itemSpacing = itemSpacing,
-            )
+            if (BuildConfig.DEBUG || BuildConfig.FLAVOR != "prod") {
+                SettingsSection(
+                    title = stringResource(R.string.developer),
+                    contentPadding = contentPadding,
+                    itemSpacing = itemSpacing,
+                )
 
-            SettingsItem(
-                title = stringResource(R.string.debugToolsTitle),
-                subtitle = stringResource(R.string.viewLogsTestMirrorsCheckCache),
-                onClick = { safeNavigateToDebug() },
-            )
+                SettingsItem(
+                    title = stringResource(R.string.debugToolsTitle),
+                    subtitle = stringResource(R.string.viewLogsTestMirrorsCheckCache),
+                    onClick = { safeNavigateToDebug() },
+                )
+            }
 
             Spacer(modifier = Modifier.height(itemSpacing))
         }
@@ -1355,6 +1864,7 @@ internal fun SettingsSection(
         modifier =
             modifier
                 .fillMaxWidth()
+                .semantics { heading() }
                 .padding(start = 72.dp, top = itemSpacing, end = contentPadding, bottom = 4.dp),
     )
 }
@@ -1364,8 +1874,8 @@ internal fun SettingsItem(
     title: String,
     subtitle: String? = null,
     modifier: Modifier = Modifier,
+    trailingIcon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     onClick: (() -> Unit)? = null,
-    content: (@Composable () -> Unit)? = null,
 ) {
     ListItem(
         headlineContent = {
@@ -1374,30 +1884,73 @@ internal fun SettingsItem(
                 style = MaterialTheme.typography.bodyLarge,
             )
         },
-        supportingContent =
-            if (subtitle != null || content != null) {
-                {
-                    Column {
-                        subtitle?.let {
-                            Text(
-                                text = it,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
-                        content?.invoke()
-                    }
-                }
-            } else {
-                null
-            },
+        supportingContent = {
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        trailingContent = {
+            if (trailingIcon != null) {
+                Icon(
+                    imageVector = trailingIcon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
         modifier =
             modifier
                 .fillMaxWidth()
                 .then(
                     if (onClick != null) {
-                        Modifier.clickable(onClick = onClick)
+                        Modifier.clickable(onClick = onClick, role = Role.Button)
+                    } else {
+                        Modifier
+                    },
+                ),
+    )
+}
+
+@Composable
+internal fun SettingsItemWithContent(
+    title: String,
+    subtitle: String? = null,
+    subtitleModifier: Modifier = Modifier,
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    content: @Composable () -> Unit,
+) {
+    ListItem(
+        headlineContent = {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+            )
+        },
+        supportingContent = {
+            Column {
+                if (subtitle != null) {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth().then(subtitleModifier),
+                    )
+                }
+                content()
+            }
+        },
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .then(
+                    if (onClick != null) {
+                        Modifier.clickable(onClickLabel = stringResource(R.string.openSettings), onClick = onClick)
                     } else {
                         Modifier
                     },
@@ -1423,32 +1976,19 @@ internal fun SettingsSwitchItem(
                 style = MaterialTheme.typography.bodyLarge,
             )
         },
-        supportingContent =
-            subtitle?.let {
-                {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            },
+        supportingContent = {
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
         trailingContent = {
             Switch(
                 checked = checked,
                 onCheckedChange = null,
-                thumbContent =
-                    if (checked) {
-                        {
-                            Icon(
-                                imageVector = Icons.Filled.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                            )
-                        }
-                    } else {
-                        null
-                    },
             )
         },
         modifier =
@@ -1484,7 +2024,6 @@ internal fun SettingsSliderItem(
                 .fillMaxWidth()
                 .padding(horizontal = contentPadding, vertical = itemSpacing),
     ) {
-        // Title and subtitle
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1506,7 +2045,6 @@ internal fun SettingsSliderItem(
                 }
             }
 
-            // Current value display
             Text(
                 text = valueFormatter(currentValue),
                 style = MaterialTheme.typography.titleMedium,
@@ -1516,454 +2054,36 @@ internal fun SettingsSliderItem(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Slider with min/max labels
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Min label
             Text(
                 text = valueFormatter(valueRange.start),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            // Slider
             Slider(
                 value = currentValue,
                 onValueChange = { currentValue = it },
                 onValueChangeFinished = { onValueChange(currentValue) },
                 valueRange = valueRange,
                 steps = steps,
-                modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .padding(horizontal = 8.dp)
+                        .semantics {
+                            contentDescription = title
+                        },
             )
 
-            // Max label
             Text(
                 text = valueFormatter(valueRange.endInclusive),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-    }
-}
-
-@Composable
-private fun ThemeSelector(
-    selectedTheme: AppTheme,
-    onThemeSelected: (AppTheme) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(modifier = modifier) {
-        Spacer(modifier = Modifier.height(8.dp))
-        ThemeLivePreviewCard(selectedTheme = selectedTheme)
-        Spacer(modifier = Modifier.height(12.dp))
-
-        ThemeOption(
-            theme = AppTheme.LIGHT,
-            label = stringResource(R.string.light),
-            selected = selectedTheme == AppTheme.LIGHT,
-            onSelected = { onThemeSelected(AppTheme.LIGHT) },
-        )
-
-        ThemeOption(
-            theme = AppTheme.DARK,
-            label = stringResource(R.string.dark),
-            selected = selectedTheme == AppTheme.DARK,
-            onSelected = { onThemeSelected(AppTheme.DARK) },
-        )
-
-        ThemeOption(
-            theme = AppTheme.AMOLED,
-            label = stringResource(R.string.themeAmoled),
-            selected = selectedTheme == AppTheme.AMOLED,
-            onSelected = { onThemeSelected(AppTheme.AMOLED) },
-        )
-
-        ThemeOption(
-            theme = AppTheme.SYSTEM,
-            label = stringResource(R.string.systemDefault),
-            selected = selectedTheme == AppTheme.SYSTEM,
-            onSelected = { onThemeSelected(AppTheme.SYSTEM) },
-        )
-    }
-}
-
-@Composable
-private fun ThemeLivePreviewCard(
-    selectedTheme: AppTheme,
-    modifier: Modifier = Modifier,
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors =
-            CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-            ),
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = stringResource(R.string.themePreviewTitle),
-                style = MaterialTheme.typography.titleSmall,
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Card(
-                colors =
-                    CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                    ),
-            ) {
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.themePreviewBookTitle),
-                            style = MaterialTheme.typography.bodyMedium,
-                            maxLines = 1,
-                        )
-                        Text(
-                            text =
-                                when (selectedTheme) {
-                                    AppTheme.SYSTEM -> stringResource(R.string.systemDefault)
-                                    AppTheme.LIGHT -> stringResource(R.string.light)
-                                    AppTheme.DARK -> stringResource(R.string.dark)
-                                    AppTheme.AMOLED -> stringResource(R.string.themeAmoled)
-                                },
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Icon(
-                        imageVector = Icons.Filled.Check,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ThemeOption(
-    theme: AppTheme,
-    label: String,
-    selected: Boolean,
-    onSelected: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .selectable(
-                    selected = selected,
-                    onClick = onSelected,
-                    role = Role.RadioButton,
-                ).padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        RadioButton(
-            selected = selected,
-            onClick = null, // Handled by parent Row
-        )
-
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(start = 8.dp),
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun FontSelector(
-    selectedFont: com.jabook.app.jabook.compose.data.model.AppFont,
-    onFontSelected: (com.jabook.app.jabook.compose.data.model.AppFont) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val fonts = com.jabook.app.jabook.compose.data.model.AppFont.entries
-
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = !expanded },
-        modifier = modifier,
-    ) {
-        OutlinedTextField(
-            value = selectedFont.displayName,
-            onValueChange = {}, // Read-only
-            readOnly = true,
-            trailingIcon = {
-                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-            },
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .menuAnchor(
-                        type = ExposedDropdownMenuAnchorType.PrimaryNotEditable,
-                        enabled = true,
-                    ),
-        )
-
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-        ) {
-            fonts.forEach { font ->
-                DropdownMenuItem(
-                    text = { Text(font.displayName) },
-                    onClick = {
-                        onFontSelected(font)
-                        expanded = false
-                    },
-                    leadingIcon =
-                        if (selectedFont == font) {
-                            {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                )
-                            }
-                        } else {
-                            null
-                        },
-                )
-            }
-        }
-    }
-}
-
-/**
- * Get app version name from PackageManager.
- */
-private fun getVersionName(context: Context): String =
-    try {
-        val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-        packageInfo.versionName ?: context.getString(R.string.unknown)
-    } catch (e: PackageManager.NameNotFoundException) {
-        context.getString(R.string.unknown)
-    }
-
-/**
- * Mirror selection option with health check button.
- */
-@Composable
-private fun MirrorOption(
-    domain: String,
-    selected: Boolean,
-    healthStatus: Boolean?,
-    isChecking: Boolean,
-    onSelected: () -> Unit,
-    onCheckHealth: () -> Unit,
-    onRemove: (() -> Unit)? = null,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .selectable(
-                    selected = selected,
-                    onClick = onSelected,
-                    role = Role.RadioButton,
-                ).padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        RadioButton(
-            selected = selected,
-            onClick = null, // Handled by parent Row
-        )
-
-        // Health status icon
-        when {
-            isChecking -> {
-                CircularProgressIndicator(
-                    modifier =
-                        Modifier
-                            .padding(start = 8.dp)
-                            .size(16.dp),
-                    strokeWidth = 2.dp,
-                )
-            }
-            healthStatus == true -> {
-                Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = stringResource(R.string.available),
-                    tint =
-                        androidx.compose.ui.graphics
-                            .Color(0xFF4CAF50),
-                    // Green
-                    modifier =
-                        Modifier
-                            .padding(start = 8.dp)
-                            .size(16.dp),
-                )
-            }
-            healthStatus == false -> {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = stringResource(R.string.unavailable),
-                    tint =
-                        androidx.compose.ui.graphics
-                            .Color(0xFFF44336),
-                    // Red
-                    modifier =
-                        Modifier
-                            .padding(start = 8.dp)
-                            .size(16.dp),
-                )
-            }
-            else -> {
-                // Unknown status - show nothing or a subtle indicator
-                Spacer(modifier = Modifier.width(24.dp))
-            }
-        }
-
-        Text(
-            text = domain,
-            style = MaterialTheme.typography.bodyLarge,
-            modifier =
-                Modifier
-                    .padding(start = 8.dp)
-                    .weight(1f),
-        )
-
-        // Health check button
-        TextButton(
-            onClick = onCheckHealth,
-            enabled = !isChecking,
-        ) {
-            Text(stringResource(R.string.check), style = MaterialTheme.typography.bodySmall)
-        }
-
-        // Remove button for custom mirrors
-        if (onRemove != null) {
-            TextButton(onClick = onRemove) {
-                Text(stringResource(R.string.deleteAction), style = MaterialTheme.typography.bodySmall)
-            }
-        }
-    }
-}
-
-/**
- * Dialog for adding a custom mirror.
- */
-@Composable
-private fun AddMirrorDialog(
-    currentValue: String,
-    onValueChange: (String) -> Unit,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit,
-    itemSpacing: androidx.compose.ui.unit.Dp,
-    smallSpacing: androidx.compose.ui.unit.Dp,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.addMirror)) },
-        text = {
-            Column {
-                Text(
-                    stringResource(R.string.enterRutrackerMirrorDomain),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Spacer(modifier = Modifier.height(itemSpacing))
-                OutlinedTextField(
-                    value = currentValue,
-                    onValueChange = onValueChange,
-                    label = { Text(stringResource(R.string.domain)) },
-                    placeholder = { Text(stringResource(R.string.rutrackernl)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(modifier = Modifier.height(smallSpacing))
-                Text(
-                    "Примеры: rutracker.nl, rutracker.ru, rutracker.net.ru",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text(stringResource(R.string.add))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancelAction))
-            }
-        },
-    )
-}
-
-/**
- * Extract domain from URL or domain string.
- *
- * Accepts: "rutracker.nl", "https://rutracker.nl", "rutracker.nl/forum"
- * Returns: "rutracker.nl" or null if invalid
- */
-private fun extractDomain(input: String): String? {
-    val trimmed = input.trim()
-    if (trimmed.isBlank()) return null
-
-    // Remove protocol
-    val withoutProtocol = trimmed.removePrefix("https://").removePrefix("http://")
-
-    // Remove path
-    val domain = withoutProtocol.substringBefore("/")
-
-    // Basic validation: must contain at least one dot and no spaces
-    return if (domain.contains(".") && !domain.contains(" ")) {
-        domain
-    } else {
-        null
-    }
-}
-
-/**
- * Format bytes to human-readable string (B, KB, MB, GB).
- */
-private fun formatBytes(bytes: Long): String =
-    when {
-        bytes < 1024 -> "$bytes B"
-        bytes < 1024 * 1024 -> "${bytes / 1024} KB"
-        bytes < 1024 * 1024 * 1024 -> "${bytes / (1024 * 1024)} MB"
-        else -> "${bytes / (1024 * 1024 * 1024)} GB"
-    }
-
-/**
- * Format timestamp to readable date string (GOST 7.64-90 format).
- */
-private fun formatTimestamp(millis: Long): String =
-    com.jabook.app.jabook.compose.util.DateTimeFormatter
-        .formatGOST(millis)
-
-private fun openSystemLanguageSettings(context: Context) {
-    val appLanguageIntent =
-        Intent(Settings.ACTION_APP_LOCALE_SETTINGS).apply {
-            data = Uri.fromParts("package", context.packageName, null)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-
-    val fallbackIntent =
-        Intent(Settings.ACTION_LOCALE_SETTINGS).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-
-    try {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.startActivity(appLanguageIntent)
-        } else {
-            context.startActivity(fallbackIntent)
-        }
-    } catch (_: ActivityNotFoundException) {
-        context.startActivity(fallbackIntent)
     }
 }

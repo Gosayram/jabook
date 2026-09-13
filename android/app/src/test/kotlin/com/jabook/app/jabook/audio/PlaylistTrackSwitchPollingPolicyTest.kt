@@ -17,7 +17,10 @@ package com.jabook.app.jabook.audio
 import androidx.media3.common.Player
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class PlaylistTrackSwitchPollingPolicyTest {
     @Test
     fun `shouldContinuePolling respects max attempts`() {

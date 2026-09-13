@@ -14,8 +14,11 @@
 
 package com.jabook.app.jabook.audio
 
+import com.jabook.app.jabook.compose.core.util.rethrowCancellation
 import com.jabook.app.jabook.compose.data.repository.BookmarkRepository
 import com.jabook.app.jabook.util.LogUtils
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import kotlin.math.abs
 
@@ -50,7 +53,13 @@ public class AutoBookmarkTrigger
             MANUAL,
         }
 
-        private val recentBookmarks = HashMap<String, Long>()
+        // Bounded insertion-order cache: evicts the oldest entry past the cap.
+        // Guarded by a Mutex because callers arrive from different coroutine contexts.
+        private val recentBookmarksMutex = Mutex()
+        private val recentBookmarks: LinkedHashMap<String, Long> =
+            object : LinkedHashMap<String, Long>() {
+                override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Long>?): Boolean = size > MAX_RECENT_BOOKMARKS
+            }
 
         /**
          * Creates an auto-bookmark if no duplicate exists nearby.
@@ -66,28 +75,35 @@ public class AutoBookmarkTrigger
             positionMs: Long,
             chapterIndex: Int,
             reason: AutoBookmarkReason,
-        ): Boolean {
-            val key = "$bookId:$chapterIndex"
-            val lastPosition = recentBookmarks[key]
+        ): Boolean =
+            recentBookmarksMutex.withLock {
+                val key = "$bookId:$chapterIndex"
+                val lastPosition = recentBookmarks[key]
 
-            if (lastPosition != null && abs(lastPosition - positionMs) < DEDUPLICATE_WINDOW_MS) {
-                LogUtils.d(TAG, "Auto-bookmark deduplicated: book=$bookId pos=${positionMs}ms reason=$reason")
-                return false
+                if (lastPosition != null && abs(lastPosition - positionMs) < DEDUPLICATE_WINDOW_MS) {
+                    LogUtils.d(TAG, "Auto-bookmark deduplicated: book=$bookId pos=${positionMs}ms reason=$reason")
+                    return@withLock false
+                }
+
+                val label = generateAutoLabel(reason, chapterIndex)
+
+                try {
+                    bookmarkRepository.addBookmark(
+                        bookId = bookId,
+                        chapterIndex = chapterIndex,
+                        positionMs = positionMs,
+                        noteText = label,
+                    )
+                } catch (e: Exception) {
+                    e.rethrowCancellation()
+                    LogUtils.e(TAG, "Failed to create auto-bookmark: book=$bookId pos=${positionMs}ms reason=$reason", e)
+                    return@withLock false
+                }
+
+                recentBookmarks[key] = positionMs
+                LogUtils.d(TAG, "Auto-bookmark created: book=$bookId pos=${positionMs}ms reason=$reason label=$label")
+                true
             }
-
-            val label = generateAutoLabel(reason, chapterIndex)
-
-            bookmarkRepository.addBookmark(
-                bookId = bookId,
-                chapterIndex = chapterIndex,
-                positionMs = positionMs,
-                noteText = label,
-            )
-
-            recentBookmarks[key] = positionMs
-            LogUtils.d(TAG, "Auto-bookmark created: book=$bookId pos=${positionMs}ms reason=$reason label=$label")
-            return true
-        }
 
         /**
          * Checks if a reason should trigger auto-bookmarking.
@@ -117,5 +133,6 @@ public class AutoBookmarkTrigger
         public companion object {
             private const val TAG = "AutoBookmarkTrigger"
             internal const val DEDUPLICATE_WINDOW_MS = 30_000L
+            internal const val MAX_RECENT_BOOKMARKS = 256
         }
     }

@@ -15,23 +15,39 @@
 package com.jabook.app.jabook.audio.data.local.dao
 
 import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Upsert
 import com.jabook.app.jabook.audio.data.local.database.entity.ListeningDayStatEntity
 import com.jabook.app.jabook.audio.data.local.database.entity.ListeningSessionEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Dao
 public interface ListeningSessionDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     public suspend fun upsert(session: ListeningSessionEntity)
 
     @Query("SELECT * FROM listening_sessions WHERE id = :sessionId")
     public suspend fun getById(sessionId: String): ListeningSessionEntity?
 
+    /** Removes a session that never met the minimum-listen credit floor. */
+    @Query("DELETE FROM listening_sessions WHERE id = :sessionId")
+    public suspend fun discardSession(sessionId: String)
+
     @Query("SELECT * FROM listening_sessions WHERE ended_at IS NULL ORDER BY started_at DESC LIMIT 1")
     public suspend fun getLatestActiveSession(): ListeningSessionEntity?
+
+    @Query(
+        """
+        UPDATE listening_sessions
+        SET ended_at = :crashedAt,
+            position_end_ms = position_start_ms,
+            updated_at = :crashedAt,
+            is_crashed = 1
+        WHERE ended_at IS NULL
+        """,
+    )
+    public suspend fun closeOpenSessionsAsCrashed(crashedAt: Long): Int
 
     @Query(
         """
@@ -53,6 +69,9 @@ public interface ListeningSessionDao {
         updatedAt: Long,
     ): Int
 
+    @Query("SELECT MAX(ended_at) FROM listening_sessions WHERE book_id = :bookId")
+    public suspend fun getLastListeningTimestamp(bookId: String): Long?
+
     @Query(
         """
         SELECT
@@ -65,13 +84,48 @@ public interface ListeningSessionDao {
             END), 0) AS contentTimeMs,
             COUNT(*) AS sessionsCount
         FROM listening_sessions
-        WHERE started_at >= :fromEpochMs AND started_at <= :toEpochMs
+        WHERE started_at >= :fromEpochMs
+            AND started_at <= :toEpochMs
+            AND is_crashed = 0
         GROUP BY day
         ORDER BY day ASC
         """,
     )
-    public fun observeDayStats(
+    public fun observeDayStatsInternal(
         fromEpochMs: Long,
         toEpochMs: Long,
     ): Flow<List<ListeningDayStatEntity>>
+
+    public fun observeDayStats(
+        fromEpochMs: Long,
+        toEpochMs: Long,
+    ): Flow<List<ListeningDayStatEntity>> = observeDayStatsInternal(fromEpochMs, toEpochMs).distinctUntilChanged()
+
+    /**
+     * Get the distribution of listening sessions by hour of day (0-23).
+     * Used to determine the user's most productive listening period.
+     */
+    @Query(
+        """
+        SELECT
+            CAST(strftime('%H', started_at / 1000, 'unixepoch', 'localtime') AS INTEGER) AS hour,
+            COUNT(*) AS sessionCount
+        FROM listening_sessions
+        WHERE started_at >= :fromEpochMs
+            AND started_at <= :toEpochMs
+            AND is_crashed = 0
+            AND ended_at IS NOT NULL
+        GROUP BY hour
+        ORDER BY hour ASC
+        """,
+    )
+    public fun observeHourDistribution(
+        fromEpochMs: Long,
+        toEpochMs: Long,
+    ): Flow<List<HourCountEntity>>
 }
+
+public data class HourCountEntity(
+    val hour: Int,
+    val sessionCount: Int,
+)

@@ -25,12 +25,6 @@ import androidx.compose.runtime.Immutable
 @Immutable
 public sealed interface DownloadState {
     /**
-     * No active download.
-     */
-    @Immutable
-    public data object Idle : DownloadState
-
-    /**
      * Download in progress.
      *
      * @param progress Download progress (0.0 to 1.0)
@@ -54,36 +48,4 @@ public sealed interface DownloadState {
                 return String.format("%.1f MB/s", mbps)
             }
     }
-
-    /**
-     * Download completed successfully.
-     *
-     * @param localPath Path to downloaded file
-     */
-    @Immutable
-    public data class Completed(
-        val localPath: String,
-    ) : DownloadState
-
-    /**
-     * Download paused by user.
-     *
-     * @param progress Progress when paused (0.0 to 1.0)
-     */
-    @Immutable
-    public data class Paused(
-        val progress: Float,
-    ) : DownloadState
-
-    /**
-     * Download failed.
-     *
-     * @param error Error message
-     * @param isRetryable Whether download can be retried
-     */
-    @Immutable
-    public data class Failed(
-        val error: String,
-        val isRetryable: Boolean = true,
-    ) : DownloadState
 }

@@ -14,6 +14,9 @@
 
 package com.jabook.app.jabook.compose.data.network
 
+import com.jabook.app.jabook.BuildConfig
+import okhttp3.HttpUrl.Companion.toHttpUrl
+
 /**
  * Policy for validating custom mirror domains before they are persisted.
  *
@@ -46,8 +49,21 @@ public object MirrorDomainValidationPolicy {
      * Domains not matching any of these trigger a [isWarning] flag so the UI
      * can ask for explicit user confirmation.
      */
+
+    /**
+     * Keywords that make a domain "look like" a known mirror, derived at build
+     * time from the configured mirrors (.env) — no mirror names in source.
+     */
     public val KNOWN_RUTRACKER_KEYWORDS: List<String> =
-        listOf("rutracker")
+        BuildConfig.RUTRACKER_DEFAULT_MIRRORS
+            .split(',')
+            .mapNotNull { domain ->
+                domain
+                    .trim()
+                    .split('.')
+                    .firstOrNull()
+                    ?.takeIf { it.isNotBlank() }
+            }.distinct()
 
     /**
      * Validates and sanitizes a raw user-supplied mirror input.
@@ -60,7 +76,7 @@ public object MirrorDomainValidationPolicy {
      * 5. Reject domains without a TLD (no dot)
      * 6. Flag non-rutracker domains as suspicious ([isWarning])
      *
-     * @param input Raw user input (e.g., "https://rutracker.nl/forum/", "rutracker.nl")
+     * @param input Raw user input (e.g., "https://<mirror-domain>/forum/", "<mirror-domain>")
      * @return [ValidationResult] with sanitized domain or rejection reason
      */
     public fun validate(input: String): ValidationResult {
@@ -73,26 +89,16 @@ public object MirrorDomainValidationPolicy {
             )
         }
 
-        // Strip protocol
-        val withoutProtocol =
-            trimmed
-                .removePrefix("https://")
-                .removePrefix("http://")
-
-        // Strip path, query, fragment, port — keep only the host
-        val domain =
-            withoutProtocol
-                .substringBefore("/")
-                .substringBefore("?")
-                .substringBefore("#")
-                .substringBefore(":")
-                .lowercase()
-
-        if (domain.isBlank()) {
+        // Parse via OkHttp's HttpUrl to extract only the bare host — strips
+        // protocol, path, query, fragment, port, and userinfo in one step, and
+        // normalizes case. Returns null for anything that isn't a valid URL
+        // (e.g. embedded spaces).
+        val domain = parseHost(trimmed)
+        if (domain.isNullOrBlank()) {
             return ValidationResult(
                 sanitizedDomain = null,
                 isWarning = false,
-                rejectionReason = "Domain must not be empty after sanitization",
+                rejectionReason = "Domain must be a valid hostname (e.g., mirror.example)",
             )
         }
 
@@ -119,7 +125,7 @@ public object MirrorDomainValidationPolicy {
             return ValidationResult(
                 sanitizedDomain = null,
                 isWarning = false,
-                rejectionReason = "Domain must contain a valid TLD (e.g., rutracker.nl)",
+                rejectionReason = "Domain must contain a valid TLD (e.g., mirror.example)",
             )
         }
 
@@ -132,21 +138,26 @@ public object MirrorDomainValidationPolicy {
             )
         }
 
-        // Check if it looks like a known rutracker mirror
-        val looksLikeRutracker =
-            KNOWN_RUTRACKER_KEYWORDS.any { keyword -> domain.contains(keyword, ignoreCase = true) }
+        val looksLikeRutracker = KNOWN_RUTRACKER_KEYWORDS.any { keyword -> domain.contains(keyword, ignoreCase = true) }
 
         return ValidationResult(
             sanitizedDomain = domain,
             isWarning = !looksLikeRutracker,
-            rejectionReason =
-                if (!looksLikeRutracker) {
-                    "Domain does not appear to be a RuTracker mirror"
-                } else {
-                    null
-                },
+            rejectionReason = if (!looksLikeRutracker) "Domain does not appear to be a RuTracker mirror" else null,
         )
     }
+
+    /**
+     * Extracts the normalized host from a raw domain/URL string, or null if
+     * the input cannot be parsed as a URL.
+     */
+    private fun parseHost(raw: String): String? =
+        try {
+            val url = if (raw.startsWith("http://") || raw.startsWith("https://")) raw else "https://$raw"
+            url.toHttpUrl().host.lowercase()
+        } catch (_: Exception) {
+            null
+        }
 
     /**
      * Checks whether the given domain is a raw IPv4 or IPv6 address

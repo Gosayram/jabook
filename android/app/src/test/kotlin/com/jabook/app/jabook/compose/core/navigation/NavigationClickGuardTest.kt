@@ -15,8 +15,10 @@
 package com.jabook.app.jabook.compose.core.navigation
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 class NavigationClickGuardTest {
@@ -108,7 +110,7 @@ class NavigationClickGuardTest {
             }
 
         threads.forEach { it.start() }
-        latch.await()
+        assertTrue("Worker threads did not finish", latch.await(5, TimeUnit.SECONDS))
 
         // Only one invocation should succeed (all threads start nearly simultaneously)
         assertEquals(1, invocations.get())

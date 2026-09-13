@@ -22,10 +22,12 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.googlefonts.Font
 import androidx.compose.ui.text.googlefonts.GoogleFont
+import androidx.compose.ui.unit.sp
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.data.model.AppFont
 import com.jabook.app.jabook.ui.theme.InterFontFamily
+import com.jabook.app.jabook.ui.theme.brandSettings
 
 /**
  * Logger for FontUtils.
@@ -39,10 +41,6 @@ private val fontUtilsLogger by lazy { LoggerFactoryImpl().get("FontUtils") }
  * Uses Google Fonts Provider for downloading fonts on demand.
  */
 public object FontUtils {
-    /**
-     * Google Fonts Provider configuration.
-     * This is the official Google Fonts provider for Android.
-     */
     private val provider =
         androidx.compose.ui.text.googlefonts.GoogleFont.Provider(
             providerAuthority = "com.google.android.gms.fonts",
@@ -50,13 +48,36 @@ public object FontUtils {
             certificates = R.array.com_google_android_gms_fonts_certs,
         )
 
-    /**
-     * Creates FontFamily for the given AppFont.
-     *
-     * @param font The selected font
-     * @param context Android context (required for Google Fonts)
-     * @return FontFamily instance
-     */
+    // ponytail: axes mirror bundled InterVariableFontFamily (Type.kt) — wdth 100, opsz per weight;
+    // downloaded fonts without those axes ignore the settings gracefully.
+    private fun loadGoogleFontFamily(fontName: String): FontFamily =
+        FontFamily(
+            Font(
+                googleFont = GoogleFont(fontName),
+                fontProvider = provider,
+                weight = FontWeight.Normal,
+                variationSettings = brandSettings(opsz = 16.sp),
+            ),
+            Font(
+                googleFont = GoogleFont(fontName),
+                fontProvider = provider,
+                weight = FontWeight.Medium,
+                variationSettings = brandSettings(opsz = 16.sp),
+            ),
+            Font(
+                googleFont = GoogleFont(fontName),
+                fontProvider = provider,
+                weight = FontWeight.SemiBold,
+                variationSettings = brandSettings(opsz = 32.sp),
+            ),
+            Font(
+                googleFont = GoogleFont(fontName),
+                fontProvider = provider,
+                weight = FontWeight.Bold,
+                variationSettings = brandSettings(opsz = 57.sp),
+            ),
+        )
+
     @Composable
     public fun getFontFamily(font: AppFont): FontFamily {
         val context = LocalContext.current
@@ -65,34 +86,10 @@ public object FontUtils {
                 AppFont.DEFAULT -> InterFontFamily
                 AppFont.SYSTEM -> FontFamily.SansSerif
                 else -> {
-                    // Use Google Fonts for downloadable fonts
-                    // Load multiple font weights for better typography support
                     font.googleFontName?.let { fontName ->
                         try {
-                            FontFamily(
-                                Font(
-                                    googleFont = GoogleFont(fontName),
-                                    fontProvider = provider,
-                                    weight = FontWeight.Normal,
-                                ),
-                                Font(
-                                    googleFont = GoogleFont(fontName),
-                                    fontProvider = provider,
-                                    weight = FontWeight.Medium,
-                                ),
-                                Font(
-                                    googleFont = GoogleFont(fontName),
-                                    fontProvider = provider,
-                                    weight = FontWeight.SemiBold,
-                                ),
-                                Font(
-                                    googleFont = GoogleFont(fontName),
-                                    fontProvider = provider,
-                                    weight = FontWeight.Bold,
-                                ),
-                            )
+                            loadGoogleFontFamily(fontName)
                         } catch (e: Exception) {
-                            // Fallback to Inter if font loading fails
                             fontUtilsLogger.w(e) { "Failed to load font: $fontName" }
                             InterFontFamily
                         }
@@ -105,10 +102,6 @@ public object FontUtils {
     /**
      * Creates FontFamily synchronously (for non-Composable contexts).
      * Note: This may block if font needs to be downloaded.
-     *
-     * @param font The selected font
-     * @param context Android context
-     * @return FontFamily instance
      */
     public fun getFontFamilySync(
         font: AppFont,
@@ -120,28 +113,7 @@ public object FontUtils {
             else -> {
                 font.googleFontName?.let { fontName ->
                     try {
-                        FontFamily(
-                            Font(
-                                googleFont = GoogleFont(fontName),
-                                fontProvider = provider,
-                                weight = androidx.compose.ui.text.font.FontWeight.Normal,
-                            ),
-                            Font(
-                                googleFont = GoogleFont(fontName),
-                                fontProvider = provider,
-                                weight = androidx.compose.ui.text.font.FontWeight.Medium,
-                            ),
-                            Font(
-                                googleFont = GoogleFont(fontName),
-                                fontProvider = provider,
-                                weight = androidx.compose.ui.text.font.FontWeight.SemiBold,
-                            ),
-                            Font(
-                                googleFont = GoogleFont(fontName),
-                                fontProvider = provider,
-                                weight = androidx.compose.ui.text.font.FontWeight.Bold,
-                            ),
-                        )
+                        loadGoogleFontFamily(fontName)
                     } catch (e: Exception) {
                         fontUtilsLogger.w(e) { "Failed to load font: $fontName" }
                         InterFontFamily

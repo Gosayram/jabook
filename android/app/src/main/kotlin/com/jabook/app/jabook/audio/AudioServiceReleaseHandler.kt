@@ -42,7 +42,6 @@ internal class AudioServiceReleaseHandler(
         val service = getService()
         val hasExistingComponents =
             service.mediaLibrarySession != null ||
-                service.serviceMediaController != null ||
                 service.crossFadePlayer != null ||
                 service.audioVisualizerManager != null ||
                 service.visualizerBridgeJob != null
@@ -75,16 +74,14 @@ internal class AudioServiceReleaseHandler(
             service.playerServiceScope.coroutineContext.cancelChildren()
         }
 
-        service.playerNotificationManager?.setPlayer(null)
-        service.playerNotificationManager = null
-
         if (service.isAudioOutputManagerInitialized()) {
+            service.audioOutputPlayerListener?.let { listener ->
+                service.audioOutputPlayerTarget?.removeListener(listener)
+            }
+            service.audioOutputPlayerListener = null
+            service.audioOutputPlayerTarget = null
             service.audioOutputManager.stopMonitoring()
         }
-        if (service.isPlaybackEnhancerServiceInitialized()) {
-            service.playbackEnhancerService.release()
-        }
-
         service.sleepTimerManager?.release()
         service.sleepTimerManager = null
 
@@ -102,35 +99,33 @@ internal class AudioServiceReleaseHandler(
         service.audioVisualizerManager = null
         service.visualizerBridgeJob?.cancel()
         service.visualizerBridgeJob = null
+        service.sessionExtrasJob?.cancel()
+        service.sessionExtrasJob = null
         if (service.isAudioVisualizerStateBridgeInitialized()) {
             service.audioVisualizerStateBridge.reset()
         }
 
-        service.phoneCallListener?.stopListening()
+        service.phoneCallListener?.release()
         service.phoneCallListener = null
+
+        service.notificationProviderRef?.release()
+        service.notificationProviderRef = null
 
         service.headsetAutoplayHandler?.stopListening()
         service.headsetAutoplayHandler = null
-
-        // BP-13.3: Unregister audio output device monitor
-        service.audioOutputDeviceMonitor?.unregister()
-        service.audioOutputDeviceMonitor = null
-
-        service.serviceMediaController?.release()
-        service.serviceMediaController = null
 
         service.mediaSessionManager?.release()
         service.mediaSessionManager = null
 
         service.mediaLibrarySession?.release()
         service.mediaLibrarySession = null
-        service.mediaSession = null
 
         service.mediaSessionLayoutHelper.release()
 
         service.playerConfigurator?.release()
 
         service.isFullyInitializedFlag = false
+        service.resetInitializationFuture()
     }
 
     /**
@@ -147,7 +142,8 @@ internal class AudioServiceReleaseHandler(
 
         // Release MediaSession
         service.mediaSessionManager?.release()
-        service.mediaSession = null
+
+        service.stopSelf()
 
         LogUtils.d("AudioServiceReleaseHandler", "Player stopped and resources released")
     }

@@ -15,6 +15,8 @@
 package com.jabook.app.jabook.compose.data.debug
 
 import androidx.media3.exoplayer.ExoPlayer
+import com.jabook.app.jabook.audio.VolumeOwner
+import com.jabook.app.jabook.audio.VolumeWriteCoordinator
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -27,6 +29,7 @@ public class DebugAudioFocusSimulator
     @Inject
     constructor(
         private val player: ExoPlayer,
+        private val volumeWriteCoordinator: VolumeWriteCoordinator,
         loggerFactory: LoggerFactory,
     ) {
         private val logger = loggerFactory.get("DebugAudioFocusSimulator")
@@ -38,7 +41,9 @@ public class DebugAudioFocusSimulator
                 volumeBeforeDuck = current
             }
             val ducked = minOf(current, 0.2f)
+            volumeWriteCoordinator.tryAcquire(player, VolumeOwner.DEBUG_FOCUS) {}
             player.volume = ducked
+            volumeWriteCoordinator.release(player, VolumeOwner.DEBUG_FOCUS)
             logger.i { "Simulated AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK: $current -> $ducked" }
         }
 
@@ -50,7 +55,9 @@ public class DebugAudioFocusSimulator
         public fun simulateGain() {
             val restoreVolume = (volumeBeforeDuck ?: player.volume).coerceIn(0f, 1f)
             volumeBeforeDuck = null
+            volumeWriteCoordinator.tryAcquire(player, VolumeOwner.DEBUG_FOCUS) {}
             player.volume = restoreVolume
+            volumeWriteCoordinator.release(player, VolumeOwner.DEBUG_FOCUS)
             if (!player.playWhenReady) {
                 player.play()
             }

@@ -31,6 +31,7 @@ internal class WidgetActionDeduplicator(
 
     private val lastHandledAtMs = LinkedHashMap<ActionKey, Long>()
 
+    @Synchronized
     internal fun shouldHandle(
         action: String,
         widgetId: Int?,
@@ -56,6 +57,7 @@ internal class WidgetActionDeduplicator(
         return true
     }
 
+    @Synchronized
     private fun pruneIfNeeded(nowMs: Long) {
         if (lastHandledAtMs.size <= MAX_TRACKED_KEYS) {
             return

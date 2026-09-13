@@ -18,6 +18,14 @@ import android.content.Context
 import androidx.media3.common.Player
 import com.jabook.app.jabook.util.LogUtils
 import com.jabook.app.jabook.widget.PlayerWidgetProvider
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+
+/** Ticker period for the 80% time-based preload check. */
+private const val PRELOAD_TICK_MS = 5_000L
 
 /**
  * Processes consolidated ExoPlayer events from `onEvents()` callback.
@@ -31,6 +39,7 @@ import com.jabook.app.jabook.widget.PlayerWidgetProvider
  * - Is-playing changes (position saving, crossfade control)
  * - Media item transitions (preload, memory optimization)
  * - Playback parameter / repeat / shuffle changes
+ * - Time-based next-track preload at 80% of the current item ([PreloadTriggerPolicy])
  */
 internal class PlaybackEventProcessor(
     private val context: Context,
@@ -51,7 +60,14 @@ internal class PlaybackEventProcessor(
     private val getCrossfadeHandler: (() -> CrossfadeHandler?)?,
     private val playerErrorHandler: PlayerErrorHandler,
     private val bookCompletionTracker: BookCompletionTracker,
+    private val onIsPlayingChanged: ((Boolean) -> Unit)? = null,
+    /** Scope for the 5s preload ticker; null disables time-based preload. */
+    private val preloadScope: CoroutineScope? = null,
 ) {
+    // ponytail: per-item boolean flag; reset on media item transition, matches 1-preload-per-item
+    private var preloadTriggeredForCurrentItem: Boolean = false
+    private var preloadTickerJob: Job? = null
+
     /**
      * Processes all ExoPlayer events in a consolidated callback.
      * This is more efficient than handling individual callbacks separately.
@@ -72,6 +88,20 @@ internal class PlaybackEventProcessor(
 
         if (events.contains(Player.EVENT_IS_PLAYING_CHANGED)) {
             handleIsPlayingChanged(player)
+            // Media3 emits no periodic position events; tick the 80%-preload
+            // check while playing instead (spotube percentCompletedStream analog).
+            preloadTickerJob?.cancel()
+            preloadTickerJob =
+                if (player.isPlaying && preloadScope != null) {
+                    preloadScope.launch {
+                        while (isActive) {
+                            delay(PRELOAD_TICK_MS)
+                            maybeTimeBasedPreload(player)
+                        }
+                    }
+                } else {
+                    null
+                }
         }
 
         if (events.contains(Player.EVENT_MEDIA_ITEM_TRANSITION)) {
@@ -102,8 +132,8 @@ internal class PlaybackEventProcessor(
 
         PlayerWidgetProvider.requestUpdate(context)
 
-        // Reset retry and skip counts on successful playback
-        if (playbackState == Player.STATE_READY || playbackState == Player.STATE_BUFFERING) {
+        // A rebuffer is not recovery; retain the bounded retry/skip budget until playback resumes.
+        if (PlaybackErrorResetPolicy.shouldReset(playbackState)) {
             playerErrorHandler.resetCounts()
         }
 
@@ -142,8 +172,6 @@ internal class PlaybackEventProcessor(
             val error = player.playerError
             if (error != null) {
                 LogUtils.e("AudioPlayerService", "Playback error: ${error.message}", error)
-                playerErrorHandler.logErrorContext(error)
-                playerErrorHandler.handlePlayerError(error)
             }
         }
     }
@@ -181,6 +209,7 @@ internal class PlaybackEventProcessor(
 
         // Update last played timestamp when playback starts
         if (isPlaying && playbackState == Player.STATE_READY) {
+            PlayerWidgetProvider.schedulePeriodicUpdate(context)
             LogUtils.v("AudioPlayerService", "Playback started, position will be saved periodically")
             getCurrentBookId?.invoke()?.let { bookId ->
                 updateLastPlayedTimestamp?.invoke(bookId)
@@ -216,6 +245,8 @@ internal class PlaybackEventProcessor(
         } else {
             getCrossfadeHandler?.invoke()?.stopMonitoring()
         }
+
+        onIsPlayingChanged?.invoke(player.isPlaying)
     }
 
     private fun handleMediaItemTransition(player: Player) {
@@ -225,6 +256,7 @@ internal class PlaybackEventProcessor(
             "EVENT_MEDIA_ITEM_TRANSITION index=$currentIndex; sync handled by onMediaItemTransition()",
         )
 
+        preloadTriggeredForCurrentItem = false
         bookCompletionTracker.stopPositionCheck()
         val totalTracks = getActualPlaylistSize?.invoke() ?: player.mediaItemCount
 
@@ -269,6 +301,28 @@ internal class PlaybackEventProcessor(
         // Restart position check if playing
         if (player.isPlaying && !getIsBookCompleted() && player.playbackState == Player.STATE_READY) {
             bookCompletionTracker.startPositionCheck()
+        }
+    }
+
+    /**
+     * Time-based preload: fires once per item once 80% of the current item has been
+     * played, so remote/cache-backed sources are ready before the natural transition.
+     * Last-item guard: nothing to preload after the final track.
+     */
+    private fun maybeTimeBasedPreload(player: Player) {
+        val currentIndex = player.currentMediaItemIndex
+        val totalTracks = getActualPlaylistSize?.invoke() ?: player.mediaItemCount
+        if (currentIndex < 0 || currentIndex >= totalTracks - 1) return
+
+        if (PreloadTriggerPolicy.shouldPreload(
+                currentPositionMs = player.currentPosition,
+                durationMs = player.duration,
+                alreadyTriggered = preloadTriggeredForCurrentItem,
+            )
+        ) {
+            preloadTriggeredForCurrentItem = true
+            LogUtils.d("AudioPlayerService", "Preloading next track ${currentIndex + 1} at >=80% of current item")
+            preloadNextTrack?.invoke(currentIndex + 1)
         }
     }
 

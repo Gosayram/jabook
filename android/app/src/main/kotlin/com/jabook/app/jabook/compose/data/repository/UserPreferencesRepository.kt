@@ -75,12 +75,44 @@ public interface UserPreferencesRepository {
 
     /**
      * Update onboarding completion status.
+     *
+     * @return true when the value was persisted, false on storage failure.
      */
-    public suspend fun setOnboardingCompleted(completed: Boolean)
+    public suspend fun setOnboardingCompleted(completed: Boolean): Boolean
 
     /**
      * Enable or disable limited storage fallback mode.
      * When enabled, app can continue in restricted storage mode without all-files access.
      */
     public suspend fun setStorageFallbackEnabled(enabled: Boolean)
+
+    /**
+     * Mark spotlight coachmarks as completed.
+     */
+    public suspend fun setSpotlightCompleted(completed: Boolean)
+
+    /**
+     * Update language setting.
+     */
+    public suspend fun setLanguage(languageCode: String)
+
+    /**
+     * Book IDs whose remote cover lookup was already attempted.
+     */
+    public suspend fun getAttemptedCoverLookupIds(): Set<String>
+
+    /**
+     * Persist book IDs as cover-lookup-attempted so they are never retried.
+     */
+    public suspend fun markCoverLookupAttempted(ids: Collection<String>)
+
+    /**
+     * RuTracker nickname of the authenticated user (blank = unknown).
+     */
+    public suspend fun getAuthUsername(): String
+
+    /**
+     * Persist the RuTracker nickname. Blank values are ignored.
+     */
+    public suspend fun setAuthUsername(username: String)
 }

@@ -29,22 +29,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 public val MIGRATION_18_19: Migration =
     object : Migration(18, 19) {
         override fun migrate(db: SupportSQLiteDatabase) {
-            // Idempotent: only add columns if they don't already exist.
-            // This guards against edge cases where the schema already contains
-            // these columns (e.g., during testing with version downgrades).
-            val existing =
-                db.query("PRAGMA table_info(books)").use { cursor ->
-                    buildSet {
-                        while (cursor.moveToNext()) {
-                            add(cursor.getString(cursor.getColumnIndexOrThrow("name")))
-                        }
-                    }
-                }
-            if ("lufs_value" !in existing) {
-                db.execSQL("ALTER TABLE books ADD COLUMN lufs_value REAL DEFAULT NULL")
+            if (!db.hasColumn("books", "lufs_value")) {
+                db.addColumn("books", "lufs_value", "REAL")
             }
-            if ("preferred_speed" !in existing) {
-                db.execSQL("ALTER TABLE books ADD COLUMN preferred_speed REAL DEFAULT NULL")
+            if (!db.hasColumn("books", "preferred_speed")) {
+                db.addColumn("books", "preferred_speed", "REAL")
             }
         }
     }

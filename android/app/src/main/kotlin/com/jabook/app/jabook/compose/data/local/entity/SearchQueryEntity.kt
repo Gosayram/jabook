@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.local.entity
 
+import androidx.annotation.Keep
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
@@ -23,6 +24,7 @@ import androidx.room.Index
  * Entity mapping a search query to a specific topic.
  * Allows multiple queries to point to the same topic without data duplication.
  */
+@Keep
 @Entity(
     tableName = "search_query_map",
     primaryKeys = ["query", "topic_id"],

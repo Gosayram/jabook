@@ -25,6 +25,7 @@ import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class TorrentDownloadItemFormattingTest {
     private val resources = ApplicationProvider.getApplicationContext<Context>().resources
 

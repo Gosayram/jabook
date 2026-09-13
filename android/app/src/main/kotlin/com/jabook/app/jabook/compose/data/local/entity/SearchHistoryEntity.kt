@@ -14,8 +14,10 @@
 
 package com.jabook.app.jabook.compose.data.local.entity
 
+import androidx.annotation.Keep
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.jabook.app.jabook.compose.domain.model.SearchHistoryItem
 
@@ -24,12 +26,18 @@ import com.jabook.app.jabook.compose.domain.model.SearchHistoryItem
  *
  * Stores recent search queries for quick access and autocomplete.
  */
-@Entity(tableName = "search_history")
+@Keep
+@Entity(
+    tableName = "search_history",
+    indices = [Index(value = ["normalized_query"], unique = true)],
+)
 public data class SearchHistoryEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
     @ColumnInfo(name = "query")
     val query: String,
+    @ColumnInfo(name = "normalized_query")
+    val normalizedQuery: String,
     @ColumnInfo(name = "timestamp")
     val timestamp: Long = System.currentTimeMillis(),
     @ColumnInfo(name = "result_count")
@@ -44,10 +52,13 @@ public fun SearchHistoryEntity.toSearchHistoryItem(): SearchHistoryItem =
         resultCount = resultCount,
     )
 
-public fun SearchHistoryItem.toSearchHistoryEntity(): SearchHistoryEntity =
-    SearchHistoryEntity(
+public fun SearchHistoryItem.toSearchHistoryEntity(): SearchHistoryEntity {
+    val normalized = query.trim().replace(Regex("\\s+"), " ")
+    return SearchHistoryEntity(
         id = id,
         query = query,
+        normalizedQuery = normalized.lowercase(),
         timestamp = timestamp,
         resultCount = resultCount,
     )
+}

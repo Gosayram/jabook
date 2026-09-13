@@ -21,6 +21,8 @@ import com.jabook.app.jabook.util.LogUtils
 /**
  * Factory for creating chains of AudioProcessors based on audio settings.
  *
+ * ponytail: hot-swap via ProxyAudioProcessor was removed; recreate-on-settings-change is the accepted path
+ *
  * This factory manages the order and configuration of audio processors
  * for ExoPlayer. Processors are applied in a specific order to ensure
  * optimal audio quality.
@@ -41,15 +43,22 @@ public object AudioProcessorFactory {
      *
      * Processor order (important for quality):
      * 1. LoudnessNormalizer (if enabled) - normalizes volume first
-     * 2. VolumeBoostProcessor (if enabled) - applies gain boost
-     * 3. DynamicRangeCompressor (if enabled) - compresses dynamic range
-     * 4. SpeechEnhancer (if enabled) - enhances speech clarity
-     * 5. AutoVolumeLeveler (if enabled) - maintains consistent volume
+     * 2. SpeechCompressorAudioProcessor (if enabled) - 3-band speech compression
+     * 3. VolumeBoostProcessor (if enabled) - applies gain boost
+     * 4. DynamicRangeCompressor (if enabled) - compresses dynamic range
+     * 5. SpeechEnhancer (if enabled) - enhances speech clarity
+     * 6. AutoVolumeLeveler (if enabled) - maintains consistent volume
+     * 7. SkipSilenceAudioProcessor (if enabled) - removes silent parts
+     * 8. NoiseGateAudioProcessor (if enabled) - reduces noise floor
      *
      * @param settings Audio processing settings
+     * @param outputFramesPerBuffer Device output buffer size, resolved outside the audio hot path.
      * @return Result containing list of AudioProcessors and optional LoudnessNormalizer
      */
-    public fun createProcessorChain(settings: AudioProcessingSettings): ProcessorChainResult {
+    public fun createProcessorChain(
+        settings: AudioProcessingSettings,
+        outputFramesPerBuffer: Int? = null,
+    ): ProcessorChainResult {
         val processors = mutableListOf<AudioProcessor>()
         var loudnessNormalizer: LoudnessNormalizer? = null
 
@@ -66,7 +75,21 @@ public object AudioProcessorFactory {
                 }
             }
 
-            // 2. Volume Boost (applied after normalization)
+            // 2. Speech Compressor (applied after normalization, before boost)
+            if (settings.speechCompressorLevel != SpeechCompressorLevel.Off) {
+                try {
+                    val compressor = SpeechCompressorAudioProcessor(settings.speechCompressorLevel)
+                    processors.add(compressor)
+                    LogUtils.d(
+                        "AudioProcessorFactory",
+                        "Added SpeechCompressorAudioProcessor (${settings.speechCompressorLevel}) to chain",
+                    )
+                } catch (e: Exception) {
+                    LogUtils.e("AudioProcessorFactory", "Failed to create SpeechCompressorAudioProcessor", e)
+                }
+            }
+
+            // 3. Volume Boost (applied after normalization and speech compression)
             if (settings.volumeBoostLevel != VolumeBoostLevel.Off) {
                 try {
                     val boostProcessor = VolumeBoostProcessor(settings.volumeBoostLevel)
@@ -80,7 +103,7 @@ public object AudioProcessorFactory {
                 }
             }
 
-            // 3. Dynamic Range Compression (applied after boost)
+            // 4. Dynamic Range Compression (applied after boost)
             if (settings.drcLevel != DRCLevel.Off) {
                 try {
                     val compressor = DynamicRangeCompressor(settings.drcLevel)
@@ -94,7 +117,7 @@ public object AudioProcessorFactory {
                 }
             }
 
-            // 4. Speech Enhancer (applied after compression)
+            // 5. Speech Enhancer (applied after compression)
             if (settings.speechEnhancer) {
                 try {
                     val enhancer = SpeechEnhancer()
@@ -105,7 +128,7 @@ public object AudioProcessorFactory {
                 }
             }
 
-            // 5. Auto Volume Leveling (applied last for final volume control)
+            // 6. Auto Volume Leveling (applied last for final volume control)
             if (settings.autoVolumeLeveling) {
                 try {
                     val leveler = AutoVolumeLeveler()
@@ -116,7 +139,7 @@ public object AudioProcessorFactory {
                 }
             }
 
-            // 6. Skip Silence (applied at the very end to remove silent parts)
+            // 7. Skip Silence (applied at the very end to remove silent parts)
             if (settings.skipSilence) {
                 try {
                     val silenceSkippingProcessor =
@@ -126,6 +149,7 @@ public object AudioProcessorFactory {
                             minSilenceDurationMs = settings.skipSilenceMinDurationMs,
                             mode = settings.skipSilenceMode,
                             retainWindowMs = settings.retainWindowMs,
+                            outputFramesPerBuffer = outputFramesPerBuffer,
                         )
                     processors.add(silenceSkippingProcessor)
 
@@ -135,6 +159,20 @@ public object AudioProcessorFactory {
                     )
                 } catch (e: Exception) {
                     LogUtils.e("AudioProcessorFactory", "Failed to create SkipSilenceAudioProcessor", e)
+                }
+            }
+
+            // 8. Noise Gate (applied after skip silence, reduces noise floor between speech)
+            if (settings.noiseGateLevel != NoiseGateLevel.Off) {
+                try {
+                    val noiseGate = NoiseGateAudioProcessor(settings.noiseGateLevel)
+                    processors.add(noiseGate)
+                    LogUtils.d(
+                        "AudioProcessorFactory",
+                        "Added NoiseGateAudioProcessor (${settings.noiseGateLevel}) to chain",
+                    )
+                } catch (e: Exception) {
+                    LogUtils.e("AudioProcessorFactory", "Failed to create NoiseGateAudioProcessor", e)
                 }
             }
 
@@ -159,6 +197,7 @@ public object AudioProcessorFactory {
  */
 public data class AudioProcessingSettings(
     val normalizeVolume: Boolean = true,
+    val speechCompressorLevel: SpeechCompressorLevel = SpeechCompressorLevel.Off,
     val volumeBoostLevel: VolumeBoostLevel = VolumeBoostLevel.Off,
     val drcLevel: DRCLevel = DRCLevel.Off,
     val speechEnhancer: Boolean = false,
@@ -177,20 +216,11 @@ public data class AudioProcessingSettings(
     val retainWindowMs: Int = DEFAULT_RETAIN_WINDOW_MS,
     val isCrossfadeEnabled: Boolean = false,
     val crossfadeDurationMs: Long = 0L,
-    val equalizerEnabled: Boolean = false,
-    val noiseSuppressionEnabled: Boolean = false,
-    val reverbEnabled: Boolean = false,
-    val echoEnabled: Boolean = false,
-    val echoStrength: Float = 0.5f,
-    val echoDelayMs: Int = 500,
-    val echoDecay: Float = 0.5f,
+    /** Crossfade duration between different books (0 = instant). */
+    val crossfadeBetweenBooksMs: Long = 0L,
+    val noiseGateLevel: NoiseGateLevel = NoiseGateLevel.Off,
+    val preferredLanguageCode: String = "ru",
 ) {
-    init {
-        require(echoStrength in 0f..1f) { "echoStrength must be in [0, 1]" }
-        require(echoDelayMs > 0) { "echoDelayMs must be positive" }
-        require(echoDecay in 0f..1f) { "echoDecay must be in [0, 1]" }
-    }
-
     public companion object {
         /** Default retain window (65 ms) — balance between smoothness and skip efficiency. */
         public const val DEFAULT_RETAIN_WINDOW_MS: Int = 65
@@ -201,6 +231,7 @@ public data class AudioProcessingSettings(
         public fun defaults(): AudioProcessingSettings =
             AudioProcessingSettings(
                 normalizeVolume = true, // Enabled by default for consistent volume
+                speechCompressorLevel = SpeechCompressorLevel.Off,
                 volumeBoostLevel = VolumeBoostLevel.Off,
                 drcLevel = DRCLevel.Off,
                 speechEnhancer = false,
@@ -212,7 +243,24 @@ public data class AudioProcessingSettings(
                 retainWindowMs = DEFAULT_RETAIN_WINDOW_MS,
                 isCrossfadeEnabled = false,
                 crossfadeDurationMs = 2000L,
+                crossfadeBetweenBooksMs = 500L,
             )
+
+        /**
+         * Lightweight check: does [settings] enable any audio processor?
+         *
+         * Mirrors the conditions in [AudioProcessorFactory.createProcessorChain] without
+         * allocating the processor objects. Used as a default for [MediaModule.hasProcessors].
+         */
+        public fun hasAnyProcessorEnabled(settings: AudioProcessingSettings): Boolean =
+            settings.normalizeVolume ||
+                settings.speechCompressorLevel != SpeechCompressorLevel.Off ||
+                settings.volumeBoostLevel != VolumeBoostLevel.Off ||
+                settings.drcLevel != DRCLevel.Off ||
+                settings.speechEnhancer ||
+                settings.autoVolumeLeveling ||
+                settings.skipSilence ||
+                settings.noiseGateLevel != NoiseGateLevel.Off
     }
 }
 
@@ -240,4 +288,24 @@ public enum class DRCLevel {
     Gentle, // Gentle compression for subtle effect
     Medium, // Medium compression for balanced effect
     Strong, // Strong compression for maximum effect
+}
+
+/**
+ * Speech Compressor intensity level enum.
+ */
+public enum class SpeechCompressorLevel {
+    Off,
+    Gentle, // Threshold -15 dB, gentle compression
+    Moderate, // Threshold -20 dB, moderate compression
+    Aggressive, // Threshold -25 dB, aggressive compression
+}
+
+/**
+ * Noise gate intensity level enum.
+ */
+public enum class NoiseGateLevel {
+    Off,
+    Light, // Subtle noise floor reduction
+    Medium, // Balanced noise reduction
+    Strong, // Aggressive noise reduction
 }

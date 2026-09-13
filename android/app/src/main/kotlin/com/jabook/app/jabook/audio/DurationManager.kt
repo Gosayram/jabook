@@ -19,24 +19,22 @@ package com.jabook.app.jabook.audio
  *
  * According to best practices: cache duration after getting it from player (primary source)
  * or MediaMetadataRetriever (fallback). This avoids repeated calls and improves performance.
- * This cache is synchronized with database via MethodChannel (Flutter side).
  */
 public class DurationManager {
     // Cache for file durations (filePath -> duration in ms)
-    private val durationCache = mutableMapOf<String, Long>()
+    // ConcurrentHashMap: getDurationForFile() / saveDurationToCache() are called
+    // from player callbacks, IO dispatchers, and service lifecycle threads.
+    private val durationCache = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
     /**
      * returns a read-only view of the duration cache.
      */
-    public fun getDurationCacheMap(): Map<String, Long> = durationCache
+    public fun getDurationCacheMap(): Map<String, Long> = durationCache.toMap()
 
-    // Callback for getting duration from database (set from Flutter via MethodChannel)
-    // This allows PlayerStateHelper to request durations from database when cache miss
     private var getDurationFromDbCallback: ((String) -> Long?)? = null
 
     /**
      * Sets callback for getting duration from database.
-     * This is called from Flutter via MethodChannel to enable database lookup.
      *
      * @param callback Callback that takes file path and returns duration in ms, or null
      */

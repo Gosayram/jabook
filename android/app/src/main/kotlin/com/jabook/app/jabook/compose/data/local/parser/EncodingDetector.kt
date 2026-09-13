@@ -182,20 +182,6 @@ public class EncodingDetector
         }
 
         /**
-         * Detects garbled patterns that indicate failed conversion.
-         * Mixed scripts (Cyrillic + CJK/Greek) indicate corruption.
-         */
-        private fun containsGarbledPatterns(text: String): Boolean {
-            val hasCyrillic = text.any { it in '\u0400'..'\u04FF' }
-            val hasCJK = text.any { it in '\u4E00'..'\u9FFF' }
-            val hasGreek = text.any { it in '\u0370'..'\u03FF' }
-            val hasArabic = text.any { it in '\u0600'..'\u06FF' }
-
-            // Cyrillic + (CJK or Greek or Arabic) = garbled
-            return hasCyrillic && (hasCJK || hasGreek || hasArabic)
-        }
-
-        /**
          * Checks if text contains Cyrillic characters.
          */
         private fun containsCyrillic(text: String): Boolean = text.any { it in '\u0400'..'\u04FF' }

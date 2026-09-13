@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.audio.data.repository
 
+import com.jabook.app.jabook.audio.data.local.dao.HourCountEntity
 import com.jabook.app.jabook.audio.data.local.dao.ListeningSessionDao
 import com.jabook.app.jabook.audio.data.local.database.entity.ListeningDayStatEntity
 import com.jabook.app.jabook.audio.data.local.database.entity.ListeningSessionEntity
@@ -67,10 +68,26 @@ public class ListeningSessionRepository
             )
         }
 
+        public suspend fun getLastListeningTimestamp(bookId: String): Long? = listeningSessionDao.getLastListeningTimestamp(bookId)
+
+        /** Removes a session that never met the minimum-listen credit floor. */
+        public suspend fun discardSession(sessionId: String) {
+            listeningSessionDao.discardSession(sessionId)
+        }
+
         public suspend fun getLatestActiveSession(): ListeningSessionEntity? = listeningSessionDao.getLatestActiveSession()
+
+        /** Closes sessions left open by an unclean process termination. */
+        public suspend fun recoverOpenSessions(crashedAt: Long = System.currentTimeMillis()): Int =
+            listeningSessionDao.closeOpenSessionsAsCrashed(crashedAt)
 
         public fun observeDayStats(
             fromEpochMs: Long,
             toEpochMs: Long,
         ): Flow<List<ListeningDayStatEntity>> = listeningSessionDao.observeDayStats(fromEpochMs, toEpochMs)
+
+        public fun observeHourDistribution(
+            fromEpochMs: Long,
+            toEpochMs: Long,
+        ): Flow<List<HourCountEntity>> = listeningSessionDao.observeHourDistribution(fromEpochMs, toEpochMs)
     }

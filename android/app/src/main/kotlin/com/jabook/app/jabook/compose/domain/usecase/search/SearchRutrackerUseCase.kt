@@ -41,7 +41,7 @@ public class SearchRutrackerUseCase
          * @param query Search query
          * @return Result with list of search results
          */
-        public suspend operator fun invoke(
+        public operator fun invoke(
             query: String,
         ): Flow<Result<List<RutrackerSearchResult>, com.jabook.app.jabook.compose.domain.model.AppError>> {
             if (query.isBlank()) {
@@ -49,7 +49,7 @@ public class SearchRutrackerUseCase
                 return kotlinx.coroutines.flow.flowOf(Result.Success(emptyList()))
             }
 
-            logger.d { "🔍 Invoking search for query: '$query'" }
+            logger.d { "Invoking search for query: '$query'" }
             // Direct call to repository search (returns compatible type Result<List<RutrackerSearchResult>, AppError>)
             return rutrackerRepository
                 .search(query)
@@ -57,17 +57,17 @@ public class SearchRutrackerUseCase
                     when (result) {
                         is Result.Success -> {
                             logger.d {
-                                "✅ Search completed: ${result.data.size} results for query '$query'"
+                                "Search completed: ${result.data.size} results for query '$query'"
                             }
                         }
                         is Result.Error -> {
                             logger.e(
-                                { "❌ Search failed for query '$query': ${result.error.message}" },
+                                { "Search failed for query '$query': ${result.error.message}" },
                                 result.error.cause,
                             )
                         }
                         is Result.Loading -> {
-                            logger.d { "⏳ Search in progress for query '$query'" }
+                            logger.d { "Search in progress for query '$query'" }
                         }
                     }
                 }

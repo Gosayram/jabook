@@ -1,13 +1,13 @@
 // Copyright 2026 Jabook Contributors
 //
-// Licensed under the Apache License, Version 2.0 (the \"License\");
+// Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an \"AS IS\" BASIS,
+// distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
@@ -15,133 +15,86 @@
 package com.jabook.app.jabook.compose.data.cache
 
 import com.jabook.app.jabook.compose.data.remote.model.SearchResult
-import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
  * In-memory LRU cache for RuTracker search results.
  *
- * Features:
- * - TTL (Time To Live) expiration
- * - LRU eviction when size limit reached
- * - Thread-safe operations
- * - Memory-efficient cache key generation
+ * Uses [LinkedHashMap] with access-order for O(1) LRU eviction.
+ * Thread-safe: all public methods are [synchronized].
  */
 @Singleton
 public class RutrackerSearchCache
     @Inject
     constructor() {
-        // Cache storage: key -> CacheEntry
-        private val cache = ConcurrentHashMap<String, CacheEntry>()
-
-        // Access order tracking for LRU
-        private val accessOrder = mutableListOf<String>()
+        // androidx.collection.LruCache: internally synchronized AND JVM-testable
+        // (android.util.LruCache throws "Stub!" in plain unit tests).
+        private val cache =
+            object : androidx.collection.LruCache<String, CacheEntry>(MAX_CACHE_SIZE) {
+                override fun sizeOf(
+                    key: String,
+                    value: CacheEntry,
+                ): Int = 1
+            }
 
         /**
          * Get cached search results if still valid.
-         *
-         * @param query Search query
-         * @param forumIds Optional forum filter
-         * @return Cached results or null if not found/expired
          */
         public fun get(
             query: String,
             forumIds: String? = null,
         ): List<SearchResult>? {
             val key = generateKey(query, forumIds)
-            val entry = cache[key] ?: return null
-
-            // Check expiration
+            val entry = cache.get(key) ?: return null
             if (entry.isExpired()) {
                 cache.remove(key)
-                synchronized(accessOrder) {
-                    accessOrder.remove(key)
-                }
                 return null
             }
-
-            // Update access order
-            synchronized(accessOrder) {
-                accessOrder.remove(key)
-                accessOrder.add(key)
-            }
-
-            return entry.results
+            return entry.results.toList()
         }
 
         /**
          * Store search results in cache.
-         *
-         * @param query Search query
-         * @param forumIds Optional forum filter
-         * @param results Search results to cache
          */
         public fun put(
             query: String,
             forumIds: String?,
             results: List<SearchResult>,
         ) {
-            // Don't cache empty results
             if (results.isEmpty()) return
-
-            val key = generateKey(query, forumIds)
-            val entry =
+            cache.put(
+                generateKey(query, forumIds),
                 CacheEntry(
-                    results = results,
+                    results = results.toList(),
                     timestamp = System.currentTimeMillis(),
-                )
-
-            cache[key] = entry
-
-            // Update access order and evict if needed
-            synchronized(accessOrder) {
-                accessOrder.remove(key)
-                accessOrder.add(key)
-
-                // LRU eviction if over limit
-                while (accessOrder.size > MAX_CACHE_SIZE) {
-                    val oldestKey = accessOrder.removeAt(0)
-                    cache.remove(oldestKey)
-                }
-            }
+                ),
+            )
         }
 
         /**
          * Clear all cached search results.
          */
         public fun clear() {
-            cache.clear()
-            synchronized(accessOrder) {
-                accessOrder.clear()
-            }
+            cache.evictAll()
         }
 
         /**
          * Get approximate cache size in bytes.
          */
         public fun getCacheSize(): Long {
-            // Rough estimation: each SearchResult ~500 bytes
-            // Synchronize access to cache to prevent concurrent modification
-            val resultsCount =
-                synchronized(cache) {
-                    cache.values.sumOf { it.results.size }
-                }
-            return resultsCount * AVERAGE_RESULT_SIZE_BYTES
+            val snapshot = cache.snapshot()
+            return snapshot.values.sumOf { it.results.size } * AVERAGE_RESULT_SIZE_BYTES
         }
 
         /**
          * Get cache statistics.
          */
         public fun getStatistics(): CacheStatistics {
-            // Synchronize access to cache to prevent concurrent modification
-            val entries =
-                synchronized(cache) {
-                    cache.values.toList()
-                }
-
+            val snapshot = cache.snapshot()
+            val entries = snapshot.values.toList()
             return CacheStatistics(
-                entriesCount = cache.size,
+                entriesCount = snapshot.size,
                 totalResults = entries.sumOf { it.results.size },
                 estimatedSize = getCacheSize(),
                 oldestEntry = entries.minOfOrNull { it.timestamp } ?: 0L,
@@ -149,9 +102,6 @@ public class RutrackerSearchCache
             )
         }
 
-        /**
-         * Generate cache key from query and filters.
-         */
         private fun generateKey(
             query: String,
             forumIds: String?,
@@ -161,9 +111,6 @@ public class RutrackerSearchCache
             return "$normalizedQuery|$normalizedForums"
         }
 
-        /**
-         * Cache entry with TTL.
-         */
         private data class CacheEntry(
             val results: List<SearchResult>,
             val timestamp: Long,
@@ -171,9 +118,6 @@ public class RutrackerSearchCache
             public fun isExpired(): Boolean = (System.currentTimeMillis() - timestamp) > CACHE_TTL_MS
         }
 
-        /**
-         * Cache statistics.
-         */
         public data class CacheStatistics(
             val entriesCount: Int,
             val totalResults: Int,
@@ -183,13 +127,8 @@ public class RutrackerSearchCache
         )
 
         public companion object {
-            // Cache TTL: 30 minutes
             private const val CACHE_TTL_MS = 30 * 60 * 1000L
-
-            // Max cache entries (LRU eviction)
             private const val MAX_CACHE_SIZE = 50
-
-            // Average size per SearchResult (bytes)
             private const val AVERAGE_RESULT_SIZE_BYTES = 500L
         }
     }

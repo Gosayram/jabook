@@ -46,9 +46,11 @@ public fun VinylCover(
     imageRequest: ImageRequest,
     isPlaying: Boolean,
     modifier: Modifier = Modifier,
-    rotationSpeedMs: Int = 10000, // 10 seconds for full rotation
+    rotationSpeedMs: Int = 10000,
 ) {
-    // Advanced rotation logic to pause at current angle
+    val reduceMotion =
+        com.jabook.app.jabook.compose.core.util
+            .rememberReduceMotion()
     val currentRotation =
         androidx.compose.runtime.remember {
             androidx.compose.animation.core
@@ -56,11 +58,8 @@ public fun VinylCover(
         }
 
     androidx.compose.runtime.LaunchedEffect(isPlaying) {
+        if (reduceMotion) return@LaunchedEffect
         if (isPlaying) {
-            // Infinite rotation
-            // We use targetValue = currentRotation.value + 360f to continue from where we are
-            // But Animatable.animateTo isn't infinite.
-            // We need a loop.
             while (isActive) {
                 currentRotation.animateTo(
                     targetValue = currentRotation.value + 360f,
@@ -68,7 +67,6 @@ public fun VinylCover(
                 )
             }
         } else {
-            // Just stop updating (the value remains at current point)
             currentRotation.stop()
         }
     }

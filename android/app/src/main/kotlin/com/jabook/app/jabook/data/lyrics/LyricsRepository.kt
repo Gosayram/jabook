@@ -14,8 +14,10 @@
 
 package com.jabook.app.jabook.data.lyrics
 
+import com.jabook.app.jabook.compose.core.util.rethrowCancellation
 import com.jabook.app.jabook.compose.feature.player.lyrics.LrcParser
 import com.jabook.app.jabook.compose.feature.player.lyrics.LyricLine
+import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -29,8 +31,7 @@ public class LyricsRepository
         /**
          * Tries to find lyrics for the given media file path.
          * 1. Checks for a .lrc file with the same name in the same directory.
-         * 2. (Optional) Could check embedded tags (not implemented yet).
-         * 3. Returns a sample LRC for demo purposes if nothing found.
+         * 2. Returns no lyrics when no sidecar file exists.
          */
         public suspend fun getLyrics(mediaPath: String?): List<LyricLine> =
             withContext(Dispatchers.IO) {
@@ -44,28 +45,11 @@ public class LyricsRepository
                     try {
                         return@withContext LrcParser.parse(lrcFile.readText())
                     } catch (e: Exception) {
-                        e.printStackTrace()
+                        e.rethrowCancellation()
+                        LogUtils.e("LyricsRepository", "Failed to parse lyrics file: ${lrcFile.name}", e)
                     }
                 }
 
-                // 2. Return Demo Lyrics if it matches our demo book (or just always for now to show off UI)
-                return@withContext getDemoLyrics()
+                emptyList()
             }
-
-        private fun getDemoLyrics(): List<LyricLine> {
-            val demoLrc =
-                """
-                [00:00.00]Welcome to Jabook Audio
-                [00:04.00]This is a demonstration of synchronized lyrics.
-                [00:08.00]Imagine this is an audiobook chapter...
-                [00:12.00]...or a song you love.
-                [00:16.00]The text scrolls automatically.
-                [00:20.00]You can tap any line to seek.
-                [00:24.00]Designed with Jetpack Compose.
-                [00:28.00]Inspired by OuterTune and Apple Music.
-                [00:32.00]Enjoy your listening experience!
-                [00:36.00](Music fades out)
-                """.trimIndent()
-            return LrcParser.parse(demoLrc)
-        }
     }

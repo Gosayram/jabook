@@ -159,7 +159,6 @@ public class AttentionModeDetector
         }
 
         public companion object {
-            private const val TAG = "AttentionModeDetector"
             internal const val DEFAULT_INACTIVITY_THRESHOLD_MS = 5 * 60 * 1000L
             internal const val DEFAULT_SKIP_THRESHOLD = 5
             internal const val SKIP_WINDOW_MS = 60 * 1000L

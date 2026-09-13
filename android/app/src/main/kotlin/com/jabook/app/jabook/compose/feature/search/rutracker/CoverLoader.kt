@@ -15,7 +15,9 @@
 package com.jabook.app.jabook.compose.feature.search.rutracker
 
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
-import com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository
+import com.jabook.app.jabook.compose.data.repository.RutrackerRepository
+import com.jabook.app.jabook.compose.domain.model.AppError
+import com.jabook.app.jabook.compose.domain.model.Result
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -48,7 +50,7 @@ public class CoverLoader
         private val repository: RutrackerRepository,
         private val loggerFactory: LoggerFactory,
         private val ioDispatcher: CoroutineDispatcher,
-        private val fetchCover: suspend (String) -> Result<String?> = { topicId ->
+        private val fetchCover: suspend (String) -> Result<String?, AppError> = { topicId ->
             repository.fetchAndSaveCover(topicId)
         },
     ) {
@@ -72,10 +74,16 @@ public class CoverLoader
             CoroutineScope(
                 SupervisorJob() + ioDispatcher + loggingCoroutineExceptionHandler("CoverLoader"),
             )
-        private val primaryQueue = Channel<String>(Channel.UNLIMITED)
-        private val retryQueue = Channel<String>(Channel.UNLIMITED)
+
+        // Bounded queues: covers are best-effort. If a queue is momentarily full the
+        // request is dropped and can be re-requested by the UI (never blocks, never grows).
+        private val primaryQueue = Channel<String>(MAX_QUEUE_CAPACITY)
+        private val retryQueue = Channel<String>(MAX_QUEUE_CAPACITY)
         private val activeLoads = ConcurrentHashMap.newKeySet<String>()
-        private val loadedCache = ConcurrentHashMap.newKeySet<String>() // Simple memory cache for session
+
+        // Simple memory cache for the session — bounded; when full the whole set is reset
+        // (covers are cheap to reload, dedup is a nicety, not a guarantee).
+        private val loadedCache = ConcurrentHashMap.newKeySet<String>()
         private val retryAttempts = ConcurrentHashMap<String, Int>()
         private val maxRetryAttempts = 3
         private val retryDelayMs = 1200L
@@ -84,6 +92,12 @@ public class CoverLoader
 
         // Concurrency control: allow only N simultaneous loads
         private val maxConcurrentLoads = 3
+
+        public companion object {
+            private const val MAX_QUEUE_CAPACITY = 256
+            private const val MAX_LOADED_CACHE_ENTRIES = 2_000
+            private const val MAX_RETRY_TRACKED = 1_000
+        }
 
         init {
             startProcessor()
@@ -100,7 +114,10 @@ public class CoverLoader
 
             // Mark as active immediately to prevent duplicates in queue
             if (activeLoads.add(topicId)) {
-                primaryQueue.trySend(topicId)
+                // If the bounded queue is full, drop and unmark so the UI can re-request later.
+                if (!primaryQueue.trySend(topicId).isSuccess) {
+                    activeLoads.remove(topicId)
+                }
             }
         }
 
@@ -124,30 +141,31 @@ public class CoverLoader
             try {
                 val result = fetchCover(topicId)
 
-                if (result.isSuccess) {
-                    val resolvedCoverUrl = result.getOrNull()?.takeIf { it.isNotBlank() }
-                    if (resolvedCoverUrl != null) {
-                        _coverLoadedEvents.tryEmit(
-                            CoverLoadedEvent(
-                                topicId = topicId,
-                                coverUrl = resolvedCoverUrl,
-                            ),
-                        )
-                        loadedCache.add(topicId)
-                        retryAttempts.remove(topicId)
-                    } else {
-                        // Treat empty successful response as transient miss; retry a few times.
-                        scheduleRetry(topicId)
+                when (result) {
+                    is Result.Success -> {
+                        val resolvedCoverUrl = result.data?.takeIf { it.isNotBlank() }
+                        if (resolvedCoverUrl != null) {
+                            _coverLoadedEvents.tryEmit(
+                                CoverLoadedEvent(
+                                    topicId = topicId,
+                                    coverUrl = resolvedCoverUrl,
+                                ),
+                            )
+                            loadedCache.add(topicId)
+                            retryAttempts.remove(topicId)
+                            if (loadedCache.size > MAX_LOADED_CACHE_ENTRIES) {
+                                loadedCache.clear()
+                            }
+                        } else {
+                            scheduleRetry(topicId)
+                        }
                     }
-                } else {
-                    // If Rutracker failed (e.g. no cover), check Flibusta (To Be Implemented)
-                    checkFlibusta(topicId)
-                    scheduleRetry(topicId)
+                    is Result.Error -> scheduleRetry(topicId)
+                    is Result.Loading -> {}
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                // Log error
                 logger.e(e) { "Error loading cover for $topicId" }
                 scheduleRetry(topicId)
             } finally {
@@ -159,22 +177,24 @@ public class CoverLoader
             val currentAttempt = retryAttempts[topicId] ?: 0
             if (currentAttempt >= maxRetryAttempts) {
                 logger.d { "Cover retries exhausted for topic $topicId" }
+                // Drop the counter so permanently-failing topics don't accumulate unbounded.
+                retryAttempts.remove(topicId)
                 return
             }
             retryAttempts[topicId] = currentAttempt + 1
+            if (retryAttempts.size > MAX_RETRY_TRACKED) {
+                retryAttempts.clear()
+            }
             scope.launch {
                 delay(retryDelayMs * (currentAttempt + 1))
                 if (topicId !in loadedCache && topicId !in activeLoads) {
                     if (activeLoads.add(topicId)) {
-                        retryQueue.trySend(topicId)
+                        if (!retryQueue.trySend(topicId).isSuccess) {
+                            activeLoads.remove(topicId)
+                        }
                     }
                 }
             }
-        }
-
-        private fun checkFlibusta(topicId: String) {
-            // TODO: Implement fallback to Flibusta
-            // FlibustaCoverProvider.fetch(topicId)
         }
 
         internal fun shutdown() {

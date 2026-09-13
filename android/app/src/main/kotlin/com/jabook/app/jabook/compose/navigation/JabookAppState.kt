@@ -83,7 +83,7 @@ public class JabookAppState(
      * @param topLevelDestination The destination to navigate to
      */
     public fun navigateToTopLevelDestination(topLevelDestination: TopLevelDestination) {
-        navigationLogger.d { "🧭 Navigating to top-level destination: ${topLevelDestination.name}" }
+        navigationLogger.d { "Navigating to top-level destination: ${topLevelDestination.name}" }
         when (topLevelDestination) {
             TopLevelDestination.LIBRARY -> {
                 // For library, use dedicated function to ensure proper navigation
@@ -106,7 +106,7 @@ public class JabookAppState(
                         restoreState = true
                     }
                 navController.navigate(SettingsRoute, topLevelNavOptions)
-                navigationLogger.d { "✅ Navigated to Settings" }
+                navigationLogger.d { "Navigated to Settings" }
             }
         }
     }
@@ -114,22 +114,45 @@ public class JabookAppState(
     /**
      * Navigates to the Library screen.
      *
-     * This clears the back stack and navigates to the library as the root destination.
-     * Useful for returning to the main screen from anywhere in the app.
+     * Uses the same save/restore state semantics as the other top-level
+     * destinations so the library's scroll position and state survive
+     * round trips.
      */
     public fun navigateToLibrary() {
-        navigationLogger.d { "🧭 Navigating to Library (clearing back stack)" }
-        navController.navigate(LibraryRoute) {
-            // Clear the entire back stack INCLUDING the current destination
-            popUpTo(navController.graph.findStartDestination().id) {
-                inclusive = true // Remove everything including start destination
-                saveState = false
+        navigationLogger.d { "Navigating to Library" }
+        val topLevelNavOptions =
+            navOptions {
+                // Pop up to the start destination of the graph to
+                // avoid building up a large stack of destinations
+                // on the back stack as users select items
+                popUpTo(navController.graph.findStartDestination().id) {
+                    saveState = true
+                }
+                // Avoid multiple copies of the same destination when
+                // reselecting the same item
+                launchSingleTop = true
+                // Restore state when reselecting a previously selected item
+                restoreState = true
             }
-            // Single instance of library
-            launchSingleTop = true
-            // Don't restore state - fresh start
-            restoreState = false
+        navController.navigate(LibraryRoute, topLevelNavOptions)
+        navigationLogger.d { "Navigated to Library" }
+    }
+
+    /**
+     * Dedicated player shortcut: resume the current book when one is loaded,
+     * fall back to the Library otherwise (Player needs a bookId to render).
+     *
+     * @param currentBookId Id of the currently loaded book, or null when nothing is loaded
+     */
+    public fun navigateToPlayer(currentBookId: String?) {
+        if (currentBookId != null) {
+            navigationLogger.d { "Navigating to Player for current book" }
+            navController.navigate(PlayerRoute(bookId = currentBookId)) {
+                launchSingleTop = true
+            }
+        } else {
+            navigationLogger.d { "No current book; player shortcut falls back to Library" }
+            navigateToLibrary()
         }
-        navigationLogger.d { "✅ Navigated to Library" }
     }
 }

@@ -20,6 +20,7 @@ import com.jabook.app.jabook.audio.processors.SpeedMemoryHierarchy
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.local.QueryResultSizeGuardPolicy
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
+import com.jabook.app.jabook.compose.data.local.dao.DownloadQueueDao
 import com.jabook.app.jabook.compose.data.local.search.TransliterationSearchPolicy
 import com.jabook.app.jabook.compose.data.model.BookSortOrder
 import com.jabook.app.jabook.compose.domain.model.Book
@@ -28,8 +29,11 @@ import com.jabook.app.jabook.compose.domain.model.toBook
 import com.jabook.app.jabook.compose.domain.model.toBooks
 import com.jabook.app.jabook.compose.domain.model.toChapters
 import com.jabook.app.jabook.compose.domain.model.toEntity
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -43,12 +47,14 @@ import javax.inject.Singleton
  * - Handles data mapping between entities and domain models
  *
  * @param booksDao Room DAO for database access
+ * @param downloadQueueDao Room DAO for download queue cleanup on book deletion
  */
 @Singleton
 public class OfflineFirstBooksRepository
     @Inject
     constructor(
         private val booksDao: BooksDao,
+        private val downloadQueueDao: DownloadQueueDao,
         private val chaptersDao: com.jabook.app.jabook.compose.data.local.dao.ChaptersDao,
         private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao,
         private val playerPersistenceManager: com.jabook.app.jabook.audio.PlayerPersistenceManager,
@@ -56,6 +62,25 @@ public class OfflineFirstBooksRepository
         private val loggerFactory: LoggerFactory,
     ) : BooksRepository {
         private val logger = loggerFactory.get("OfflineFirstBooksRepository")
+        private val localeCollator =
+            java.text.Collator.getInstance(java.util.Locale.getDefault()).apply {
+                strength = java.text.Collator.PRIMARY
+            }
+
+        // Chapter durations per book don't change between saves — cache them so the
+        // 5-second playback-position save doesn't re-read every chapter on the hot path.
+        // Access-order LRU, bounded, thread-safe (repository is a singleton).
+        private val chapterDurationsCache: MutableMap<String, List<Long>> =
+            java.util.Collections.synchronizedMap(
+                object : java.util.LinkedHashMap<String, List<Long>>(16, 0.75f, true) {
+                    override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<Long>>): Boolean =
+                        size > MAX_CACHED_BOOK_DURATIONS
+                },
+            )
+
+        public companion object {
+            private const val MAX_CACHED_BOOK_DURATIONS = 32
+        }
 
         override fun getScanProgress(): Flow<com.jabook.app.jabook.compose.data.model.ScanProgress> = localBookScanner.scanProgress
 
@@ -65,11 +90,14 @@ public class OfflineFirstBooksRepository
                 val books = entities.toBooks()
                 when (sortOrder) {
                     BookSortOrder.BY_ACTIVITY -> {
-                        // Gather player state for all books
+                        // Gather player state for all books in one snapshot read
+                        // (N per-book prefs reads + JSON decodes used to run on every Flow emission,
+                        // which the 5-second playback-position save re-triggers).
                         // Since this is inside a suspend map, we can call suspend functions
+                        val playerStates = playerPersistenceManager.getPlayerStates(books.map { it.id })
                         val booksWithStatus =
                             books.map { book ->
-                                val state = playerPersistenceManager.getPlayerState(book.id)
+                                val state = playerStates[book.id]
                                 val status =
                                     if (state != null) {
                                         val percentage =
@@ -94,33 +122,16 @@ public class OfflineFirstBooksRepository
                         booksWithStatus.sortByActivity()
                     }
                     BookSortOrder.TITLE_ASC -> {
-                        // Use locale-aware collator for proper alphabetical sorting
-                        val collator =
-                            java.text.Collator.getInstance(java.util.Locale.getDefault()).apply {
-                                strength = java.text.Collator.PRIMARY // Ignore case
-                            }
-                        books.sortedWith(compareBy(collator) { it.title })
+                        books.sortedWith(compareBy(localeCollator) { it.title })
                     }
                     BookSortOrder.TITLE_DESC -> {
-                        val collator =
-                            java.text.Collator.getInstance(java.util.Locale.getDefault()).apply {
-                                strength = java.text.Collator.PRIMARY
-                            }
-                        books.sortedWith(compareByDescending(collator) { it.title })
+                        books.sortedWith(compareByDescending(localeCollator) { it.title })
                     }
                     BookSortOrder.AUTHOR_ASC -> {
-                        val collator =
-                            java.text.Collator.getInstance(java.util.Locale.getDefault()).apply {
-                                strength = java.text.Collator.PRIMARY
-                            }
-                        books.sortedWith(compareBy(collator) { it.author })
+                        books.sortedWith(compareBy(localeCollator) { it.author })
                     }
                     BookSortOrder.AUTHOR_DESC -> {
-                        val collator =
-                            java.text.Collator.getInstance(java.util.Locale.getDefault()).apply {
-                                strength = java.text.Collator.PRIMARY
-                            }
-                        books.sortedWith(compareByDescending(collator) { it.author })
+                        books.sortedWith(compareByDescending(localeCollator) { it.author })
                     }
                     BookSortOrder.RECENTLY_ADDED -> books.sortedByDescending { it.addedDate }
                     BookSortOrder.OLDEST_FIRST -> books.sortedBy { it.addedDate }
@@ -200,9 +211,11 @@ public class OfflineFirstBooksRepository
         override fun searchBooks(query: String): Flow<List<Book>> {
             val variants = TransliterationSearchPolicy.buildVariants(query)
             val primary = variants.firstOrNull().orEmpty()
-            val fallback = variants.getOrNull(1).orEmpty()
+            // Avoid LIKE '%%' whole-table scan when no transliterated variant exists
+            val fallback = variants.getOrNull(1).orEmpty().ifBlank { primary }
             val ftsMatchQuery = TransliterationSearchPolicy.buildFtsMatchQuery(variants)
 
+            // Fall back to LIKE queries if FTS is not available or query is blank
             if (ftsMatchQuery.isBlank()) {
                 return booksDao
                     .searchBooksFlowWithFallback(
@@ -214,6 +227,8 @@ public class OfflineFirstBooksRepository
                     }
             }
 
+            // Try FTS query; fall back to LIKE if FTS table doesn't exist.
+            // Room flows are cold, so FTS errors surface only when collected.
             return booksDao
                 .searchBooksByFtsFlow(
                     SimpleSQLiteQuery(
@@ -222,13 +237,26 @@ public class OfflineFirstBooksRepository
                         FROM books b
                         JOIN books_fts f ON b.rowid = f.rowid
                         WHERE books_fts MATCH ?
-                        ORDER BY bm25(books_fts) ASC
+                        ORDER BY bm25(books_fts, 10.0, 5.0, 1.0) ASC
                         """.trimIndent(),
                         arrayOf(ftsMatchQuery),
                     ),
                 ).map {
                     warnOnLargeResult(path = "searchBooksByFtsFlow", rowCount = it.size)
                     it.toBooks()
+                }.catch { e ->
+                    if (e is CancellationException) throw e
+                    logger.w({ "FTS search failed, falling back to LIKE query" }, e)
+                    emitAll(
+                        booksDao
+                            .searchBooksFlowWithFallback(
+                                query = primary,
+                                fallbackQuery = fallback,
+                            ).map {
+                                warnOnLargeResult(path = "searchBooksFlowWithFallback", rowCount = it.size)
+                                it.toBooks()
+                            },
+                    )
                 }
         }
 
@@ -262,6 +290,8 @@ public class OfflineFirstBooksRepository
                 // Use Upsert instead of Insert(REPLACE) to avoid unnecessary deletions/re-insertions
                 // which is safer for foreign keys and generally more performant
                 booksDao.upsertBooksWithChapters(bookEntities, chapterEntities)
+                // Chapters (and their durations) may have changed — drop stale cache entries
+                batch.forEach { chapterDurationsCache.remove(it.first.id) }
             }
         }
 
@@ -274,35 +304,53 @@ public class OfflineFirstBooksRepository
             position: Long,
             chapterIndex: Int,
         ) {
-            // Improved progress calculation considering all tracks (inspired by Easybook)
-            val book = booksDao.getBookById(bookId)
-            val chapters = chaptersDao.getChaptersByBookId(bookId)
+            try {
+                // Improved progress calculation considering all tracks (inspired by Easybook)
+                val book = booksDao.getBookById(bookId)
 
-            val progress =
-                if (book != null && chapters.isNotEmpty()) {
-                    // Use improved calculation with all track durations
-                    val trackDurations = chapters.sortedBy { it.chapterIndex }.map { it.duration }
-                    val progressPercentage =
-                        CompletionStatusHelper.calculateCompletionPercentageWithTracks(
-                            currentTrackIndex = chapterIndex,
-                            currentPositionMs = position,
-                            trackDurations = trackDurations,
-                        )
-                    progressPercentage.toFloat()
-                } else if (book != null && book.totalDuration > 0) {
-                    // Fallback to simple calculation if chapters are not available
-                    (position.toFloat() / book.totalDuration.toFloat()).coerceIn(0f, 1f)
-                } else {
-                    0f
-                }
+                val progress =
+                    if (book != null && book.totalDuration > 0) {
+                        // Track-duration-aware calculation: load chapter durations from cache
+                        // (they don't change between saves) to avoid reading ALL chapters
+                        // on the every-5-seconds hot path.
+                        val trackDurations =
+                            chapterDurationsCache.getOrPut(bookId) {
+                                chaptersDao
+                                    .getChaptersByBookId(bookId)
+                                    .sortedBy { it.chapterIndex }
+                                    .map { it.duration }
+                            }
+                        if (trackDurations.isNotEmpty()) {
+                            CompletionStatusHelper
+                                .calculateCompletionPercentageWithTracks(
+                                    currentTrackIndex = chapterIndex,
+                                    currentPositionMs = position,
+                                    trackDurations = trackDurations,
+                                ).toFloat()
+                        } else {
+                            // Fallback to simple calculation if chapters are not available
+                            (position.toFloat() / book.totalDuration.toFloat()).coerceIn(0f, 1f)
+                        }
+                    } else {
+                        0f
+                    }
 
-            booksDao.updatePlaybackProgress(
-                bookId = bookId,
-                position = position,
-                progress = progress,
-                chapterIndex = chapterIndex,
-                timestamp = System.currentTimeMillis(),
-            )
+                val chapter = chaptersDao.getChapterByIndex(bookId, chapterIndex)
+                booksDao.updatePlaybackPositionAtomic(
+                    bookId = bookId,
+                    position = position,
+                    progress = progress,
+                    chapterIndex = chapterIndex,
+                    timestamp = System.currentTimeMillis(),
+                    chapterId = chapter?.id,
+                    chapterPosition = position.coerceIn(0L, chapter?.duration ?: position),
+                    chapterCompleted = chapter != null && position >= chapter.duration,
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                logger.e({ "Failed to update playback position for book=$bookId" }, e)
+            }
         }
 
         override suspend fun updateDownloadProgress(
@@ -325,7 +373,24 @@ public class OfflineFirstBooksRepository
         }
 
         override suspend fun deleteBook(bookId: String) {
+            chapterDurationsCache.remove(bookId)
+            // ponytail: sequential deletes (each suspend DAO call is transactional);
+            // wrap in db.withTransaction if atomicity across tables ever matters
+            downloadQueueDao.deleteByBookId(bookId)
             booksDao.deleteById(bookId)
+        }
+
+        override fun getFavoriteBooks(): Flow<List<Book>> = booksDao.getFavoriteBooksFlow().map { it.toBooks() }
+
+        override fun getInProgressBooks(): Flow<List<Book>> = booksDao.getInProgressBooksFlow().map { it.toBooks() }
+
+        override fun getRecentlyPlayedBooks(limit: Int): Flow<List<Book>> = booksDao.getRecentlyPlayedBooksFlow(limit).map { it.toBooks() }
+
+        override suspend fun setFavorite(
+            bookId: String,
+            isFavorite: Boolean,
+        ) {
+            booksDao.updateFavoriteStatus(bookId, isFavorite)
         }
 
         override suspend fun updateBookSettings(
@@ -363,10 +428,10 @@ public class OfflineFirstBooksRepository
         }
 
         override suspend fun normalizeAllChapters() {
-            val books = booksDao.getAllBooks()
+            val allChapters = chaptersDao.getAllChapters()
+            val grouped = allChapters.groupBy { it.bookId }
 
-            for (book in books) {
-                val chapters = chaptersDao.getChaptersByBookId(book.id)
+            for ((_, chapters) in grouped) {
                 if (chapters.isEmpty()) continue
 
                 val titles = chapters.map { it.title }
@@ -391,11 +456,6 @@ public class OfflineFirstBooksRepository
                 }
             }
         }
-
-        override suspend fun updateChapterOrder(
-            bookId: String,
-            newOrderedIds: List<String>,
-        ): Unit = chaptersDao.reorderChaptersByIds(bookId = bookId, newOrderedIds = newOrderedIds)
 
         override suspend fun resolvePreferredPlaybackSpeed(
             bookId: String,
@@ -432,6 +492,11 @@ public class OfflineFirstBooksRepository
 
         override fun getBookBySourceUrlFlow(sourceUrl: String): Flow<Book?> =
             booksDao.getBookBySourceUrlFlow(sourceUrl).map { it?.toBook() }
+
+        override suspend fun getChapterLufsValue(
+            bookId: String,
+            chapterIndex: Int,
+        ): Double? = chaptersDao.getChapterByIndex(bookId, chapterIndex)?.lufsValue
 
         override suspend fun getBookBySourceUrl(sourceUrl: String): Book? = booksDao.getBookBySourceUrl(sourceUrl)?.toBook()
     }

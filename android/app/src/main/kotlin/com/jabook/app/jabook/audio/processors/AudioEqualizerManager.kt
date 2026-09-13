@@ -18,6 +18,7 @@ import android.media.audiofx.Equalizer
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import com.jabook.app.jabook.crash.CrashDiagnostics
 import com.jabook.app.jabook.util.LogUtils
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -27,7 +28,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -53,12 +54,11 @@ import javax.inject.Singleton
  * @property eqFactory Factory for creating [Equalizer] instances (injectable for testing).
  */
 @Singleton
-public class AudioEqualizerManager
+public open class AudioEqualizerManager
     @Inject
     constructor(
         private val player: ExoPlayer,
         private val settingsRepository: com.jabook.app.jabook.compose.data.preferences.SettingsRepository,
-        private val eqFactory: (Int) -> Equalizer = { sessionId -> Equalizer(0, sessionId) },
     ) {
         private val scopeJob = SupervisorJob()
         private val scope =
@@ -73,10 +73,26 @@ public class AudioEqualizerManager
         /** The last preset that was applied — used to restore after session change. */
         private var currentPreset: EqualizerPreset = EqualizerPreset.DEFAULT
 
-        /** Flow of EQ presets from user preferences. */
-        private val presetFlow: Flow<EqualizerPreset> =
-            settingsRepository.userPreferences.map { preferences ->
-                mapPresetName(preferences.equalizerPreset)
+        /**
+         * Persisted custom band gains (mB) from `customEqBands`, padded/truncated
+         * to [EqualizerPreset.BAND_COUNT]. Used only when preset is CUSTOM.
+         */
+        private var customBandGainsMb: IntArray = IntArray(0)
+
+        /** Flow of EQ presets combined with persisted custom band gains and boost headroom. */
+        private var currentBoostHeadroomMb: Int = 0
+
+        private val presetFlow: Flow<Triple<EqualizerPreset, IntArray, Int>> =
+            combine(
+                settingsRepository.userPreferences,
+                settingsRepository.customEqBands,
+            ) { preferences, bands ->
+                val preset = mapPresetName(preferences.equalizerPreset)
+                val gains =
+                    IntArray(EqualizerPreset.BAND_COUNT) { i -> bands.getOrElse(i) { 0 } }
+                val boostHeadroomMb =
+                    EqualizerPreset.calculateBoostHeadroomMb(preferences.volumeBoostLevel)
+                Triple(preset, gains, boostHeadroomMb)
             }
 
         /** Player listener that re-attaches the Equalizer when audio session changes. */
@@ -102,8 +118,10 @@ public class AudioEqualizerManager
             presetCollectionJob?.cancel()
             presetCollectionJob =
                 scope.launch {
-                    presetFlow.collectLatest { preset ->
+                    presetFlow.collectLatest { (preset, gains, boostHeadroomMb) ->
                         currentPreset = preset
+                        customBandGainsMb = gains
+                        currentBoostHeadroomMb = boostHeadroomMb
                         applyPreset(preset)
                     }
                 }
@@ -121,6 +139,15 @@ public class AudioEqualizerManager
             equalizer = null
             scope.cancel()
             LogUtils.d(TAG, "Equalizer released")
+        }
+
+/**
+         * Re-attaches the Equalizer to a specific audio session — called by the service
+         * whenever the ACTIVE player changes (the injected singleton player's session is
+         * idle while the custom processor player is in use).
+         */
+        public fun attachToAudioSession(audioSessionId: Int) {
+            attachEqualizer(audioSessionId, currentPreset)
         }
 
         /**
@@ -173,14 +200,18 @@ public class AudioEqualizerManager
             if (sessionId == C.AUDIO_SESSION_ID_UNSET) return
 
             try {
-                val eq = eqFactory(sessionId)
+                val eq = createEqualizer(sessionId)
                 equalizer = eq
                 applyPresetToEq(eq, preset)
                 LogUtils.d(TAG, "Equalizer attached to session $sessionId, preset=${preset.name}")
             } catch (ex: Exception) {
                 LogUtils.e(TAG, "Failed to attach Equalizer: ${ex.message}", ex)
+                CrashDiagnostics.reportNonFatal("audio_equalizer_attach", ex)
             }
         }
+
+        /** Factory hook — overridable for tests. */
+        protected open fun createEqualizer(sessionId: Int): Equalizer = Equalizer(0, sessionId)
 
         private fun applyPreset(preset: EqualizerPreset) {
             val eq = equalizer ?: return
@@ -196,9 +227,11 @@ public class AudioEqualizerManager
          * Maps a [EqualizerPreset]'s band gains onto the device [Equalizer].
          *
          * The device may have fewer or more bands than [EqualizerPreset.BAND_COUNT].
-         * We map linearly: if the device has N bands, we pick gains at evenly-spaced
-         * indices from the preset array, then clamp each gain to the device's
-         * per-band min/max range.
+         * Mapping is frequency-aware: for each device band we query [Equalizer.getCenterFreq]
+         * and interpolate the preset gain at that frequency between the two surrounding
+         * preset points ([EqualizerPreset.BAND_CENTER_FREQS_HZ]). When frequency data is
+         * unavailable we fall back to the legacy evenly-spaced index mapping. Each gain is
+         * clamped to the device's per-band min/max range.
          */
         private fun applyPresetToEq(
             eq: Equalizer,
@@ -210,17 +243,32 @@ public class AudioEqualizerManager
             // Enable the equalizer
             eq.enabled = true
 
-            val presetGains = preset.bandGainsMb
-            val preamp = preset.effectivePreamp()
+            val isCustom = preset == EqualizerPreset.CUSTOM && customBandGainsMb.isNotEmpty()
+            val presetGains = if (isCustom) customBandGainsMb else preset.bandGainsMb
+            val basePreamp =
+                if (isCustom) {
+                    EqualizerPreset.calculateSafePreamp(customBandGainsMb)
+                } else {
+                    preset.effectivePreamp()
+                }
+            // pn tail: boost is pre-sink AudioProcessor, EQ is post-sink hardware effect.
+            // Without this, a hot boost output near 0 dBFS would feed EQ at 0 dB net gain and clip.
+            val preamp = basePreamp - currentBoostHeadroomMb
 
             for (i in 0 until numBands) {
-                // Map device band index to preset index (evenly distributed)
-                val presetIndex =
-                    (i.toDouble() * (presetGains.size.toDouble() / numBands.toDouble()))
-                        .toInt()
-                        .coerceIn(0, presetGains.size - 1)
+                val presetGainMb =
+                    try {
+                        val centerFreqMhz = eq.getCenterFreq(i.toShort())
+                        if (centerFreqMhz > 0) {
+                            interpolateGainMb(centerFreqMhz / 1000f, presetGains)
+                        } else {
+                            legacyIndexGainMb(i, numBands, presetGains)
+                        }
+                    } catch (_: Exception) {
+                        legacyIndexGainMb(i, numBands, presetGains)
+                    }
                 // Apply preamp offset to prevent clipping from positive band gains
-                var gainMb = presetGains[presetIndex] + preamp
+                var gainMb = presetGainMb + preamp
 
                 // Clamp to device band limits
                 try {
@@ -235,8 +283,41 @@ public class AudioEqualizerManager
             }
         }
 
+        /** Linear interpolation of preset gains at [freqHz] between neighboring preset points. */
+        private fun interpolateGainMb(
+            freqHz: Float,
+            presetGainsMb: IntArray,
+        ): Int {
+            val presetFreqs = EqualizerPreset.BAND_CENTER_FREQS_HZ
+            val lastIndex = minOf(presetFreqs.size, presetGainsMb.size) - 1
+            if (freqHz <= presetFreqs[0]) return presetGainsMb[0]
+            if (freqHz >= presetFreqs[lastIndex]) return presetGainsMb[lastIndex]
+            var j = 0
+            while (j < lastIndex - 1 && freqHz > presetFreqs[j + 1]) j++
+            val t =
+                (freqHz - presetFreqs[j].toFloat()) / (presetFreqs[j + 1] - presetFreqs[j]).toFloat()
+            val gain = presetGainsMb[j] + t * (presetGainsMb[j + 1] - presetGainsMb[j])
+            return Math.round(gain)
+        }
+
+        /** Legacy evenly-spaced index mapping used when the device frequency is unknown. */
+        private fun legacyIndexGainMb(
+            bandIndex: Int,
+            numBands: Int,
+            presetGainsMb: IntArray,
+        ): Int =
+            (bandIndex.toDouble() * (presetGainsMb.size.toDouble() / numBands.toDouble()))
+                .toInt()
+                .coerceIn(0, presetGainsMb.size - 1)
+                .let { presetGainsMb[it] }
+
         private fun releaseEqualizer() {
-            equalizer?.release()
+            try {
+                equalizer?.release()
+            } catch (ex: Exception) {
+                LogUtils.e(TAG, "Failed to release Equalizer: ${ex.message}", ex)
+                CrashDiagnostics.reportNonFatal("audio_equalizer_release", ex)
+            }
             equalizer = null
         }
 

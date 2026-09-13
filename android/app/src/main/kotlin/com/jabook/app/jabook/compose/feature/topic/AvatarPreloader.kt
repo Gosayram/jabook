@@ -69,7 +69,11 @@ public class AvatarPreloader
                             ImageRequest
                                 .Builder(context)
                                 .data(url)
-                                // Preload with same settings as RemoteImage to ensure cache hit
+                                // Constrain decode to the avatar display size — enqueue has no
+                                // layout constraints (unlike RemoteImage, which resolves size
+                                // from composition), so without .size() we'd decode full-res
+                                // avatars just to warm the cache.
+                                .size(96, 96)
                                 .placeholder(ColorDrawable(Color.Gray.toArgb()).asImage())
                                 .build()
 

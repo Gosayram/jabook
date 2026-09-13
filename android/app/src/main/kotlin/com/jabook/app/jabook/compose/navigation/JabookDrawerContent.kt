@@ -20,7 +20,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.NewReleases
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -34,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
 import com.jabook.app.jabook.R
 
@@ -50,9 +52,11 @@ public fun JabookDrawerContent(
     destinations: List<TopLevelDestination>,
     currentDestination: NavDestination?,
     onNavigateToDestination: (TopLevelDestination) -> Unit,
+    onNavigateToRecentArrivals: () -> Unit,
+    onNavigateToPlayer: () -> Unit,
     onNavigateToSettings: () -> Unit,
-    onNavigateToAbout: () -> Unit,
-    accountProfile: AccountProfile = AccountProfile("Guest User", "guest@jabook.app"), // TODO: Real user data
+    onNavigateToAuth: () -> Unit,
+    accountProfile: AccountProfile = AccountProfile(stringResource(R.string.settingsProfileGuest), ""),
     modifier: Modifier = Modifier,
 ) {
     ModalDrawerSheet(
@@ -62,7 +66,7 @@ public fun JabookDrawerContent(
         // Sticky Header
         AccountHeader(
             selectedAccount = accountProfile,
-            onAccountClick = { /* TODO: Account switching */ },
+            onAccountClick = onNavigateToAuth,
         )
 
         // Scrollable Content
@@ -73,13 +77,17 @@ public fun JabookDrawerContent(
                     .verticalScroll(rememberScrollState())
                     .padding(vertical = 12.dp),
         ) {
-            // Main Destinations
-            destinations.forEach { destination ->
+            // Main Destinations (exclude SETTINGS — it's in the footer)
+            destinations.filter { it != TopLevelDestination.SETTINGS }.forEach { destination ->
                 val selected =
-                    currentDestination?.hierarchy?.any {
-                        it.route?.contains(destination.name, ignoreCase = true) == true
+                    currentDestination?.hierarchy?.any { navDestination ->
+                        when (destination) {
+                            TopLevelDestination.LIBRARY -> navDestination.hasRoute<LibraryRoute>()
+                            TopLevelDestination.SETTINGS -> navDestination.hasRoute<SettingsRoute>()
+                        }
                     } == true
 
+                // ponytail: drawer selected labelLargeEmphasized — swap to EmphasizedTypography.labelLarge when selected (selected chip/chapter pattern proven)
                 NavigationDrawerItem(
                     label = { Text(stringResource(destination.titleTextId)) },
                     icon = {
@@ -93,6 +101,24 @@ public fun JabookDrawerContent(
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
                 )
             }
+
+            // Player shortcut — "Плеер" (reuses playerTitle string, not a TopLevelDestination
+            // so it stays out of the bottom bar).
+            NavigationDrawerItem(
+                label = { Text(stringResource(R.string.playerTitle)) },
+                icon = { Icon(Icons.Filled.PlayCircle, contentDescription = null) },
+                selected = currentDestination?.hierarchy?.any { it.hasRoute<PlayerRoute>() } == true,
+                onClick = onNavigateToPlayer,
+                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
+            )
+
+            NavigationDrawerItem(
+                label = { Text(stringResource(R.string.recently_indexed_title)) },
+                icon = { Icon(Icons.Filled.NewReleases, contentDescription = null) },
+                selected = currentDestination?.hierarchy?.any { it.hasRoute<RutrackerSearchRoute>() } == true,
+                onClick = onNavigateToRecentArrivals,
+                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
+            )
         }
 
         // Sticky Footer (Divider + Secondary Items)
@@ -108,17 +134,8 @@ public fun JabookDrawerContent(
             NavigationDrawerItem(
                 label = { Text(stringResource(R.string.settings)) },
                 icon = { Icon(Icons.Filled.Settings, contentDescription = null) },
-                selected = false,
+                selected = currentDestination?.hierarchy?.any { it.hasRoute<SettingsRoute>() } == true,
                 onClick = onNavigateToSettings,
-                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
-            )
-
-            // About
-            NavigationDrawerItem(
-                label = { Text(stringResource(R.string.aboutApp)) },
-                icon = { Icon(Icons.Filled.Info, contentDescription = null) },
-                selected = false,
-                onClick = onNavigateToAbout,
                 modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
             )
         }

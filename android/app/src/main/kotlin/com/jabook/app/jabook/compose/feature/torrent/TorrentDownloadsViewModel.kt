@@ -14,22 +14,28 @@
 
 package com.jabook.app.jabook.compose.feature.torrent
 
+import android.content.Context
 import android.os.Environment
+import android.os.StatFs
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.network.NetworkMonitor
 import com.jabook.app.jabook.compose.data.network.TorrentDownloadNetworkPolicy
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
+import com.jabook.app.jabook.compose.data.repository.DownloadHistoryRepository
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository
 import com.jabook.app.jabook.compose.data.torrent.TorrentManager
 import com.jabook.app.jabook.compose.data.torrent.TorrentState
+import com.jabook.app.jabook.compose.domain.model.DownloadHistoryItem
 import com.jabook.app.jabook.compose.navigation.DownloadsRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.channels.Channel
@@ -38,12 +44,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * UI state for torrent downloads screen
@@ -58,6 +67,13 @@ public sealed interface TorrentDownloadsUiState {
         val pausedDownloads: ImmutableList<TorrentDownload>,
         val completedDownloads: ImmutableList<TorrentDownload>,
         val errorDownloads: ImmutableList<TorrentDownload>,
+        val historyItems: ImmutableList<DownloadHistoryItem>,
+        val downloadingCount: Int,
+        val totalDownloadSpeed: Long,
+        val queuedCount: Int,
+        val audiobookStorageUsed: Long,
+        val totalStorageUsed: Long,
+        val availableStorage: Long,
     ) : TorrentDownloadsUiState
 
     @Immutable
@@ -76,10 +92,12 @@ public sealed interface TorrentDownloadsUiState {
 public class TorrentDownloadsViewModel
     @Inject
     constructor(
+        @ApplicationContext private val context: Context,
         private val torrentManager: TorrentManager,
         private val repository: TorrentDownloadRepository,
         private val settingsRepository: SettingsRepository,
         private val networkMonitor: NetworkMonitor,
+        private val downloadHistoryRepository: DownloadHistoryRepository,
         private val loggerFactory: LoggerFactory,
         savedStateHandle: SavedStateHandle,
     ) : ViewModel() {
@@ -97,13 +115,18 @@ public class TorrentDownloadsViewModel
         private val _showCompletedOnly = MutableStateFlow(false)
         public val showCompletedOnly: StateFlow<Boolean> = _showCompletedOnly.asStateFlow()
 
+        // Retry trigger — toggled by retryLoad() to re-evaluate the combine
+        private val retryTrigger = MutableStateFlow(0L)
+
         // UI state combining downloads from manager and repository
         public val uiState: StateFlow<TorrentDownloadsUiState> =
             combine(
                 torrentManager.downloadsFlow,
                 repository.getAllFlow(),
                 _showCompletedOnly,
-            ) { activeDownloads, persistedDownloads, showCompletedOnly ->
+                downloadHistoryRepository.getHistoryWithFilter(),
+                retryTrigger,
+            ) { activeDownloads, persistedDownloads, showCompletedOnly, historyItems, _ ->
                 try {
                     // Merge active downloads with persisted ones
                     // Active downloads take precedence (they have real-time data)
@@ -119,7 +142,7 @@ public class TorrentDownloadsViewModel
                                 download.hash.isNotBlank() && download.name.isNotBlank()
                             }.sortedByDescending { it.addedTime }
 
-                    if (allDownloads.isEmpty()) {
+                    if (allDownloads.isEmpty() && historyItems.isEmpty()) {
                         TorrentDownloadsUiState.Empty
                     } else {
                         // Group by state
@@ -138,23 +161,51 @@ public class TorrentDownloadsViewModel
                         val paused = allDownloads.filter { it.state == TorrentState.PAUSED }
                         val completed = allDownloads.filter { it.state == TorrentState.COMPLETED }
                         val errors = allDownloads.filter { it.state == TorrentState.ERROR }
+                        val queued = allDownloads.filter { it.state == TorrentState.QUEUED }
+                        val downloading = allDownloads.filter { it.state == TorrentState.DOWNLOADING }
+
+                        // Calculate stats
+                        val totalDownloadSpeed = downloading.sumOf { it.downloadSpeed.toLong() }
+
+                        // Calculate storage stats
+                        val storageStats = calculateStorageStats(allDownloads)
 
                         TorrentDownloadsUiState.Success(
                             activeDownloads = active.toImmutableList(),
                             pausedDownloads = paused.toImmutableList(),
                             completedDownloads = completed.toImmutableList(),
                             errorDownloads = errors.toImmutableList(),
+                            historyItems = historyItems.take(50).toImmutableList(),
+                            downloadingCount = downloading.size,
+                            totalDownloadSpeed = totalDownloadSpeed,
+                            queuedCount = queued.size,
+                            audiobookStorageUsed = storageStats.audiobookStorageUsed,
+                            totalStorageUsed = storageStats.totalStorageUsed,
+                            availableStorage = storageStats.availableStorage,
                         )
                     }
                 } catch (e: Exception) {
+                    if (e is CancellationException) throw e
                     logger.e({ "Error processing downloads" }, e)
-                    TorrentDownloadsUiState.Error(e.message ?: "Unknown error")
+                    // ponytail: raw e.message can leak URLs/hosts — generic message to UI, details in log
+                    TorrentDownloadsUiState.Error(context.getString(R.string.unknownError))
                 }
+            }.catch { e ->
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                logger.e({ "Downloads flow failed" }, e)
+                emit(TorrentDownloadsUiState.Error(context.getString(R.string.unknownError)))
             }.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
                 initialValue = TorrentDownloadsUiState.Loading,
             )
+
+        /**
+         * Retry loading after an error state.
+         */
+        public fun retryLoad() {
+            retryTrigger.value++
+        }
 
         /**
          * Pause download
@@ -218,6 +269,9 @@ public class TorrentDownloadsViewModel
                 if (state is TorrentDownloadsUiState.Success) {
                     state.completedDownloads.forEach { download ->
                         torrentManager.removeTorrent(download.hash, deleteFiles = false)
+                        // removeTorrent early-returns for hashes not in the live session
+                        // (e.g. session-restored rows) — always delete the DB row too.
+                        repository.delete(download.hash)
                     }
                 }
             }
@@ -305,10 +359,19 @@ public class TorrentDownloadsViewModel
 
                 try {
                     checkNetworkAndWarn()
-                    torrentManager.addTorrent(magnetLink, path)
-                    _pendingMagnetLink.value = null
+                    // libtorrent session init + add are native calls — keep off the main thread.
+                    withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        torrentManager
+                            .addTorrent(magnetLink, path)
+                            .onSuccess { _pendingMagnetLink.value = null }
+                            .onFailure {
+                                _snackbarEvent.send(context.getString(R.string.failed_to_add_torrent, it.message ?: ""))
+                            }
+                    }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
-                    _snackbarEvent.send("Failed to add torrent: ${e.message}")
+                    _snackbarEvent.send(context.getString(R.string.failed_to_add_torrent, e.message ?: ""))
                 }
             }
         }
@@ -327,7 +390,50 @@ public class TorrentDownloadsViewModel
                     networkType = networkType,
                 )
             ) {
-                _snackbarEvent.send("Download queued: Waiting for WiFi connection")
+                _snackbarEvent.send(context.getString(R.string.download_queued_waiting_wifi))
             }
+        }
+
+        private data class StorageStats(
+            val audiobookStorageUsed: Long,
+            val totalStorageUsed: Long,
+            val availableStorage: Long,
+        )
+
+        private suspend fun calculateStorageStats(downloads: List<TorrentDownload>): StorageStats {
+            // Stat the user-configured download directory (fallback: public Downloads)
+            val downloadsDirPath =
+                settingsRepository.userPreferences.first().downloadPath.ifEmpty {
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).absolutePath
+                }
+
+            // StatFs does disk I/O and combine runs on the main dispatcher — hop to IO.
+            val availableStorage =
+                withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    runCatching {
+                        val stat = StatFs(downloadsDirPath)
+                        stat.availableBlocksLong * stat.blockSizeLong
+                    }.getOrDefault(0L)
+                }
+
+            // Calculate total storage used by downloads
+            var totalStorageUsed = 0L
+            var audiobookStorageUsed = 0L
+
+            for (download in downloads) {
+                if (download.totalSize > 0) {
+                    totalStorageUsed += download.totalSize
+                }
+                // Completed downloads are audiobooks
+                if (download.state == TorrentState.COMPLETED && download.totalSize > 0) {
+                    audiobookStorageUsed += download.totalSize
+                }
+            }
+
+            return StorageStats(
+                audiobookStorageUsed = audiobookStorageUsed,
+                totalStorageUsed = totalStorageUsed,
+                availableStorage = availableStorage,
+            )
         }
     }

@@ -38,6 +38,8 @@ internal class PlaybackContextHelper(
     private val isSleepTimerEndOfChapter: () -> Boolean,
     private val isSleepTimerEndOfTrack: () -> Boolean,
     private val isSleepTimerActive: () -> Boolean,
+    private val getCurrentBookId: () -> String? = { null },
+    private val isAudioOffloaded: () -> Boolean = { false },
 ) {
     /** Updates the actual track index from onMediaItemTransition events. */
     fun updateActualTrackIndex(index: Int) {
@@ -69,6 +71,15 @@ internal class PlaybackContextHelper(
             playbackSpeed = player.playbackParameters.speed,
             sleepMode = sleepMode,
         )
+        // ponytail: crash enrichment for audio-session diagnostics; values read from already-wired providers
+        CrashDiagnostics.setCustomKey("audio_session_id", player.audioSessionId.toString())
+        CrashDiagnostics.setCustomKey("current_book_id", getCurrentBookId())
+        CrashDiagnostics.setCustomKey("current_chapter_index", getPlaylistManager()?.actualTrackIndex?.toString() ?: "unknown")
+        CrashDiagnostics.setCustomKey("is_offloaded", isAudioOffloaded().toString())
+        CrashDiagnostics.setCustomKey("is_playing", player.isPlaying.toString())
+        CrashDiagnostics.setCustomKey("position_ms", player.currentPosition.toString())
+        CrashDiagnostics.setCustomKey("duration_ms", player.duration.toString())
+        CrashDiagnostics.setCustomKey("buffered_ms", player.bufferedPosition.toString())
     }
 
     /** Resets book completion flag if book was completed. */

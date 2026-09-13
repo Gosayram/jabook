@@ -14,7 +14,6 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
-import com.jabook.app.jabook.compose.core.constants.PlaybackSpeedConstants
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -62,107 +61,5 @@ class PlaybackSpeedSheetPolicyTest {
         addRecentSpeed(recent, 1.4f)
 
         assertEquals(listOf(1.4f, 0.8f, 1.0f), recent)
-    }
-
-    // --- dialSpeedForDrag tests ---
-
-    @Test
-    fun dialSpeedForDrag_clampsToMinAndMaxSpeed() {
-        val resultMin = dialSpeedForDrag(0.5f, -100f, 200f)
-        val resultMax = dialSpeedForDrag(3.0f, 100f, 200f)
-
-        assertEquals(PlaybackSpeedConstants.MIN_SPEED, resultMin, 0.01f)
-        assertEquals(PlaybackSpeedConstants.MAX_SPEED, resultMax, 0.01f)
-    }
-
-    @Test
-    fun dialSpeedForDrag_returnsCurrentSpeedWhenInvalidWidth() {
-        val result = dialSpeedForDrag(1.5f, 0f, 0f)
-
-        assertEquals(1.5f, result, 0.01f)
-    }
-
-    @Test
-    fun dialSpeedForDrag_returnsCurrentSpeedWhenNegativeWidth() {
-        val result = dialSpeedForDrag(1.5f, 50f, -100f)
-
-        assertEquals(1.5f, result, 0.01f)
-    }
-
-    @Test
-    fun dialSpeedForDrag_mapsDragDeltaToSpeedChange() {
-        val dialWidth = 200f
-        val speedSpan = PlaybackSpeedConstants.MAX_SPEED - PlaybackSpeedConstants.MIN_SPEED
-
-        val dragHalf = dialWidth / 2
-        val result = dialSpeedForDrag(1.0f, dragHalf, dialWidth)
-
-        assertEquals(1.0f + speedSpan / 2, result, 0.01f)
-    }
-
-    @Test
-    fun dialSpeedForDrag_fullWidthDragReachesMaxSpeed() {
-        val dialWidth = 200f
-        val result = dialSpeedForDrag(1.0f, dialWidth, dialWidth)
-
-        assertEquals(PlaybackSpeedConstants.MAX_SPEED, result, 0.01f)
-    }
-
-    // --- dialSweepAngle tests ---
-
-    @Test
-    fun dialSweepAngle_returnsZeroAtMinSpeed() {
-        val result = dialSweepAngle(PlaybackSpeedConstants.MIN_SPEED)
-
-        assertEquals(0f, result, 0.01f)
-    }
-
-    @Test
-    fun dialSweepAngle_returnsFullSweepAtMaxSpeed() {
-        val result = dialSweepAngle(PlaybackSpeedConstants.MAX_SPEED)
-
-        assertEquals(PlaybackSpeedConstants.DIAL_TOTAL_SWEEP, result, 0.01f)
-    }
-
-    @Test
-    fun dialSweepAngle_returnsHalfSweepAtMidSpeed() {
-        val midSpeed = (PlaybackSpeedConstants.MIN_SPEED + PlaybackSpeedConstants.MAX_SPEED) / 2
-        val result = dialSweepAngle(midSpeed)
-
-        assertEquals(PlaybackSpeedConstants.DIAL_TOTAL_SWEEP / 2, result, 0.01f)
-    }
-
-    // --- formatSpeedDisplay tests ---
-
-    @Test
-    fun formatSpeedDisplay_formatsIntegerSpeedWithoutDecimals() {
-        assertEquals("1x", formatSpeedDisplay(1.0f))
-        assertEquals("2x", formatSpeedDisplay(2.0f))
-    }
-
-    @Test
-    fun formatSpeedDisplay_formatsDecimalSpeedWithTwoDecimals() {
-        assertEquals("1.25x", formatSpeedDisplay(1.25f))
-        assertEquals("0.50x", formatSpeedDisplay(0.5f))
-    }
-
-    // --- formatSpeedChip tests ---
-
-    @Test
-    fun formatSpeedChip_formatsIntegerSpeedWithoutDecimals() {
-        assertEquals("1x", formatSpeedChip(1.0f))
-        assertEquals("2x", formatSpeedChip(2.0f))
-    }
-
-    @Test
-    fun formatSpeedChip_formatsOneDecimalWhenHundredthsZero() {
-        // 1.50 * 100 = 150.0, 150 % 10 = 0, so formats with %.1fx
-        assertEquals("1.5x", formatSpeedChip(1.50f))
-    }
-
-    @Test
-    fun formatSpeedChip_formatsTwoDecimalsForOtherValues() {
-        assertEquals("1.25x", formatSpeedChip(1.25f))
-        assertEquals("0.55x", formatSpeedChip(0.55f))
     }
 }

@@ -17,9 +17,11 @@ package com.jabook.app.jabook.audio.data.repository
 import com.jabook.app.jabook.audio.core.result.Result
 import com.jabook.app.jabook.audio.data.local.dao.SavedPlayerStateDao
 import com.jabook.app.jabook.audio.data.local.database.entity.SavedPlayerStateEntity
+import com.jabook.app.jabook.compose.core.util.PersistentJson
 import kotlinx.coroutines.CancellationException
-import org.json.JSONArray
-import org.json.JSONObject
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.JsonPrimitive
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -76,10 +78,10 @@ public class SavedPlayerStateRepository
             sleepTimerRemainingSeconds: Int? = null,
         ): Result<Unit> =
             try {
-                val filePathsJson = JSONArray(filePaths).toString()
+                val filePathsJson = PersistentJson.encodeToString(filePaths)
                 val metadataJson =
                     if (metadata != null && metadata.isNotEmpty()) {
-                        JSONObject(metadata).toString()
+                        PersistentJson.encodeToString(metadata.mapValues { JsonPrimitive(it.value) })
                     } else {
                         null
                     }
@@ -139,8 +141,7 @@ public class SavedPlayerStateRepository
          */
         public fun parseFilePaths(filePathsJson: String): List<String> =
             try {
-                val jsonArray = JSONArray(filePathsJson)
-                (0 until jsonArray.length()).map { jsonArray.getString(it) }
+                PersistentJson.decodeFromString<List<String>>(filePathsJson)
             } catch (e: Exception) {
                 emptyList()
             }
@@ -149,18 +150,9 @@ public class SavedPlayerStateRepository
          * Parses metadata from JSON string.
          */
         public fun parseMetadata(metadataJson: String?): Map<String, String>? {
+            if (metadataJson.isNullOrEmpty()) return null
             return try {
-                if (metadataJson == null || metadataJson.isEmpty()) {
-                    return null
-                }
-                val jsonObject = JSONObject(metadataJson)
-                val map = mutableMapOf<String, String>()
-                val keys = jsonObject.keys()
-                while (keys.hasNext()) {
-                    val key = keys.next()
-                    map[key] = jsonObject.getString(key)
-                }
-                map
+                PersistentJson.decodeFromString<Map<String, String>>(metadataJson)
             } catch (e: Exception) {
                 null
             }

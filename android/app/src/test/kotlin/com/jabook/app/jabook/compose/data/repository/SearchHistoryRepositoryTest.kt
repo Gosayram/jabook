@@ -23,7 +23,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
@@ -36,7 +38,7 @@ class SearchHistoryRepositoryTest {
                 .thenReturn(
                     flowOf(
                         listOf(
-                            SearchHistoryEntity(id = 1, query = "tolstoy", timestamp = 100L, resultCount = 3),
+                            SearchHistoryEntity(id = 1, query = "tolstoy", normalizedQuery = "tolstoy", timestamp = 100L, resultCount = 3),
                         ),
                     ),
                 )
@@ -50,9 +52,10 @@ class SearchHistoryRepositoryTest {
         }
 
     @Test
-    fun `saveSearch inserts entry and trims history to keepCount 50`() =
+    fun `saveSearch inserts new entry when no duplicate exists`() =
         runTest {
             val dao: SearchHistoryDao = mock()
+            whenever(dao.findByNormalizedQuery("dostoevsky")).thenReturn(null)
             val repository = SearchHistoryRepository(dao)
 
             repository.saveSearch(query = "dostoevsky", resultCount = 7)
@@ -62,7 +65,39 @@ class SearchHistoryRepositoryTest {
             verify(dao).trimHistory(keepCount = 50)
 
             assertEquals("dostoevsky", captor.firstValue.query)
+            assertEquals("dostoevsky", captor.firstValue.normalizedQuery)
             assertEquals(7, captor.firstValue.resultCount)
             assertTrue(captor.firstValue.timestamp > 0L)
+        }
+
+    @Test
+    fun `saveSearch updates timestamp when duplicate exists`() =
+        runTest {
+            val dao: SearchHistoryDao = mock()
+            val existing = SearchHistoryEntity(id = 5, query = "Tolstoy", normalizedQuery = "tolstoy", timestamp = 100L, resultCount = 3)
+            whenever(dao.findByNormalizedQuery("tolstoy")).thenReturn(existing)
+            val repository = SearchHistoryRepository(dao)
+
+            repository.saveSearch(query = "  Tolstoy  ", resultCount = 10)
+
+            verify(dao, never()).insertSearch(org.mockito.kotlin.any())
+            verify(dao).updateTimestamp(eq(5), org.mockito.kotlin.any(), eq(10))
+            verify(dao).trimHistory(keepCount = 50)
+        }
+
+    @Test
+    fun `saveSearch normalizes query with multiple spaces`() =
+        runTest {
+            val dao: SearchHistoryDao = mock()
+            whenever(dao.findByNormalizedQuery("war and peace")).thenReturn(null)
+            val repository = SearchHistoryRepository(dao)
+
+            repository.saveSearch(query = "  War   and   Peace  ", resultCount = 1)
+
+            val captor = argumentCaptor<SearchHistoryEntity>()
+            verify(dao).insertSearch(captor.capture())
+
+            assertEquals("War and Peace", captor.firstValue.query)
+            assertEquals("war and peace", captor.firstValue.normalizedQuery)
         }
 }

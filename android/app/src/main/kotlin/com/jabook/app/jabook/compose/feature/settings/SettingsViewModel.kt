@@ -14,40 +14,60 @@
 
 package com.jabook.app.jabook.compose.feature.settings
 
+import android.content.Context
 import android.net.Uri
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import com.jabook.app.jabook.R
+import com.jabook.app.jabook.audio.domain.usecase.ListeningStatsUseCase
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.backup.BackupService
 import com.jabook.app.jabook.compose.data.backup.ImportStats
 import com.jabook.app.jabook.compose.data.cache.CacheManager
 import com.jabook.app.jabook.compose.data.cache.CacheStatistics
 import com.jabook.app.jabook.compose.data.model.ScanProgress
+import com.jabook.app.jabook.compose.data.network.MirrorHealth
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.preferences.UserPreferences
 import com.jabook.app.jabook.compose.data.preferences.UserPreferencesSerializer
 import com.jabook.app.jabook.compose.data.repository.BooksRepository
+import com.jabook.app.jabook.compose.data.repository.UserEqPresetRepository
 import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
 import com.jabook.app.jabook.compose.data.torrent.TorrentManager
 import com.jabook.app.jabook.compose.data.torrent.TorrentState
 import com.jabook.app.jabook.compose.data.worker.LibraryScanWorker
 import com.jabook.app.jabook.compose.data.worker.WorkConstraintsPolicy
+import com.jabook.app.jabook.compose.domain.usecase.library.GetLibraryUseCase
+import com.jabook.app.jabook.compose.feature.library.ProductivePeriod
+import com.jabook.app.jabook.compose.feature.library.WeeklyRecapState
+import com.jabook.app.jabook.compose.feature.library.YearRecapState
 import com.jabook.app.jabook.util.FileUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 /**
@@ -56,10 +76,12 @@ import javax.inject.Inject
  * Manages both old preferences (UserPreferencesRepository) and new Proto DataStore settings.
  * Gradually migrating to Proto DataStore.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 public class SettingsViewModel
     @Inject
     constructor(
+        @ApplicationContext private val context: Context,
         private val settingsRepository: SettingsRepository,
         private val userPreferencesRepository: UserPreferencesRepository, // Keep for migration
         private val authRepository: com.jabook.app.jabook.compose.domain.repository.AuthRepository,
@@ -70,10 +92,26 @@ public class SettingsViewModel
         private val updateBookSettingsUseCase: com.jabook.app.jabook.compose.domain.usecase.library.UpdateBookSettingsUseCase,
         private val workManager: WorkManager,
         private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao,
+        private val userEqPresetRepository: UserEqPresetRepository,
         private val torrentManager: TorrentManager,
         private val loggerFactory: LoggerFactory,
+        private val getLibraryUseCase: GetLibraryUseCase,
+        private val listeningStatsUseCase: ListeningStatsUseCase,
     ) : ViewModel() {
         private val logger = loggerFactory.get("SettingsViewModel")
+
+        init {
+            // System per-app language (Android 13+) can drift from the picker's stored value —
+            // appcompat auto-stores it, so mirror it back into the app's source of truth.
+            viewModelScope.launch {
+                val appLocales = AppCompatDelegate.getApplicationLocales()
+                if (!appLocales.isEmpty) {
+                    val tags = appLocales.toLanguageTags()
+                    val stored = settingsRepository.userPreferences.first().languageCode
+                    if (stored != tags) userPreferencesRepository.setLanguage(tags)
+                }
+            }
+        }
 
         // Expose active downloads for the settings UI
         public val activeDownloads: StateFlow<List<TorrentDownload>> =
@@ -110,6 +148,97 @@ public class SettingsViewModel
                 started = SharingStarted.WhileSubscribed(5000),
                 initialValue = ScanProgress.Idle,
             )
+
+        public val weeklyRecapState: StateFlow<WeeklyRecapState?> =
+            // Boundaries computed per subscription so the window tracks "now"
+            getLibraryUseCase(com.jabook.app.jabook.compose.data.model.BookSortOrder.BY_ACTIVITY)
+                .flatMapLatest { books ->
+                    listeningStatsUseCase
+                        .observeSummary(
+                            fromEpochMs = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7),
+                            toEpochMs = System.currentTimeMillis(),
+                        ).combine(
+                            listeningStatsUseCase.observePeakListeningHour(
+                                fromEpochMs = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7),
+                                toEpochMs = System.currentTimeMillis(),
+                            ),
+                        ) { summary, peakHour ->
+                            val weeklyCompletedBooks =
+                                books.count {
+                                    it.isCompleted &&
+                                        (it.lastPlayedDate ?: 0L) >= System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7)
+                                }
+                            WeeklyRecapState(
+                                minutesListened = (summary.totalContentTimeMs / 1000L / 60L).toInt(),
+                                booksCompleted = weeklyCompletedBooks,
+                                productivePeriod = resolveProductivePeriodFromHour(peakHour),
+                                streakDays = summary.activeDays.coerceAtLeast(0),
+                            )
+                        }
+                }.catch {
+                    if (it is kotlinx.coroutines.CancellationException) throw it
+                    // Recap is optional — keep last known state on upstream failure
+                }.stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = null,
+                )
+
+        public val yearRecapState: StateFlow<YearRecapState?> =
+            getLibraryUseCase(com.jabook.app.jabook.compose.data.model.BookSortOrder.BY_ACTIVITY)
+                .flatMapLatest { books ->
+                    listeningStatsUseCase
+                        .observeSummary(
+                            fromEpochMs = resolveYearStartEpochMs(),
+                            toEpochMs = System.currentTimeMillis(),
+                        ).map { summary ->
+                            val yearStartEpochMs = resolveYearStartEpochMs()
+                            val completedBooks =
+                                books.count { it.isCompleted && (it.lastPlayedDate ?: 0L) >= yearStartEpochMs }
+                            val topAuthor =
+                                books
+                                    .groupingBy { it.author.ifBlank { context.getString(R.string.unknownAuthor) } }
+                                    .eachCount()
+                                    .maxByOrNull { it.value }
+                                    ?.key
+                                    ?: context.getString(R.string.unknownAuthor)
+
+                            YearRecapState(
+                                year =
+                                    java.time.LocalDate
+                                        .now()
+                                        .year,
+                                totalMinutesListened = (summary.totalContentTimeMs / 1000L / 60L).toInt().coerceAtLeast(0),
+                                booksCompleted = completedBooks.coerceAtLeast(0),
+                                activeDays = summary.activeDays.coerceAtLeast(0),
+                                sessions = summary.totalSessions.coerceAtLeast(0),
+                                topAuthor = topAuthor,
+                            )
+                        }
+                }.catch {
+                    if (it is kotlinx.coroutines.CancellationException) throw it
+                    // Recap is optional — keep last known state on upstream failure
+                }.stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = null,
+                )
+
+        /** Real minutes listened per day (from listening_sessions), feeding the settings heatmap. */
+        public val dailyListeningMinutes: StateFlow<Map<java.time.LocalDate, Int>> =
+            listeningStatsUseCase
+                .observeDayStats(
+                    fromEpochMs = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(26 * 7),
+                    toEpochMs = System.currentTimeMillis(),
+                ).map { dayStats ->
+                    dayStats.associate { stat ->
+                        java.time.LocalDate.parse(stat.day) to (stat.contentTimeMs / 60000L).toInt().coerceAtLeast(1)
+                    }
+                }.stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = emptyMap(),
+                )
 
         public fun scanLibrary() {
             viewModelScope.launch {
@@ -175,17 +304,28 @@ public class SettingsViewModel
                         .UserPreferencesSerializer.defaultValue,
             )
 
+        public val customEqBands: StateFlow<List<Int>> =
+            settingsRepository.customEqBands.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = List(10) { 0 },
+            )
+
+        /** User layout-mode override (0 adaptive, 1 compact, 2 expanded). */
+        public val layoutMode: StateFlow<Int> =
+            settingsRepository.userPreferences
+                .map { it.layoutMode }
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = 0,
+                )
+
         // ===== Old preferences API (kept for compatibility) =====
 
         public fun updateTheme(theme: com.jabook.app.jabook.compose.data.model.AppTheme) {
             viewModelScope.launch {
                 userPreferencesRepository.setTheme(theme)
-            }
-        }
-
-        public fun updateSortOrder(sortOrder: com.jabook.app.jabook.compose.data.model.BookSortOrder) {
-            viewModelScope.launch {
-                userPreferencesRepository.setSortOrder(sortOrder)
             }
         }
 
@@ -210,22 +350,32 @@ public class SettingsViewModel
         public fun updatePlaybackSpeed(speed: Float) {
             viewModelScope.launch {
                 userPreferencesRepository.setPlaybackSpeed(speed)
-                // Also update in Proto DataStore
-                settingsRepository.updatePlaybackSpeed(speed)
             }
         }
 
         // ===== New Proto DataStore API =====
 
-        public fun updateProtoTheme(themeMode: com.jabook.app.jabook.compose.data.preferences.ThemeMode) {
-            viewModelScope.launch {
-                settingsRepository.updateThemeMode(themeMode)
-            }
-        }
-
         public fun updateDynamicColors(enabled: Boolean) {
             viewModelScope.launch {
                 settingsRepository.updateDynamicColors(enabled)
+            }
+        }
+
+        public fun updateAccentSwatchIndex(index: Int) {
+            viewModelScope.launch {
+                settingsRepository.updateAccentSwatchIndex(index)
+            }
+        }
+
+        public fun updatePlayerCoverMode(mode: Int) {
+            viewModelScope.launch {
+                settingsRepository.updatePlayerCoverMode(mode)
+            }
+        }
+
+        public fun updateLayoutMode(mode: Int) {
+            viewModelScope.launch {
+                settingsRepository.updateLayoutMode(mode)
             }
         }
 
@@ -238,8 +388,11 @@ public class SettingsViewModel
             sleepTimerShakeExtendEnabled: Boolean? = null,
             holdToBoostSpeed: Float? = null,
             autoPipEnabled: Boolean? = null,
+            headsetAutoplayEnabled: Boolean? = null,
             volumeBoost: String? = null,
             drcLevel: String? = null,
+            speechCompressorLevel: String? = null,
+            noiseGateLevel: String? = null,
             speechEnhancer: Boolean? = null,
             normalizeVolume: Boolean? = null,
             autoVolumeLeveling: Boolean? = null,
@@ -249,6 +402,13 @@ public class SettingsViewModel
             skipSilenceMode: com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode? = null,
             crossfadeEnabled: Boolean? = null,
             crossfadeDurationMs: Long? = null,
+            crossfadeBetweenBooksMs: Long? = null,
+            notificationActionSlots: List<Int>? = null,
+            notificationLockscreenPrivate: Boolean? = null,
+            autoSleepTimerEnabled: Boolean? = null,
+            autoSleepTimerMinutes: Int? = null,
+            autoRewindOnPause: Boolean? = null,
+            autoRewindSeconds: Int? = null,
         ) {
             viewModelScope.launch {
                 settingsRepository.updateAudioSettings(
@@ -260,8 +420,11 @@ public class SettingsViewModel
                     sleepTimerShakeExtendEnabled = sleepTimerShakeExtendEnabled,
                     holdToBoostSpeed = holdToBoostSpeed,
                     autoPipEnabled = autoPipEnabled,
+                    headsetAutoplayEnabled = headsetAutoplayEnabled,
                     volumeBoost = volumeBoost,
                     drcLevel = drcLevel,
+                    speechCompressorLevel = speechCompressorLevel,
+                    noiseGateLevel = noiseGateLevel,
                     speechEnhancer = speechEnhancer,
                     normalizeVolume = normalizeVolume,
                     autoVolumeLeveling = autoVolumeLeveling,
@@ -271,13 +434,25 @@ public class SettingsViewModel
                     skipSilenceMode = skipSilenceMode,
                     crossfadeEnabled = crossfadeEnabled,
                     crossfadeDurationMs = crossfadeDurationMs,
+                    crossfadeBetweenBooksMs = crossfadeBetweenBooksMs,
+                    notificationActionSlots = notificationActionSlots,
+                    notificationLockscreenPrivate = notificationLockscreenPrivate,
+                    autoSleepTimerEnabled = autoSleepTimerEnabled,
+                    autoSleepTimerMinutes = autoSleepTimerMinutes,
+                    autoRewindOnPause = autoRewindOnPause,
+                    autoRewindSeconds = autoRewindSeconds,
                 )
             }
         }
 
         public fun updateLanguage(languageCode: String) {
             viewModelScope.launch {
-                settingsRepository.updateLanguage(languageCode)
+                userPreferencesRepository.setLanguage(languageCode)
+                withContext(Dispatchers.Main) {
+                    AppCompatDelegate.setApplicationLocales(
+                        LocaleListCompat.forLanguageTags(languageCode),
+                    )
+                }
             }
         }
 
@@ -287,23 +462,23 @@ public class SettingsViewModel
             }
         }
 
-        public fun updateNotifications(
-            enabled: Boolean? = null,
-            downloadNotifications: Boolean? = null,
-            playerNotifications: Boolean? = null,
-        ) {
+        public fun updateCustomEqBands(bands: List<Int>) {
             viewModelScope.launch {
-                settingsRepository.updateNotificationSettings(
-                    notificationsEnabled = enabled,
-                    downloadNotifications = downloadNotifications,
-                    playerNotifications = playerNotifications,
-                )
+                settingsRepository.updateCustomEqBands(bands)
             }
         }
 
-        public fun resetToDefaults() {
+        public fun saveEqPreset(
+            name: String,
+            bands: List<Int>,
+            preampMillibels: Int,
+        ) {
             viewModelScope.launch {
-                settingsRepository.resetToDefaults()
+                userEqPresetRepository.savePreset(
+                    name = name,
+                    bands = bands,
+                    preampMillibels = preampMillibels,
+                )
             }
         }
 
@@ -333,11 +508,11 @@ public class SettingsViewModel
          */
         public fun checkMirrorHealth(
             domain: String,
-            onResult: (Boolean) -> Unit,
+            onResult: (MirrorHealth) -> Unit,
         ) {
             viewModelScope.launch {
-                val isHealthy = mirrorManager.checkMirrorHealth(domain)
-                onResult(isHealthy)
+                val health = mirrorManager.checkMirrorHealth(domain)
+                onResult(health)
             }
         }
 
@@ -371,32 +546,10 @@ public class SettingsViewModel
         // ===== Download Settings =====
 
         public fun updateDownloadPath(uriString: String) {
-            val path = resolvePathFromUri(uriString)
+            val path = FileUtils.resolvePathFromUri(uriString)
             viewModelScope.launch {
                 settingsRepository.updateDownloadPath(path)
             }
-        }
-
-        private fun resolvePathFromUri(uriString: String): String {
-            try {
-                val uri = android.net.Uri.parse(uriString)
-                if (uri.scheme == "content" && uri.authority == "com.android.externalstorage.documents") {
-                    val path = uri.path ?: return uriString
-                    val split = path.split(":")
-                    if (split.size > 1) {
-                        val type = split[0]
-                        val relativePath = split[1]
-                        if (type.endsWith("primary")) {
-                            return "/storage/emulated/0/$relativePath"
-                        }
-                    }
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                // Ignore parsing errors and return original
-            }
-            return uriString
         }
 
         public fun updateWifiOnly(enabled: Boolean) {
@@ -418,18 +571,29 @@ public class SettingsViewModel
             viewModelScope.launch {
                 val path = protoSettings.value.downloadPath
                 if (path.isNotEmpty()) {
-                    val size = FileUtils.getDirectorySize(File(path))
+                    // getDirectorySize throws if the dir vanishes mid-walk (ejected SD card):
+                    // IO dispatcher + swallow, or an uncaught error kills the process.
+                    val size =
+                        withContext(Dispatchers.IO) {
+                            runCatching { FileUtils.getDirectorySize(File(path)) }.getOrDefault(0L)
+                        }
                     _torrentStorageSize.value = size
                 }
             }
         }
 
         public fun deleteAllTorrents(deleteFiles: Boolean) {
+            if (_cacheOperation.value == CacheOperationState.Clearing) return
             viewModelScope.launch {
-                torrentManager.deleteAllTorrents(deleteFiles)
-                // Refresh size after a short delay to allow file system ops
-                kotlinx.coroutines.delay(500L)
-                loadTorrentStorageSize()
+                _cacheOperation.value = CacheOperationState.Clearing
+                try {
+                    torrentManager.deleteAllTorrents(deleteFiles)
+                    // Refresh size after a short delay to allow file system ops
+                    kotlinx.coroutines.delay(500L)
+                    loadTorrentStorageSize()
+                } finally {
+                    _cacheOperation.value = CacheOperationState.Idle
+                }
             }
         }
 
@@ -442,6 +606,7 @@ public class SettingsViewModel
          * Export app data to JSON backup file.
          */
         public fun exportData() {
+            if (_backupState.value is BackupUiState.Exporting || _backupState.value is BackupUiState.Importing) return
             viewModelScope.launch {
                 try {
                     _backupState.value = BackupUiState.Exporting
@@ -450,7 +615,7 @@ public class SettingsViewModel
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    _backupState.value = BackupUiState.Error(e.message ?: "Export failed")
+                    _backupState.value = BackupUiState.Error(e.message ?: context.getString(R.string.export_failed))
                 }
             }
         }
@@ -459,6 +624,7 @@ public class SettingsViewModel
          * Import app data from JSON backup file.
          */
         public fun importData(uri: android.net.Uri) {
+            if (_backupState.value is BackupUiState.Exporting || _backupState.value is BackupUiState.Importing) return
             viewModelScope.launch {
                 try {
                     _backupState.value = BackupUiState.Importing
@@ -467,7 +633,7 @@ public class SettingsViewModel
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    _backupState.value = BackupUiState.Error(e.message ?: "Import failed: ${e.message}")
+                    _backupState.value = BackupUiState.Error(e.message ?: context.getString(R.string.import_failed))
                 }
             }
         }
@@ -500,7 +666,7 @@ public class SettingsViewModel
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    _cacheOperation.value = CacheOperationState.Error(e.message ?: "Failed to load cache stats")
+                    _cacheOperation.value = CacheOperationState.Error(e.message ?: context.getString(R.string.failed_to_load_cache_stats))
                 }
             }
         }
@@ -509,6 +675,7 @@ public class SettingsViewModel
          * Clear cache (all or specific type).
          */
         public fun clearCache(type: String? = null) {
+            if (_cacheOperation.value == CacheOperationState.Clearing) return
             viewModelScope.launch {
                 try {
                     _cacheOperation.value = CacheOperationState.Clearing
@@ -531,12 +698,12 @@ public class SettingsViewModel
                         loadCacheStatistics() // Reload stats
                         _cacheOperation.value = CacheOperationState.Success
                     } else {
-                        _cacheOperation.value = CacheOperationState.Error("Failed to clear cache")
+                        _cacheOperation.value = CacheOperationState.Error(context.getString(R.string.failed_to_clear_cache))
                     }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    _cacheOperation.value = CacheOperationState.Error(e.message ?: "Failed to clear cache")
+                    _cacheOperation.value = CacheOperationState.Error(e.message ?: context.getString(R.string.failed_to_clear_cache))
                 }
             }
         }
@@ -575,6 +742,19 @@ public class SettingsViewModel
             }
         }
 
+        public fun updateSelectedForumIds(ids: String) {
+            viewModelScope.launch {
+                settingsRepository.updateSelectedForumIds(ids)
+            }
+        }
+
+        /** Quick indexing depth window in days (0 = All). */
+        public fun updateIndexingDaysWindow(days: Int) {
+            viewModelScope.launch {
+                settingsRepository.updateIndexingDaysWindow(days)
+            }
+        }
+
         /**
          * Resets all per-book custom seek settings to global defaults.
          */
@@ -583,16 +763,25 @@ public class SettingsViewModel
                 updateBookSettingsUseCase.resetAll()
             }
         }
-
-        /**
-         * Normalizes all chapter titles (e.g. "Chapter 1").
-         */
-        public fun normalizeAllChapters() {
-            viewModelScope.launch {
-                booksRepository.normalizeAllChapters()
-            }
-        }
     }
+
+internal fun resolveProductivePeriodFromHour(peakHour: Int): ProductivePeriod {
+    if (peakHour < 0) return ProductivePeriod.UNKNOWN
+    return when (peakHour) {
+        in 5..11 -> ProductivePeriod.MORNING
+        in 12..16 -> ProductivePeriod.DAY
+        in 17..22 -> ProductivePeriod.EVENING
+        else -> ProductivePeriod.NIGHT
+    }
+}
+
+private fun resolveYearStartEpochMs(): Long =
+    java.time.LocalDate
+        .now()
+        .withDayOfYear(1)
+        .atStartOfDay(java.time.ZoneId.systemDefault())
+        .toInstant()
+        .toEpochMilli()
 
 /**
  * UI state for backup/restore operations.

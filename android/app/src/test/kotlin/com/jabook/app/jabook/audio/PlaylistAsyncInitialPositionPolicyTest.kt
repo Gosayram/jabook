@@ -43,22 +43,26 @@ class PlaylistAsyncInitialPositionPolicyTest {
     }
 
     @Test
-    fun `decide returns false when position is null or non-positive`() {
+    fun `decide returns false when position is null`() {
         val nullPosition =
             PlaylistAsyncInitialPositionPolicy.decide(
                 isCurrentGeneration = true,
                 initialTrackIndex = 1,
                 initialPositionMs = null,
             )
-        val zeroPosition =
+        assertThat(nullPosition.shouldApply).isFalse()
+    }
+
+    @Test
+    fun `decide switches to a nonzero chapter at its start`() {
+        val decision =
             PlaylistAsyncInitialPositionPolicy.decide(
                 isCurrentGeneration = true,
                 initialTrackIndex = 1,
                 initialPositionMs = 0L,
             )
 
-        assertThat(nullPosition.shouldApply).isFalse()
-        assertThat(zeroPosition.shouldApply).isFalse()
+        assertThat(decision.shouldApply).isTrue()
     }
 
     @Test

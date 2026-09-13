@@ -22,9 +22,9 @@ package com.jabook.app.jabook.compose.data.network
  *
  * Example:
  * ```
- * @GET("forum/tracker.php")
+ * @GET("tracker.php")
  * @RequestTimeout(connectMs = 5_000, readMs = 10_000, writeMs = 5_000)
- * suspend fun searchTopics(@Query("nm") query: String): TopicSearchResponse
+ * suspend fun searchTopics(@Query("nm") query: String): Response<ResponseBody>
  * ```
  */
 @Retention(AnnotationRetention.RUNTIME)

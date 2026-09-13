@@ -28,6 +28,19 @@ public object CrashDiagnostics {
     private const val VALUE_LIMIT = 120
     private const val MAX_EXTRA_ATTRIBUTES = 8
 
+    /**
+     * Non-actionable network flap exceptions, dropped from [reportNonFatal] to keep
+     * Crashlytics signal high (mirrors AnkiDroid's ThrowableFilterService idea).
+     * These already surface via retry-with-backoff telemetry and logcat.
+     */
+    private val NON_ACTIONABLE_EXCEPTIONS: List<Class<out Throwable>> =
+        listOf(
+            java.net.SocketTimeoutException::class.java,
+            java.net.UnknownHostException::class.java,
+            java.net.ConnectException::class.java,
+            java.io.InterruptedIOException::class.java,
+        )
+
     internal var sinkFactory: () -> CrashDiagnosticsSink = { FirebaseCrashDiagnosticsSink() }
     internal var isEnabledOverride: Boolean? = null
 
@@ -147,6 +160,7 @@ public object CrashDiagnostics {
         attributes: Map<String, Any?> = emptyMap(),
     ) {
         if (!isEnabled()) return
+        if (!shouldReport(throwable)) return
         safeRun {
             val sink = sinkFactory()
             sink.setCustomKey("non_fatal_tag", sanitize(tag))
@@ -162,6 +176,21 @@ public object CrashDiagnostics {
     }
 
     internal fun isEnabled(): Boolean = isEnabledOverride ?: (BuildConfig.HAS_GOOGLE_SERVICES && !BuildConfig.DEBUG)
+
+    /**
+     * Returns false for transient network failures (and wrapped causes) that are
+     * retried automatically and carry no actionable signal.
+     */
+    internal fun shouldReport(throwable: Throwable): Boolean {
+        var current: Throwable? = throwable
+        var depth = 0
+        while (current != null && depth < 5) {
+            if (NON_ACTIONABLE_EXCEPTIONS.any { it.isInstance(current) }) return false
+            current = current.cause
+            depth++
+        }
+        return true
+    }
 
     private fun sanitize(value: Any?): String {
         val text = value?.toString()?.trim().orEmpty()

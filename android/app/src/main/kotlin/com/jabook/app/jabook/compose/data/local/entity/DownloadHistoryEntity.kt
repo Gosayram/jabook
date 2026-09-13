@@ -14,7 +14,9 @@
 
 package com.jabook.app.jabook.compose.data.local.entity
 
+import androidx.annotation.Keep
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.jabook.app.jabook.compose.domain.model.DownloadHistoryItem
 
@@ -23,37 +25,23 @@ import com.jabook.app.jabook.compose.domain.model.DownloadHistoryItem
  *
  * Stores information about completed, failed, or cancelled downloads.
  */
-@Entity(tableName = "download_history")
+@Keep
+@Entity(
+    tableName = "download_history",
+    indices = [
+        Index(value = ["status"]),
+        Index(value = ["completedAt"]),
+    ],
+)
 public data class DownloadHistoryEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
-    /**
-     * Book ID from catalog.
-     */
     val bookId: String,
-    /**
-     * Book title for display.
-     */
     val bookTitle: String,
-    /**
-     * Final status: "completed", "failed", "cancelled".
-     */
     val status: String,
-    /**
-     * When download started (timestamp).
-     */
     val startedAt: Long,
-    /**
-     * When download finished (timestamp).
-     */
     val completedAt: Long,
-    /**
-     * Total bytes downloaded (if available).
-     */
     val totalBytes: Long?,
-    /**
-     * Error message for failed downloads.
-     */
     val errorMessage: String?,
 )
 

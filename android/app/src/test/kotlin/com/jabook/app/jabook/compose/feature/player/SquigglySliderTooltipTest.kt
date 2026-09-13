@@ -17,8 +17,11 @@ package com.jabook.app.jabook.compose.feature.player
 import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
 /** Unit tests for clampSliderTooltipOffset function. */
+@RunWith(RobolectricTestRunner::class)
 class SquigglySliderTooltipTest {
     @Test
     fun `clampSliderTooltipOffset clamps to zero at fraction zero`() {

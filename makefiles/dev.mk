@@ -47,7 +47,7 @@ compile-prod: ## Compile prod flavor only
 .PHONY: fmt-kotlin
 fmt-kotlin: ## Format Kotlin code (ktlint + detekt auto-correct) + regenerate verification metadata
 	@echo "Formatting Kotlin code with ktlint + detekt..."
-	@(cd android && ./gradlew :app:ktlintFormat :app:detekt --auto-correct --no-daemon); \
+	@(cd android && ./gradlew :app:ktlintFormat :app:detektMain --no-daemon); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
 		echo "✅ Kotlin code formatted successfully (ktlint + detekt)"; \
@@ -90,7 +90,24 @@ refresh-verification-metadata: ## Regenerate Gradle dependency verification meta
 	fi
 
 .PHONY: lint-kotlin
-lint-kotlin: ## Lint Kotlin code (ktlint + detekt check + dependency verification)
+
+.PHONY: update-logging-baseline
+update-logging-baseline: ## Update logging direct‑usage baseline file
+	@echo "Generating logging direct‑usage baseline..."
+	@if command -v rg >/dev/null 2>&1; then \
+		rg -n "android\\.util\\.Log\\." android/app/src/main/kotlin \
+			--glob '!**/util/LogUtils.kt' \
+			--glob '!**/compose/core/logger/AndroidLogger.kt' \
+			| cut -d: -f1 | sort -u > scripts/logging-direct-usage-baseline.txt; \
+	else \
+		grep -R -n -E "android\\.util\\.Log\\." android/app/src/main/kotlin \
+			--exclude='LogUtils.kt' \
+			--exclude='AndroidLogger.kt' \
+			| cut -d: -f1 | sort -u > scripts/logging-direct-usage-baseline.txt; \
+	fi
+	@echo "✅ Baseline updated: scripts/logging-direct-usage-baseline.txt"
+
+lint-kotlin: audit-main-thread-queries ## Lint Kotlin code (ktlint + detekt check + dependency verification)
 	@echo "Linting Kotlin code with ktlint + detekt..."
 	@echo "Checking coroutine test discipline (no Thread.sleep in unit tests)..."
 	@if command -v rg >/dev/null 2>&1; then \
@@ -126,7 +143,7 @@ lint-kotlin: ## Lint Kotlin code (ktlint + detekt check + dependency verificatio
 		fi; \
 	fi; \
 	echo "✅ Dependency verification passed"
-	@(cd android && ./gradlew :app:ktlintCheck :app:detekt --no-daemon); \
+	@(cd android && ./gradlew :app:ktlintCheck :app:detektMain --no-daemon); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
 		./scripts/check-i18n-keys.sh; \
@@ -194,6 +211,14 @@ lint-kotlin: ## Lint Kotlin code (ktlint + detekt check + dependency verificatio
 check-i18n-keys: ## Verify base values keys are present in values-ru
 	@./scripts/check-i18n-keys.sh
 
+.PHONY: audit-main-thread-queries
+audit-main-thread-queries: ## Forbid Room allowMainThreadQueries in app sources and tests
+	@./scripts/check-no-main-thread-room-queries.sh
+
+.PHONY: check-docs
+check-docs: ## Verify README/AGENTS/.kotlin-version match code versions (DB + Kotlin)
+	@./scripts/check-docs.sh
+
 .PHONY: ktlint-strace
 ktlint-strace: ## Run ktlint format with stacktrace (debug formatting issues)
 	@(cd android && ./gradlew :app:runKtlintFormatOverMainSourceSet --no-daemon --stacktrace); \
@@ -208,7 +233,7 @@ ktlint-strace: ## Run ktlint format with stacktrace (debug formatting issues)
 .PHONY: detekt
 detekt: ## Run detekt static analysis
 	@echo "Running detekt static analysis..."
-	@(cd android && ./gradlew :app:detekt --no-daemon); \
+	@(cd android && ./gradlew :app:detektMain --no-daemon); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
 		echo "✅ Detekt analysis passed"; \
@@ -229,10 +254,43 @@ hilt-graph-check: ## Validate Hilt dependency graph for beta/prod debug variants
 	fi; \
 	exit $$EXIT_CODE
 
+.PHONY: test-fast
+test-fast: ## Run FAST unit tests only (excludes Robolectric/SlowTest, ~1 min)
+	@echo "Running FAST unit tests (excluding @SlowTest, beta flavor)..."
+	@(cd android && ./gradlew :app:testBetaDebugUnitTest -Ptest.fast=true); \
+	EXIT_CODE=$$?; \
+	if [ $$EXIT_CODE -eq 0 ]; then \
+		echo "✅ Fast unit tests passed"; \
+	else \
+		echo "❌ Fast unit tests failed with exit code $$EXIT_CODE"; \
+	fi; \
+	exit $$EXIT_CODE
+
+.PHONY: test-slow
+test-slow: ## Run SLOW unit tests only (Robolectric/@SlowTest only, ~3-4 min)
+	@echo "Running SLOW unit tests (Robolectric/@SlowTest only, beta flavor)..."
+	@(cd android && ./gradlew :app:testBetaDebugUnitTest \
+		--tests "com.jabook.app.jabook.audio.*" \
+		--tests "com.jabook.app.jabook.compose.data.local.*" \
+		--tests "com.jabook.app.jabook.compose.data.auth.*" \
+		--tests "com.jabook.app.jabook.compose.data.backup.*" \
+		--tests "com.jabook.app.jabook.compose.data.permissions.*" \
+		--tests "com.jabook.app.jabook.compose.feature.topic.*" \
+		--tests "com.jabook.app.jabook.compose.feature.torrent.*" \
+		--tests "com.jabook.app.jabook.migration.*" \
+		--tests "com.jabook.app.jabook.widget.*"); \
+	EXIT_CODE=$$?; \
+	if [ $$EXIT_CODE -eq 0 ]; then \
+		echo "✅ Slow unit tests passed"; \
+	else \
+		echo "❌ Slow unit tests failed with exit code $$EXIT_CODE"; \
+	fi; \
+	exit $$EXIT_CODE
+
 .PHONY: test
-test: ## Run unit tests (developer profile: faster local feedback)
-	@echo "Running unit tests (developer profile)..."
-	@(cd android && ./gradlew :app:testBetaDebugUnitTest :app:testProdDebugUnitTest --no-daemon); \
+test: ## Run ALL unit tests (developer profile: beta flavor only, ~5 min)
+	@echo "Running ALL unit tests (developer profile, beta flavor only)..."
+	@(cd android && ./gradlew :app:testBetaDebugUnitTest); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
 		echo "✅ Unit tests passed (developer profile)"; \
@@ -242,10 +300,10 @@ test: ## Run unit tests (developer profile: faster local feedback)
 	exit $$EXIT_CODE
 
 .PHONY: test-strict
-test-strict: ## Run unit tests with stricter execution limits (CI-friendly)
-	@echo "Running strict unit tests (single worker, no parallel)..."
+test-strict: ## Run unit tests with stricter execution limits (CI-friendly, all flavors)
+	@echo "Running strict unit tests (single worker, no parallel, both flavors)..."
 	@(cd android && ./gradlew :app:testBetaDebugUnitTest :app:testProdDebugUnitTest \
-		--no-daemon --max-workers=1 --no-parallel); \
+		--max-workers=1 --no-parallel); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
 		echo "✅ Strict unit tests passed"; \
@@ -258,13 +316,12 @@ test-strict: ## Run unit tests with stricter execution limits (CI-friendly)
 test-ci: test-strict ## CI unit test profile (alias of test-strict)
 
 .PHONY: test-audio
-test-audio: ## Run audio-focused unit tests (beta + prod)
-	@echo "Running audio-focused unit tests..."
-	@(cd android && ./gradlew :app:testBetaDebugUnitTest :app:testProdDebugUnitTest \
+test-audio: ## Run audio-focused unit tests (beta flavor)
+	@echo "Running audio-focused unit tests (beta flavor)..."
+	@(cd android && ./gradlew :app:testBetaDebugUnitTest \
 		--tests "com.jabook.app.jabook.audio.*" \
 		--tests "com.jabook.app.jabook.audio.*.*" \
-		--tests "com.jabook.app.jabook.download.*" \
-		--no-daemon); \
+		--tests "com.jabook.app.jabook.download.*"); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
 		echo "✅ Audio-focused unit tests passed"; \
@@ -274,14 +331,13 @@ test-audio: ## Run audio-focused unit tests (beta + prod)
 	exit $$EXIT_CODE
 
 .PHONY: test-storage
-test-storage: ## Run storage/data-layer unit tests (beta + prod)
-	@echo "Running storage-focused unit tests..."
-	@(cd android && ./gradlew :app:testBetaDebugUnitTest :app:testProdDebugUnitTest \
+test-storage: ## Run storage/data-layer unit tests (beta flavor)
+	@echo "Running storage-focused unit tests (beta flavor)..."
+	@(cd android && ./gradlew :app:testBetaDebugUnitTest \
 		--tests "com.jabook.app.jabook.compose.data.local.*" \
 		--tests "com.jabook.app.jabook.compose.data.local.*.*" \
 		--tests "com.jabook.app.jabook.compose.data.repository.*" \
-		--tests "com.jabook.app.jabook.migration.*" \
-		--no-daemon); \
+		--tests "com.jabook.app.jabook.migration.*"); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
 		echo "✅ Storage-focused unit tests passed"; \
@@ -291,13 +347,12 @@ test-storage: ## Run storage/data-layer unit tests (beta + prod)
 	exit $$EXIT_CODE
 
 .PHONY: test-player
-test-player: ## Run player feature unit tests (beta + prod)
-	@echo "Running player-focused unit tests..."
-	@(cd android && ./gradlew :app:testBetaDebugUnitTest :app:testProdDebugUnitTest \
+test-player: ## Run player feature unit tests (beta flavor)
+	@echo "Running player-focused unit tests (beta flavor)..."
+	@(cd android && ./gradlew :app:testBetaDebugUnitTest \
 		--tests "com.jabook.app.jabook.compose.feature.player.*" \
 		--tests "com.jabook.app.jabook.compose.feature.player.*.*" \
-		--tests "com.jabook.app.jabook.audio.*" \
-		--no-daemon); \
+		--tests "com.jabook.app.jabook.audio.*"); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
 		echo "✅ Player-focused unit tests passed"; \
@@ -307,8 +362,8 @@ test-player: ## Run player feature unit tests (beta + prod)
 	exit $$EXIT_CODE
 
 .PHONY: test-coverage
-test-coverage: ## Generate test coverage report (JaCoCo)
-	@(cd android && ./gradlew :app:testBetaDebugUnitTest :app:testProdDebugUnitTest :app:jacocoTestReport --no-daemon); \
+test-coverage: ## Generate test coverage report (JaCoCo, both flavors for full coverage)
+	@(cd android && ./gradlew :app:testBetaDebugUnitTest :app:testProdDebugUnitTest :app:jacocoTestReport); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
 		echo "✅ Test coverage report generated at android/app/build/reports/jacoco/jacocoTestReport/html/index.html"; \
@@ -320,7 +375,7 @@ test-coverage: ## Generate test coverage report (JaCoCo)
 .PHONY: test-coverage-verify
 test-coverage-verify: test-coverage ## Verify test coverage ≥ 85%
 	@echo "Verifying test coverage meets minimum threshold of 85%..."
-	@(cd android && ./gradlew :app:jacocoCoverageVerification --no-daemon); \
+	@(cd android && ./gradlew :app:jacocoCoverageVerification); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
 		echo "✅ Test coverage meets minimum threshold of 85%"; \

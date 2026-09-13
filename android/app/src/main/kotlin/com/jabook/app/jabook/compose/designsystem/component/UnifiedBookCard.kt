@@ -14,7 +14,18 @@
 
 package com.jabook.app.jabook.compose.designsystem.component
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,34 +39,58 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Text
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
-import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
+import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.isSecondaryPressed
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
+import com.jabook.app.jabook.compose.core.theme.MotionTokens
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.CoverUtils
 import com.jabook.app.jabook.compose.data.model.DownloadStatus
@@ -85,6 +120,7 @@ private val unifiedBookCardLogger by lazy { LoggerFactoryImpl().get("UnifiedBook
  * @param actionsProvider Provider for all book actions
  * @param modifier Modifier for the card
  */
+@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 public fun UnifiedBookCard(
     book: Book,
@@ -95,15 +131,16 @@ public fun UnifiedBookCard(
     isSelectionMode: Boolean = false,
     isSelected: Boolean = false,
     onToggleSelection: (() -> Unit)? = null,
+    windowSizeClass: WindowSizeClass? = null,
 ) {
     // Log if book has invalid/empty data
-    androidx.compose.runtime.LaunchedEffect(book.id) {
+    LaunchedEffect(book.id) {
         val hasEmptyTitle = book.title.isBlank()
         val hasEmptyAuthor = book.author.isBlank()
         val hasEmptyId = book.id.isBlank()
         if (hasEmptyTitle || hasEmptyAuthor || hasEmptyId) {
             unifiedBookCardLogger.w {
-                "⚠️ Book card with invalid data: " +
+                "Book card with invalid data: " +
                     "id='${book.id.take(20)}', " +
                     "title=${if (hasEmptyTitle) "EMPTY" else "'${book.title.take(30)}'"}, " +
                     "author=${if (hasEmptyAuthor) "EMPTY" else "'${book.author.take(20)}'"}, " +
@@ -121,6 +158,7 @@ public fun UnifiedBookCard(
                 isSelectionMode = isSelectionMode,
                 isSelected = isSelected,
                 onToggleSelection = onToggleSelection,
+                windowSizeClass = windowSizeClass,
                 modifier = modifier,
             )
         displayMode.isList() ->
@@ -132,8 +170,61 @@ public fun UnifiedBookCard(
                 isSelectionMode = isSelectionMode,
                 isSelected = isSelected,
                 onToggleSelection = onToggleSelection,
+                windowSizeClass = windowSizeClass,
                 modifier = modifier,
             )
+    }
+}
+
+/**
+ * Favorite icon with a quick scale-crossfade pop on toggle (spotube heart_button pattern).
+ *
+ * ponytail: effects speed — PRESS_DURATION_MS (150ms) tween, not spring; effects must not overshoot.
+ *
+ * @param isFavorite Current favorite state (key for the transition)
+ * @param unselectedTint Icon tint when not favorited
+ * @param modifier Modifier for the icon
+ */
+@Composable
+private fun AnimatedFavoriteIcon(
+    isFavorite: Boolean,
+    unselectedTint: Color,
+    modifier: Modifier = Modifier,
+) {
+    val fadeSpec = tween<Float>(durationMillis = MotionTokens.PRESS_DURATION_MS)
+    // M3 motion: scale is SPATIAL — springs overshoot into place; fade is an effect — tween, no overshoot
+    val popSpec = spring<Float>(dampingRatio = Spring.DampingRatioMediumBouncy)
+    AnimatedContent(
+        targetState = isFavorite,
+        transitionSpec = {
+            (scaleIn(initialScale = 0.5f, animationSpec = popSpec) + fadeIn(fadeSpec))
+                .togetherWith(scaleOut(targetScale = 0.5f, animationSpec = fadeSpec) + fadeOut(fadeSpec))
+        },
+        label = "favoriteToggle",
+        modifier = modifier,
+    ) { favorite ->
+        Icon(
+            imageVector =
+                if (favorite) {
+                    Icons.Filled.Favorite
+                } else {
+                    Icons.Outlined.FavoriteBorder
+                },
+            contentDescription =
+                stringResource(
+                    if (favorite) {
+                        R.string.removeFromFavorites
+                    } else {
+                        R.string.addToFavorites
+                    },
+                ),
+            tint =
+                if (favorite) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    unselectedTint
+                },
+        )
     }
 }
 
@@ -150,35 +241,48 @@ private fun GridBookCard(
     isSelectionMode: Boolean = false,
     isSelected: Boolean = false,
     onToggleSelection: (() -> Unit)? = null,
+    windowSizeClass: WindowSizeClass? = null,
 ) {
-    val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
-    val windowSizeClass =
-        calculateWindowSizeClass(
-            context as? android.app.Activity
-                ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-                ?: throw IllegalStateException("Cannot get Activity from context"),
+    // Ponytail: non-null fallback avoids scattering null checks across AdaptiveUtils calls
+    val effectiveWSC =
+        windowSizeClass ?: WindowSizeClass.calculateFromSize(
+            DpSize(360.dp, 800.dp),
         )
     val isFavorite = actionsProvider.isFavorite(book.id)
 
     // Glassmorphic Card Style
+    // ponytail: surface at 0.6f glassmorphic; fallback to surfaceContainer token when spec requires opaque (cards/page.md 12dp)
     val glassColors =
-        androidx.compose.material3.CardDefaults.cardColors(
+        CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
         )
     val glassBorder =
-        androidx.compose.foundation.BorderStroke(
+        BorderStroke(
             width = 1.dp,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
         )
 
+    // ponytail: selection shape — static 20dp when selected (CardDefaults.shape is 12dp); the old
+    // morphProgress spring animated a hard if>0.5f snap, i.e. machinery for a non-animation
+    val cardShape =
+        if (isSelectionMode && isSelected) {
+            RoundedCornerShape(20.dp)
+        } else {
+            CardDefaults.shape
+        }
+
     Card(
+        shape = cardShape,
         colors = glassColors,
         border = glassBorder,
         modifier =
             modifier
                 .fillMaxWidth()
-                .combinedClickable(
+                .clip(cardShape)
+                .onSecondaryClick(book.id, actionsProvider) {
+                    actionsProvider.onBookLongPress(book.id)
+                }.combinedClickable(
                     onClick = { actionsProvider.onBookClick(book.id) },
                     onLongClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -201,16 +305,20 @@ private fun GridBookCard(
             }
 
             val context = LocalContext.current
+            val placeholderColor = MaterialTheme.colorScheme.surfaceVariant
+            val errorColor = MaterialTheme.colorScheme.error
             val imageRequest =
-                CoverUtils
-                    .createCoverImageRequest(
-                        book = book,
-                        context = context,
-                        placeholderColor = MaterialTheme.colorScheme.surfaceVariant,
-                        errorColor = MaterialTheme.colorScheme.error,
-                        fallbackColor = MaterialTheme.colorScheme.surfaceVariant,
-                        cornerRadius = 8f, // 8dp rounded corners
-                    ).build()
+                remember(book.id, book.coverUrl, book.localPath, context, placeholderColor, errorColor) {
+                    CoverUtils
+                        .createCoverImageRequest(
+                            book = book,
+                            context = context,
+                            placeholderColor = placeholderColor,
+                            errorColor = errorColor,
+                            fallbackColor = placeholderColor,
+                            cornerRadius = 12f, // 12dp per M3 cards spec (was 8dp)
+                        ).build()
+                }
 
             AsyncImage(
                 model = imageRequest,
@@ -224,6 +332,18 @@ private fun GridBookCard(
                 contentScale = ContentScale.Crop,
             )
 
+            Box(
+                modifier =
+                    Modifier
+                        .matchParentSize()
+                        .border(
+                            width = 0.5.dp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                            shape =
+                                RoundedCornerShape(12.dp),
+                        ),
+            )
+
             // Favorite button in top-right corner with adaptive icon size
             if (actionsProvider.showFavoriteButton) {
                 IconButton(
@@ -233,29 +353,16 @@ private fun GridBookCard(
                             .align(Alignment.TopEnd)
                             .sizeIn(minWidth = 48.dp, minHeight = 48.dp),
                 ) {
-                    Icon(
-                        imageVector =
-                            if (isFavorite) {
-                                Icons.Filled.Favorite
-                            } else {
-                                Icons.Outlined.FavoriteBorder
-                            },
-                        contentDescription =
-                            if (isFavorite) {
-                                stringResource(R.string.removeFromFavorites)
-                            } else {
-                                stringResource(R.string.addToFavorites)
-                            },
-                        tint =
-                            if (isFavorite) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurface
-                            },
-                        modifier = Modifier.size(AdaptiveUtils.getIconSize(windowSizeClass)),
+                    AnimatedFavoriteIcon(
+                        isFavorite = isFavorite,
+                        unselectedTint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(AdaptiveUtils.getIconSize(effectiveWSC)),
                     )
                 }
             }
+
+            // Shift badges below the selection checkbox to avoid overlap in selection mode
+            val badgeTopPadding = if (isSelectionMode && onToggleSelection != null) 52.dp else 8.dp
 
             if (actionsProvider.showDownloadStatus && book.isDownloading) {
                 DownloadProgressBadge(
@@ -263,7 +370,7 @@ private fun GridBookCard(
                     modifier =
                         Modifier
                             .align(Alignment.TopStart)
-                            .padding(8.dp),
+                            .padding(start = 8.dp, top = badgeTopPadding),
                 )
             } else if (actionsProvider.showDownloadStatus) {
                 DownloadStatusBadge(
@@ -271,8 +378,25 @@ private fun GridBookCard(
                     modifier =
                         Modifier
                             .align(Alignment.TopStart)
-                            .padding(8.dp),
+                            .padding(start = 8.dp, top = badgeTopPadding),
                 )
+            } else if (book.isCompleted) {
+                Box(
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopStart)
+                            .padding(start = 8.dp, top = badgeTopPadding)
+                            .background(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
+                                RoundedCornerShape(4.dp),
+                            ).padding(horizontal = 6.dp, vertical = 2.dp),
+                ) {
+                    Text(
+                        text = "✓",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                    )
+                }
             }
 
             Box(
@@ -284,37 +408,36 @@ private fun GridBookCard(
                             Brush.verticalGradient(
                                 colors =
                                     listOf(
-                                        androidx.compose.ui.graphics.Color.Transparent,
-                                        androidx.compose.ui.graphics.Color.Black
+                                        Color.Transparent,
+                                        Color.Black
                                             .copy(alpha = 0.78f),
                                     ),
                             ),
-                        ).padding(AdaptiveUtils.getCardPadding(windowSizeClass)),
+                        ).padding(AdaptiveUtils.getCardPadding(effectiveWSC)),
             ) {
+                // ponytail: TooltipBox shows full text on long-press when truncated (writing/page.md:60-70)
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(
+                    TruncatedTooltipText(
                         text = book.title,
-                        style =
-                            AdaptiveUtils.getAdaptiveTextStyle(
-                                MaterialTheme.typography.titleSmall,
-                                windowSizeClass,
-                            ),
-                        color = androidx.compose.ui.graphics.Color.White,
+                        style = AdaptiveUtils.getAdaptiveTextStyle(MaterialTheme.typography.titleSmall, effectiveWSC),
+                        color = Color.White,
                         maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        lineHeight = MaterialTheme.typography.titleSmall.lineHeight,
                     )
                     if (book.author.isNotBlank()) {
-                        Text(
+                        TruncatedTooltipText(
                             text = book.author,
-                            style =
-                                AdaptiveUtils.getAdaptiveTextStyle(
-                                    MaterialTheme.typography.bodySmall,
-                                    windowSizeClass,
-                                ),
+                            style = AdaptiveUtils.getAdaptiveTextStyle(MaterialTheme.typography.bodySmall, effectiveWSC),
+                            color = Color.White.copy(alpha = 0.85f),
+                            maxLines = 1,
+                        )
+                    }
+                    if (!book.narrator.isNullOrBlank()) {
+                        Text(
+                            text = book.narrator,
+                            style = MaterialTheme.typography.labelSmall,
                             color =
-                                androidx.compose.ui.graphics.Color.White
-                                    .copy(alpha = 0.85f),
+                                Color.White
+                                    .copy(alpha = 0.7f),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -323,12 +446,17 @@ private fun GridBookCard(
             }
 
             if (actionsProvider.showProgress && book.progress > 0f) {
-                LinearProgressIndicator(
-                    progress = { book.progress },
+                ThinProgressBar(
+                    progress = book.progress,
                     modifier =
                         Modifier
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth(),
+                    trackColor =
+                        Color.White
+                            .copy(alpha = 0.2f),
+                    progressColor = MaterialTheme.colorScheme.primary,
+                    height = 2.dp,
                 )
             }
         }
@@ -349,36 +477,37 @@ private fun ListBookCard(
     isSelectionMode: Boolean = false,
     isSelected: Boolean = false,
     onToggleSelection: (() -> Unit)? = null,
+    windowSizeClass: WindowSizeClass? = null,
 ) {
-    val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
-    val windowSizeClass =
-        calculateWindowSizeClass(
-            context as? android.app.Activity
-                ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-                ?: throw IllegalStateException("Cannot get Activity from context"),
+    // Ponytail: non-null fallback avoids scattering null checks across AdaptiveUtils calls
+    val effectiveWSC =
+        windowSizeClass ?: WindowSizeClass.calculateFromSize(
+            DpSize(360.dp, 800.dp),
         )
     val isFavorite = actionsProvider.isFavorite(book.id)
     // Use adaptive cover size based on WindowSizeClass
     val coverSize =
         when (displayMode) {
-            BookDisplayMode.LIST_COMPACT -> AdaptiveUtils.getCompactListCoverSize(windowSizeClass)
-            BookDisplayMode.LIST_DEFAULT -> AdaptiveUtils.getListCoverSize(windowSizeClass)
+            BookDisplayMode.LIST_COMPACT -> AdaptiveUtils.getCompactListCoverSize(effectiveWSC)
+            BookDisplayMode.LIST_DEFAULT -> AdaptiveUtils.getListCoverSize(effectiveWSC)
             else -> displayMode.getListCoverSize()?.dp ?: 48.dp
         }
 
     // Glassmorphic Card Style
+    // ponytail: surface at 0.6f glassmorphic; fallback to surfaceContainer token when spec requires opaque (cards/page.md 12dp)
     val glassColors =
-        androidx.compose.material3.CardDefaults.cardColors(
+        CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
         )
     val glassBorder =
-        androidx.compose.foundation.BorderStroke(
+        BorderStroke(
             width = 1.dp,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
         )
 
     Card(
+        shape = CardDefaults.shape, // M3 medium = 12dp per cards/page.md
         colors = glassColors,
         border = glassBorder,
         modifier = modifier.fillMaxWidth(),
@@ -387,7 +516,10 @@ private fun ListBookCard(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .combinedClickable(
+                    .clip(CardDefaults.shape)
+                    .onSecondaryClick(book.id, actionsProvider) {
+                        actionsProvider.onBookLongPress(book.id)
+                    }.combinedClickable(
                         onClick = { actionsProvider.onBookClick(book.id) },
                         onLongClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -410,22 +542,38 @@ private fun ListBookCard(
             // Cover image
             Box {
                 val context = LocalContext.current
+                val placeholderColor = MaterialTheme.colorScheme.surfaceVariant
+                val errorColor = MaterialTheme.colorScheme.error
                 val imageRequest =
-                    CoverUtils
-                        .createCoverImageRequest(
-                            book = book,
-                            context = context,
-                            placeholderColor = MaterialTheme.colorScheme.surfaceVariant,
-                            errorColor = MaterialTheme.colorScheme.error,
-                            fallbackColor = MaterialTheme.colorScheme.surfaceVariant,
-                            cornerRadius = 8f, // 8dp rounded corners
-                        ).build()
+                    remember(book.id, book.coverUrl, book.localPath, context, placeholderColor, errorColor) {
+                        CoverUtils
+                            .createCoverImageRequest(
+                                book = book,
+                                context = context,
+                                placeholderColor = placeholderColor,
+                                errorColor = errorColor,
+                                fallbackColor = placeholderColor,
+                                cornerRadius = 12f, // 12dp per M3 cards spec (was 8dp)
+                            ).build()
+                    }
 
                 AsyncImage(
                     model = imageRequest,
                     contentDescription = book.title,
-                    modifier = Modifier.size(coverSize),
+                    modifier = imageModifier.then(Modifier.size(coverSize)),
                     contentScale = ContentScale.Crop,
+                )
+
+                Box(
+                    modifier =
+                        Modifier
+                            .matchParentSize()
+                            .border(
+                                width = 0.5.dp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                                shape =
+                                    RoundedCornerShape(12.dp),
+                            ),
                 )
 
                 // Download progress indicator for list mode
@@ -460,7 +608,6 @@ private fun ListBookCard(
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = if (displayMode == BookDisplayMode.LIST_COMPACT) 1 else 2,
                     overflow = TextOverflow.Ellipsis,
-                    lineHeight = MaterialTheme.typography.titleMedium.lineHeight,
                 )
                 if (book.author.isNotBlank()) {
                     Text(
@@ -471,17 +618,96 @@ private fun ListBookCard(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
+                if (!book.narrator.isNullOrBlank()) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Headphones,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        )
+                        Text(
+                            text = book.narrator,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+
+                if (book.isCompleted) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(12.dp),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                        Text(
+                            text = stringResource(R.string.status_completed),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                } else if (book.progress > 0f && actionsProvider.showProgress) {
+                    val remaining = book.remainingDuration
+                    if (remaining.inWholeMinutes > 0) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Timer,
+                                contentDescription = null,
+                                modifier = Modifier.size(12.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            )
+                            Text(
+                                text = stringResource(R.string.minutes_remaining, remaining.inWholeMinutes),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            )
+                        }
+                    }
+                } else {
+                    // New/not-started books: show total duration
+                    val totalMin = book.totalDuration.inWholeMinutes
+                    if (totalMin > 0) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Schedule,
+                                contentDescription = null,
+                                modifier = Modifier.size(12.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            )
+                            Text(
+                                text = stringResource(R.string.total_duration_minutes, totalMin),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            )
+                        }
+                    }
+                }
 
                 // Progress indicator in the text column
                 if (actionsProvider.showProgress && book.progress > 0f) {
                     Spacer(modifier = Modifier.height(4.dp))
-                    LinearProgressIndicator(
-                        progress = { book.progress },
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(4.dp),
-                        strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
+                    ThinProgressBar(
+                        progress = book.progress,
+                        modifier = Modifier.fillMaxWidth(),
+                        trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                        progressColor = MaterialTheme.colorScheme.primary,
+                        height = 4.dp,
                     )
                 }
             }
@@ -492,25 +718,9 @@ private fun ListBookCard(
                     onClick = { actionsProvider.onToggleFavorite(book.id, !isFavorite) },
                     modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp),
                 ) {
-                    Icon(
-                        imageVector =
-                            if (isFavorite) {
-                                Icons.Filled.Favorite
-                            } else {
-                                Icons.Outlined.FavoriteBorder
-                            },
-                        contentDescription =
-                            if (isFavorite) {
-                                stringResource(R.string.removeFromFavorites)
-                            } else {
-                                stringResource(R.string.addToFavorites)
-                            },
-                        tint =
-                            if (isFavorite) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
+                    AnimatedFavoriteIcon(
+                        isFavorite = isFavorite,
+                        unselectedTint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -547,6 +757,7 @@ private fun DownloadStatusBadge(
                 return
         }
 
+    // ponytail: DownloadStatusBadge labelSmallEmphasized ceiling — swap to EmphasizedTypography.labelSmall when card badge needs emphasis
     Text(
         text = stringResource(labelRes),
         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
@@ -556,8 +767,7 @@ private fun DownloadStatusBadge(
                 .background(
                     color = containerColor,
                     shape =
-                        androidx.compose.foundation.shape
-                            .RoundedCornerShape(999.dp),
+                        RoundedCornerShape(999.dp),
                 ).padding(horizontal = 8.dp, vertical = 4.dp),
     )
 }
@@ -574,6 +784,7 @@ private fun DownloadProgressBadge(
                 .semantics(mergeDescendants = true) {}
                 .padding(2.dp),
     ) {
+        // ponytail: progress badge emphasized ceiling — EmphasizedTypography.labelSmall when proven
         Text(
             text = stringResource(R.string.downloadProgressBadge, clampedPercent),
             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
@@ -583,9 +794,70 @@ private fun DownloadProgressBadge(
                     .background(
                         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f),
                         shape =
-                            androidx.compose.foundation.shape
-                                .RoundedCornerShape(999.dp),
+                            RoundedCornerShape(999.dp),
                     ).padding(horizontal = 8.dp, vertical = 4.dp),
         )
     }
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TruncatedTooltipText(
+    text: String,
+    style: androidx.compose.ui.text.TextStyle,
+    color: Color,
+    maxLines: Int,
+) {
+    var isTruncated by remember(text) { mutableStateOf(false) }
+    val state = rememberTooltipState()
+    TooltipBox(positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above), tooltip = {
+        PlainTooltip { Text(text) }
+    }, state = state) {
+        Text(text = text, style = style, color = color, maxLines = maxLines, overflow = TextOverflow.Ellipsis, onTextLayout = {
+            isTruncated =
+                it.hasVisualOverflow
+        })
+    }
+    // ponytail: isTruncated tracks overflow via hasVisualOverflow; wrapper always present (harmless when not truncated), expand to conditional when tooltip crowding matters
+}
+
+/**
+ * Intercepts mouse secondary (right) clicks and invokes [onSecondaryClick].
+ *
+ * Events are consumed at [PointerEventPass.Initial] so the sibling
+ * [androidx.compose.foundation.combinedClickable] never sees them —
+ * a right-click cannot trigger click, selection, or long-press.
+ *
+ * Keys mirror the captured state so recycled rows never fire with a stale book.
+ *
+ * @param key1 Key tied to the observed book (id)
+ * @param key2 Key tied to the observed actions provider
+ * @param onSecondaryClick Invoked when a mouse secondary press is detected
+ */
+private fun Modifier.onSecondaryClick(
+    key1: Any?,
+    key2: Any?,
+    onSecondaryClick: () -> Unit,
+): Modifier =
+    pointerInput(key1, key2) {
+        awaitPointerEventScope {
+            var tracking = false
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Initial)
+                if (event.type == PointerEventType.Press) {
+                    tracking = event.buttons.isSecondaryPressed
+                    if (tracking) {
+                        event.changes.forEach { it.consume() }
+                        onSecondaryClick()
+                    }
+                } else if (tracking) {
+                    event.changes.forEach { it.consume() }
+                    // No Cancel event type in Compose: a cleared button state covers
+                    // gesture cancellation (overflow menu, focus steal, etc.).
+                    if (event.type == PointerEventType.Release || !event.buttons.isSecondaryPressed) {
+                        tracking = false
+                    }
+                }
+            }
+        }
+    }

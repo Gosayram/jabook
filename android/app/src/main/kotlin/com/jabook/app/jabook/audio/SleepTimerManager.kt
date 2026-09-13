@@ -17,7 +17,6 @@ package com.jabook.app.jabook.audio
 import android.content.Context
 import android.content.Intent
 import android.hardware.Sensor
-import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.PowerManager
@@ -25,13 +24,15 @@ import android.widget.Toast
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.util.rethrowCancellation
+import com.jabook.app.jabook.compose.core.util.safeEnum
 import com.jabook.app.jabook.compose.data.preferences.SleepTimerState
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlin.math.sqrt
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Manages sleep timer functionality.
@@ -48,7 +49,7 @@ internal class SleepTimerManager(
     private val saveCurrentPositionOnExpiry: () -> Unit = {},
     private val audioFader: AudioFader? = null,
     private val settingsRepository: com.jabook.app.jabook.compose.data.preferences.SettingsRepository? = null,
-    private val saveSleepTimerStateToDataStore: (com.jabook.app.jabook.compose.data.preferences.SleepTimerState) -> Unit = {},
+    private val saveSleepTimerStateToDataStore: ((com.jabook.app.jabook.compose.data.preferences.SleepTimerState) -> Unit)? = null,
     private val isShakeToExtendEnabled: () -> Boolean = { true },
     private val isPowerSaveModeEnabled: () -> Boolean = {
         val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
@@ -70,45 +71,33 @@ internal class SleepTimerManager(
     private var suspendableTimer: SuspendableCountDownTimer? = null
     private var isFixedTimerPaused: Boolean = false
     private var fixedTimerPausedRemainingMillis: Long? = null
+    private val timerGeneration = AtomicLong(0L)
 
     // Shake to Extend
     private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
     private val accelerometer: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-    private var lastShakeTime: Long = 0L
     private var isTimerExtensionInProgress: Boolean = false
     private var isShakeListenerRegistered: Boolean = false
-    private val shakeThreshold = 1.6f // g-force threshold
-    private val shakeDebounceMs = 2000L
 
-    private val shakeListener =
-        object : SensorEventListener {
-            override fun onSensorChanged(event: SensorEvent?) {
-                if (event == null) return
-
-                val x = event.values[0]
-                val y = event.values[1]
-                val z = event.values[2]
-
-                // Normalize by gravity
-                val gX = x / SensorManager.GRAVITY_EARTH
-                val gY = y / SensorManager.GRAVITY_EARTH
-                val gZ = z / SensorManager.GRAVITY_EARTH
-
-                // Calculate gForce
-                val gForce = sqrt(gX * gX + gY * gY + gZ * gZ)
-
-                if (gForce > shakeThreshold) {
-                    handleShakeDetected(System.currentTimeMillis())
-                }
-            }
-
-            override fun onAccuracyChanged(
-                sensor: Sensor?,
-                accuracy: Int,
-            ) {
-                // Not used
+    // ponytail: disable shake-to-extend while Android Auto is active (bumps false-trigger)
+    var isAutomotiveActive: Boolean = false
+        set(value) {
+            field = value
+            if (value && isShakeListenerRegistered) {
+                sensorManager.unregisterListener(shakeSensorListener)
+                isShakeListenerRegistered = false
+                LogUtils.d("AudioPlayerService", "Shake listener unregistered (automotive active)")
             }
         }
+
+    // Injectable clock so tests can drive the detector deterministically.
+    private var shakeClockMillis: Long = 0L
+    private val shakeDetector =
+        ImprovedShakeDetector(
+            clockMs = { shakeClockMillis },
+            onShakeDetected = { extendTimer() },
+        )
+    private val shakeSensorListener: SensorEventListener = shakeDetector.asListener()
 
     companion object {
         public const val ACTION_SLEEP_TIMER_EXPIRED = "com.jabook.app.jabook.audio.SLEEP_TIMER_EXPIRED"
@@ -122,10 +111,14 @@ internal class SleepTimerManager(
      * @param minutes Timer duration in minutes
      */
     public fun setSleepTimerMinutes(minutes: Int) {
+        if (minutes <= 0) {
+            cancelSleepTimer()
+            return
+        }
         stopTimer() // Stop existing timer if any
+        val callbackGeneration = timerGeneration.get()
 
         val totalMillis = minutes * 60 * 1000L
-        if (totalMillis <= 0L) return
 
         sleepTimerEndTime = System.currentTimeMillis() + totalMillis
         sleepTimerMode = SleepTimerMode.FIXED_DURATION
@@ -141,24 +134,13 @@ internal class SleepTimerManager(
                 totalMillis = totalMillis,
                 intervalMillis = 500L, // Update every 500ms
                 onTickSeconds = { seconds ->
-                    _sleepTimerRemainingSeconds = seconds.toInt()
+                    if (isCurrentFixedTimer(callbackGeneration)) {
+                        _sleepTimerRemainingSeconds = seconds.toInt()
+                    }
                     LogUtils.v("AudioPlayerService", "Sleep timer tick: ${seconds}s remaining")
                 },
                 onFinished = {
-                    LogUtils.d("AudioPlayerService", "Sleep timer expired, pausing playback")
-                    saveCurrentPositionOnExpiry()
-                    val player = getActivePlayer()
-                    if (audioFader != null) {
-                        audioFader.fadeOut(player) {
-                            player.playWhenReady = false
-                            cancelSleepTimer()
-                            sendTimerExpiredEvent()
-                        }
-                    } else {
-                        player.playWhenReady = false
-                        cancelSleepTimer()
-                        sendTimerExpiredEvent()
-                    }
+                    expireFixedTimer(callbackGeneration, "Sleep timer expired, pausing playback")
                 },
             )
 
@@ -239,6 +221,7 @@ internal class SleepTimerManager(
      * Stops and cleans up the timer.
      */
     private fun stopTimer() {
+        timerGeneration.incrementAndGet()
         suspendableTimer?.cancel()
         suspendableTimer = null
         removePlayerListener()
@@ -276,10 +259,7 @@ internal class SleepTimerManager(
     public fun isSleepTimerActive(): Boolean = sleepTimerMode != SleepTimerMode.NONE
 
     /**
-     * Sends sleep timer expired event to Flutter.
-     *
-     * This method broadcasts an intent that will be handled by Flutter
-     * through MethodChannel or EventChannel.
+     * Sends sleep timer expired broadcast.
      */
     private fun sendTimerExpiredEvent() {
         val intent =
@@ -292,12 +272,18 @@ internal class SleepTimerManager(
         saveTimerState()
     }
 
+    /** Publishes the same expiry signal for chapter/track based timers. */
+    internal fun notifyTimerExpired() {
+        sendTimerExpiredEvent()
+    }
+
     /**
      * Sets up player listener for pause/resume timer functionality.
      *
      * Inspired by lissen-android: timer pauses when playback pauses and resumes when playback resumes.
      */
     private var playerListener: Player.Listener? = null
+    private var playerListenerTarget: ExoPlayer? = null
 
     private fun setupPlayerListener() {
         removePlayerListener() // Remove existing listener if any
@@ -312,6 +298,9 @@ internal class SleepTimerManager(
                     if (sleepTimerMode == SleepTimerMode.FIXED_DURATION) {
                         when (isPlaying) {
                             true -> {
+                                // User resumed playback: abort any in-flight sleep-timer
+                                // fade-out so its completion callback cannot pause again.
+                                audioFader?.cancelCurrentAnimation()
                                 // Resume timer when playback resumes
                                 val remainingMillis = currentTimer.getRemainingMillis()
                                 suspendableTimer = currentTimer.resume()
@@ -335,6 +324,7 @@ internal class SleepTimerManager(
             }
 
         player.addListener(playerListener!!)
+        playerListenerTarget = player
     }
 
     /**
@@ -342,13 +332,17 @@ internal class SleepTimerManager(
      */
     private fun removePlayerListener() {
         playerListener?.let {
-            val player = getActivePlayer()
-            player.removeListener(it)
-            playerListener = null
+            playerListenerTarget?.removeListener(it)
         }
+        playerListener = null
+        playerListenerTarget = null
     }
 
     private fun setupShakeListener() {
+        if (isAutomotiveActive) {
+            LogUtils.d("AudioPlayerService", "Shake listener skipped: automotive active")
+            return
+        }
         if (!isSleepTimerActive() || sleepTimerMode != SleepTimerMode.FIXED_DURATION) {
             return
         }
@@ -364,7 +358,8 @@ internal class SleepTimerManager(
             return
         }
         if (accelerometer != null) {
-            sensorManager.registerListener(shakeListener, accelerometer, SensorManager.SENSOR_DELAY_UI)
+            shakeDetector.reset()
+            sensorManager.registerListener(shakeSensorListener, accelerometer, SensorManager.SENSOR_DELAY_UI)
             isShakeListenerRegistered = true
             LogUtils.d("AudioPlayerService", "Shake listener registered")
         }
@@ -374,22 +369,21 @@ internal class SleepTimerManager(
         if (!isShakeListenerRegistered) {
             return
         }
-        sensorManager.unregisterListener(shakeListener)
+        sensorManager.unregisterListener(shakeSensorListener)
         isShakeListenerRegistered = false
         LogUtils.d("AudioPlayerService", "Shake listener unregistered")
     }
 
-    private fun handleShakeDetected(nowMillis: Long) {
-        if (lastShakeTime != 0L && nowMillis - lastShakeTime <= shakeDebounceMs) return
-        lastShakeTime = nowMillis
-        extendTimer()
-    }
-
     internal fun triggerShakeForTesting(nowMillis: Long) {
-        handleShakeDetected(nowMillis)
+        shakeClockMillis = nowMillis
+        // Detector requires minShakeCount jolts within its window; deliver both at once.
+        val jolt = SensorManager.GRAVITY_EARTH * (ImprovedShakeDetector.DEFAULT_THRESHOLD + 1f)
+        shakeDetector.processAccelerometer(0f, 0f, jolt)
+        shakeDetector.processAccelerometer(0f, 0f, jolt)
     }
 
     private fun extendTimer() {
+        if (isAutomotiveActive) return
         if (!isSleepTimerActive() || sleepTimerMode != SleepTimerMode.FIXED_DURATION) return
         if (!isShakeToExtendEnabled() || isPowerSaveModeEnabled()) return
         if (isTimerExtensionInProgress) return
@@ -397,8 +391,8 @@ internal class SleepTimerManager(
         isTimerExtensionInProgress = true
         try {
             val remainingSeconds = getSleepTimerRemainingSeconds() ?: 0
-            // Extend by 5 minutes
-            val newDurationMinutes = (remainingSeconds / 60) + 5
+            // Extend by 5 minutes, rounding partial minutes up so up to 59s is not dropped
+            val newDurationMinutes = (remainingSeconds + 59) / 60 + 5
 
             LogUtils.d("AudioPlayerService", "Shake detected! Extending timer to $newDurationMinutes minutes")
 
@@ -420,8 +414,10 @@ internal class SleepTimerManager(
         }
     }
 
-/**
-     * Saves sleep timer state to DataStore (primary) and SharedPreferences (migration fallback).
+    /**
+     * Saves sleep timer state to DataStore. When no DataStore sink is wired
+     * (e.g. binder-created managers), falls back to the legacy SharedPreferences
+     * backup so state still survives process recreation.
      */
     private fun saveTimerState() {
         try {
@@ -435,29 +431,34 @@ internal class SleepTimerManager(
                     ),
                 )
 
-            // Save to DataStore via callback (async)
-            val dataStoreState =
-                com.jabook.app.jabook.compose.data.preferences.SleepTimerState
-                    .newBuilder()
-                    .setMode(persistedState.mode?.name ?: "NONE")
-                    .setEndTimeEpochMs(persistedState.endTimeMillis)
-                    .setIsPaused(persistedState.paused)
-                    .setPausedRemainingMs(persistedState.pausedRemainingMillis)
-                    .build()
-            saveSleepTimerStateToDataStore(dataStoreState)
-
-            // Also save to SharedPreferences for backward compatibility during migration
-            try {
-                val prefs = context.getSharedPreferences(SleepTimerPersistence.PREFS_NAME, Context.MODE_PRIVATE)
-                val editor = prefs.edit()
-                editor.putLong(SleepTimerPersistence.KEY_END_TIME, persistedState.endTimeMillis)
-                editor.putBoolean(SleepTimerPersistence.KEY_END_OF_CHAPTER, persistedState.endOfChapter)
-                editor.putString(SleepTimerPersistence.KEY_MODE, persistedState.mode?.name)
-                editor.putBoolean(SleepTimerPersistence.KEY_PAUSED, persistedState.paused)
-                editor.putLong(SleepTimerPersistence.KEY_PAUSED_REMAINING_MILLIS, persistedState.pausedRemainingMillis)
-                editor.apply()
-            } catch (e: Exception) {
-                LogUtils.w("AudioPlayerService", "Failed to backup sleep timer state to SharedPreferences", e)
+            val dataStoreSink = saveSleepTimerStateToDataStore
+            if (dataStoreSink != null) {
+                // Save to DataStore via callback (async)
+                val dataStoreState =
+                    com.jabook.app.jabook.compose.data.preferences.SleepTimerState
+                        .newBuilder()
+                        .setMode(persistedState.mode?.name ?: "NONE")
+                        .setEndTimeEpochMs(persistedState.endTimeMillis)
+                        .setIsPaused(persistedState.paused)
+                        .setPausedRemainingMs(persistedState.pausedRemainingMillis)
+                        .build()
+                dataStoreSink(dataStoreState)
+            } else {
+                // ponytail: legacy SP backup only when no DataStore sink exists
+                try {
+                    context
+                        .getSharedPreferences(SleepTimerPersistence.PREFS_NAME, Context.MODE_PRIVATE)
+                        .edit()
+                        .putLong(SleepTimerPersistence.KEY_END_TIME, persistedState.endTimeMillis)
+                        .putBoolean(SleepTimerPersistence.KEY_END_OF_CHAPTER, persistedState.endOfChapter)
+                        .putString(SleepTimerPersistence.KEY_MODE, persistedState.mode?.name)
+                        .putBoolean(SleepTimerPersistence.KEY_PAUSED, persistedState.paused)
+                        .putLong(SleepTimerPersistence.KEY_PAUSED_REMAINING_MILLIS, persistedState.pausedRemainingMillis)
+                        .apply()
+                } catch (e: Exception) {
+                    e.rethrowCancellation()
+                    LogUtils.w("AudioPlayerService", "Failed to save sleep timer state to SharedPreferences", e)
+                }
             }
 
             LogUtils.d(
@@ -465,6 +466,7 @@ internal class SleepTimerManager(
                 "Sleep timer state saved: endTime=$sleepTimerEndTime, endOfChapter=$sleepTimerEndOfChapter",
             )
         } catch (e: Exception) {
+            e.rethrowCancellation()
             LogUtils.e("AudioPlayerService", "Failed to save sleep timer state", e)
         }
     }
@@ -476,6 +478,7 @@ internal class SleepTimerManager(
      */
     public suspend fun restoreTimerState() {
         try {
+            stopTimer()
             // Try DataStore first if settingsRepository is available
             if (settingsRepository != null) {
                 try {
@@ -487,10 +490,12 @@ internal class SleepTimerManager(
                                 .getDefaultInstance()
                     if (dataStoreState.mode.isNotBlank() || dataStoreState.endTimeEpochMs > 0L) {
                         restoreFromDataStoreState(dataStoreState)
+                        retireLegacySleepTimerPrefs()
                         LogUtils.d("AudioPlayerService", "Sleep timer restored from DataStore")
                         return
                     }
                 } catch (e: Exception) {
+                    e.rethrowCancellation()
                     LogUtils.w("AudioPlayerService", "Failed to read sleep timer from DataStore, falling back to SharedPreferences", e)
                 }
             }
@@ -498,25 +503,38 @@ internal class SleepTimerManager(
             // Fallback to SharedPreferences
             restoreFromSharedPreferences()
         } catch (e: Exception) {
+            e.rethrowCancellation()
             LogUtils.e("AudioPlayerService", "Failed to restore sleep timer state", e)
         }
     }
 
-    /** Restore sleep timer state from DataStore SleepTimerState proto. */
-    private fun restoreFromDataStoreState(dataStoreState: com.jabook.app.jabook.compose.data.preferences.SleepTimerState) {
-        val mode = enumValueOfOrNull(dataStoreState.mode) ?: SleepTimerMode.NONE
-        val nowMillis = System.currentTimeMillis()
-        val remainingMillis =
-            when {
-                dataStoreState.isPaused && dataStoreState.pausedRemainingMs > 0L -> dataStoreState.pausedRemainingMs
-                else -> (dataStoreState.endTimeEpochMs - nowMillis).coerceAtLeast(0L)
-            }
-
-        if (remainingMillis <= 0L || mode == SleepTimerMode.NONE) {
-            clearRuntimeState()
-            return
+    /**
+     * One-time retirement of the legacy SharedPreferences timer-state backup.
+     * DataStore is authoritative from here on. Only the timer-state keys are
+     * removed — the same prefs file still holds the live
+     * "stopped by sleep timer" flag used by [AudioPlayerService].
+     */
+    private fun retireLegacySleepTimerPrefs() {
+        try {
+            context
+                .getSharedPreferences(SleepTimerPersistence.PREFS_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .remove(SleepTimerPersistence.KEY_END_TIME)
+                .remove(SleepTimerPersistence.KEY_END_OF_CHAPTER)
+                .remove(SleepTimerPersistence.KEY_MODE)
+                .remove(SleepTimerPersistence.KEY_PAUSED)
+                .remove(SleepTimerPersistence.KEY_PAUSED_REMAINING_MILLIS)
+                .apply()
+            LogUtils.d("AudioPlayerService", "Legacy sleep timer SharedPreferences retired")
+        } catch (e: Exception) {
+            e.rethrowCancellation()
+            LogUtils.w("AudioPlayerService", "Failed to retire legacy sleep timer prefs", e)
         }
+    }
 
+    /** Restore sleep timer state from DataStore SleepTimerState proto. */
+    internal fun restoreFromDataStoreState(dataStoreState: com.jabook.app.jabook.compose.data.preferences.SleepTimerState) {
+        val mode = dataStoreState.mode.safeEnum(SleepTimerMode.NONE)
         when (mode) {
             SleepTimerMode.CHAPTER_END -> {
                 sleepTimerEndTime = 0
@@ -525,6 +543,7 @@ internal class SleepTimerManager(
                 fixedTimerPausedRemainingMillis = null
                 _sleepTimerRemainingSeconds = null
                 LogUtils.d("AudioPlayerService", "Sleep timer restored: end of chapter mode")
+                return
             }
             SleepTimerMode.TRACK_END -> {
                 sleepTimerEndTime = 0
@@ -533,17 +552,30 @@ internal class SleepTimerManager(
                 fixedTimerPausedRemainingMillis = null
                 _sleepTimerRemainingSeconds = null
                 LogUtils.d("AudioPlayerService", "Sleep timer restored: end of track mode")
-            }
-            SleepTimerMode.FIXED_DURATION -> {
-                restoreFixedDurationTimer(
-                    remainingMillis = remainingMillis,
-                    paused = dataStoreState.isPaused,
-                )
+                return
             }
             SleepTimerMode.NONE -> {
                 clearRuntimeState()
+                return
             }
+            SleepTimerMode.FIXED_DURATION -> Unit
         }
+        val nowMillis = System.currentTimeMillis()
+        val remainingMillis =
+            when {
+                dataStoreState.isPaused && dataStoreState.pausedRemainingMs > 0L -> dataStoreState.pausedRemainingMs
+                else -> (dataStoreState.endTimeEpochMs - nowMillis).coerceAtLeast(0L)
+            }
+
+        if (remainingMillis <= 0L) {
+            clearRuntimeState()
+            return
+        }
+
+        restoreFixedDurationTimer(
+            remainingMillis = remainingMillis,
+            paused = dataStoreState.isPaused,
+        )
     }
 
     /** Restore sleep timer state from SharedPreferences (legacy fallback). */
@@ -554,9 +586,7 @@ internal class SleepTimerManager(
                 endTimeMillis = prefs.getLong(SleepTimerPersistence.KEY_END_TIME, 0L),
                 endOfChapter = prefs.getBoolean(SleepTimerPersistence.KEY_END_OF_CHAPTER, false),
                 mode =
-                    prefs.getString(SleepTimerPersistence.KEY_MODE, null)?.let { modeName ->
-                        enumValueOfOrNull(modeName)
-                    },
+                    prefs.getString(SleepTimerPersistence.KEY_MODE, null)?.safeEnum(SleepTimerMode.NONE),
                 paused = prefs.getBoolean(SleepTimerPersistence.KEY_PAUSED, false),
                 pausedRemainingMillis =
                     prefs.getLong(
@@ -629,6 +659,7 @@ internal class SleepTimerManager(
         remainingMillis: Long,
         paused: Boolean,
     ) {
+        val callbackGeneration = timerGeneration.get()
         val remaining = (remainingMillis / 1000).toInt()
 
         sleepTimerEndTime = System.currentTimeMillis() + remainingMillis
@@ -642,23 +673,12 @@ internal class SleepTimerManager(
                 totalMillis = remainingMillis,
                 intervalMillis = 500L,
                 onTickSeconds = { seconds ->
-                    _sleepTimerRemainingSeconds = seconds.toInt()
+                    if (isCurrentFixedTimer(callbackGeneration)) {
+                        _sleepTimerRemainingSeconds = seconds.toInt()
+                    }
                 },
                 onFinished = {
-                    LogUtils.d("AudioPlayerService", "Restored sleep timer expired, pausing playback")
-                    saveCurrentPositionOnExpiry()
-                    val player = getActivePlayer()
-                    if (audioFader != null) {
-                        audioFader.fadeOut(player) {
-                            player.playWhenReady = false
-                            cancelSleepTimer()
-                            sendTimerExpiredEvent()
-                        }
-                    } else {
-                        player.playWhenReady = false
-                        cancelSleepTimer()
-                        sendTimerExpiredEvent()
-                    }
+                    expireFixedTimer(callbackGeneration, "Restored sleep timer expired, pausing playback")
                 },
             )
 
@@ -679,10 +699,35 @@ internal class SleepTimerManager(
         LogUtils.d("AudioPlayerService", "Sleep timer restored: $remaining seconds remaining")
     }
 
-    private fun enumValueOfOrNull(modeName: String): SleepTimerMode? =
-        try {
-            SleepTimerMode.valueOf(modeName)
-        } catch (_: IllegalArgumentException) {
-            null
+    private fun expireFixedTimer(
+        callbackGeneration: Long,
+        message: String,
+    ) {
+        if (!isCurrentFixedTimer(callbackGeneration)) return
+
+        LogUtils.d("AudioPlayerService", message)
+        saveCurrentPositionOnExpiry()
+        val player = getActivePlayer()
+        if (audioFader != null) {
+            audioFader.fadeOut(player) {
+                // Skip if user resumed mid-fade (or the timer was replaced).
+                if (isCurrentFixedTimer(callbackGeneration) && !player.isPlaying) {
+                    player.playWhenReady = false
+                    cancelSleepTimer()
+                    sendTimerExpiredEvent()
+                }
+            }
+        } else if (isCurrentFixedTimer(callbackGeneration)) {
+            player.playWhenReady = false
+            cancelSleepTimer()
+            sendTimerExpiredEvent()
         }
+    }
+
+    private fun isCurrentFixedTimer(callbackGeneration: Long): Boolean =
+        SleepTimerExpiryStalenessPolicy.shouldApply(
+            activeGeneration = timerGeneration.get(),
+            callbackGeneration = callbackGeneration,
+            activeMode = sleepTimerMode,
+        )
 }

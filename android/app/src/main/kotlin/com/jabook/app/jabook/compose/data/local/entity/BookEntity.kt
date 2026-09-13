@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.local.entity
 
+import androidx.annotation.Keep
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
@@ -41,6 +42,7 @@ import androidx.room.PrimaryKey
  * @property isFavorite Whether user has marked this book as favorite
  * @property sourceUrl Source URL where book was obtained from (e.g., rutracker link)
  */
+@Keep
 @Entity(
     tableName = "books",
     indices = [
@@ -59,6 +61,8 @@ public data class BookEntity(
     val title: String,
     @ColumnInfo(name = "author")
     val author: String,
+    @ColumnInfo(name = "narrator")
+    val narrator: String? = null,
     @ColumnInfo(name = "cover_url")
     val coverUrl: String?,
     @ColumnInfo(name = "description")
@@ -95,12 +99,21 @@ public data class BookEntity(
     // Per-book LUFS loudness estimate (null = not yet analyzed)
     @ColumnInfo(name = "lufs_value")
     val lufsValue: Double? = null,
+    // Publication year for display in library/detail
+    @ColumnInfo(name = "year")
+    val year: String? = null,
+    // Narrator metadata for detail screen
+    @ColumnInfo(name = "narrator_meta")
+    val narratorMeta: String? = null,
     // Per-book preferred playback speed (null = use global default)
     @ColumnInfo(name = "preferred_speed")
     val preferredSpeed: Float? = null,
     // Legacy field for backwards compatibility
     @ColumnInfo(name = "is_downloaded")
     val isDownloaded: Boolean = false,
+    // Per-book EQ preset override (null = use global preset)
+    @ColumnInfo(name = "eq_preset_override")
+    val eqPresetOverride: String? = null,
 )
 
 /**
@@ -118,7 +131,10 @@ public data class BookEntity(
  * @property position Current playback position within this chapter (milliseconds)
  * @property isCompleted Whether this chapter has been fully played
  * @property isDownloaded Whether this chapter's audio file is downloaded locally
+ * @property startPositionMs In-file start offset for embedded chapters (null = whole file)
+ * @property endPositionMs In-file end offset for embedded chapters (null = whole file/EOF)
  */
+@Keep
 @Entity(
     tableName = "chapters",
     foreignKeys = [
@@ -157,4 +173,11 @@ public data class ChapterEntity(
     val isCompleted: Boolean = false,
     @ColumnInfo(name = "is_downloaded")
     val isDownloaded: Boolean = false,
+    @ColumnInfo(name = "lufs_value")
+    val lufsValue: Double? = null,
+    // In-file offsets for chapters embedded in a single M4B/MP4 file (null = whole file)
+    @ColumnInfo(name = "start_position_ms")
+    val startPositionMs: Long? = null,
+    @ColumnInfo(name = "end_position_ms")
+    val endPositionMs: Long? = null,
 )

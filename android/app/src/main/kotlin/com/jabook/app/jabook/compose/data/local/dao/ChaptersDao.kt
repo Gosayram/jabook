@@ -16,13 +16,12 @@ package com.jabook.app.jabook.compose.data.local.dao
 
 import androidx.room.Dao
 import androidx.room.Delete
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.Transaction
 import androidx.room.Update
+import androidx.room.Upsert
 import com.jabook.app.jabook.compose.data.local.entity.ChapterEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
  * Data Access Object for chapters.
@@ -35,7 +34,10 @@ public interface ChaptersDao {
      * Observes all chapters for a specific book, ordered by chapter index.
      */
     @Query("SELECT * FROM chapters WHERE book_id = :bookId ORDER BY chapter_index ASC")
-    public fun getChaptersByBookIdFlow(bookId: String): Flow<List<ChapterEntity>>
+    public fun getChaptersByBookIdFlowInternal(bookId: String): Flow<List<ChapterEntity>>
+
+    public fun getChaptersByBookIdFlow(bookId: String): Flow<List<ChapterEntity>> =
+        getChaptersByBookIdFlowInternal(bookId).distinctUntilChanged()
 
     /**
      * Gets a single chapter by ID (one-shot).
@@ -50,6 +52,12 @@ public interface ChaptersDao {
     public suspend fun getChaptersByBookId(bookId: String): List<ChapterEntity>
 
     /**
+     * Gets all chapters across all books (one-shot).
+     */
+    @Query("SELECT * FROM chapters ORDER BY book_id, chapter_index ASC")
+    public suspend fun getAllChapters(): List<ChapterEntity>
+
+    /**
      * Gets a chapter by book ID and chapter index.
      */
     @Query("SELECT * FROM chapters WHERE book_id = :bookId AND chapter_index = :chapterIndex")
@@ -61,13 +69,13 @@ public interface ChaptersDao {
     /**
      * Inserts or replaces a chapter.
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     public suspend fun insertChapter(chapter: ChapterEntity)
 
     /**
      * Inserts or replaces multiple chapters.
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     public suspend fun insertAll(chapters: List<ChapterEntity>)
 
     /**
@@ -110,6 +118,21 @@ public interface ChaptersDao {
     )
 
     /**
+     * Updates the LUFS loudness estimate for a chapter.
+     *
+     * This value is computed by [LufsAnalysisWorker] during background loudness analysis
+     * and consumed by [ChapterLoudnessTransitionPolicy] during chapter transitions.
+     *
+     * @param chapterId target chapter ID
+     * @param lufs estimated LUFS value (negative, e.g. -20.0), or null to clear
+     */
+    @Query("UPDATE chapters SET lufs_value = :lufs WHERE id = :chapterId")
+    public suspend fun updateLufsValue(
+        chapterId: String,
+        lufs: Double?,
+    )
+
+    /**
      * Updates download status for a chapter.
      */
     @Query("UPDATE chapters SET is_downloaded = :isDownloaded WHERE id = :chapterId")
@@ -135,36 +158,4 @@ public interface ChaptersDao {
      */
     @Query("SELECT COUNT(*) FROM chapters WHERE book_id = :bookId")
     public suspend fun getTotalCount(bookId: String): Int
-
-    /**
-     * Reorders chapters atomically for a specific book.
-     */
-    @Transaction
-    public suspend fun reorderChaptersByIds(
-        bookId: String,
-        newOrderedIds: List<String>,
-    ) {
-        if (newOrderedIds.isEmpty()) {
-            return
-        }
-
-        val chapters = getChaptersByBookId(bookId)
-        if (chapters.isEmpty()) {
-            return
-        }
-
-        val chapterMap = chapters.associateBy { it.id }
-        val updatedChapters = mutableListOf<ChapterEntity>()
-
-        newOrderedIds.forEachIndexed { index, id ->
-            val chapter = chapterMap[id]
-            if (chapter != null && chapter.chapterIndex != index) {
-                updatedChapters.add(chapter.copy(chapterIndex = index))
-            }
-        }
-
-        if (updatedChapters.isNotEmpty()) {
-            insertAll(updatedChapters)
-        }
-    }
 }

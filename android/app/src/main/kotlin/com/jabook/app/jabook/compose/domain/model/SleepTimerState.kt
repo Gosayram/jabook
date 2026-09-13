@@ -14,11 +14,14 @@
 
 package com.jabook.app.jabook.compose.domain.model
 
+import androidx.compose.runtime.Immutable
+
 /**
  * Represents the state of the sleep timer.
  *
  * Sleep timer automatically pauses playback after a specified duration.
  */
+@Immutable
 public sealed interface SleepTimerState {
     /**
      * Timer is not active.
@@ -31,6 +34,7 @@ public sealed interface SleepTimerState {
      * @param remainingSeconds Seconds remaining until auto-pause
      * @param initialSeconds Original timer duration in seconds, used for progress calculations
      */
+    @Immutable
     public data class Active(
         val remainingSeconds: Int,
         val initialSeconds: Int = remainingSeconds,
@@ -56,6 +60,7 @@ public sealed interface SleepTimerState {
     /**
      * Timer is set to end of current track.
      */
+    @Immutable
     public data class EndOfTrack(
         val fallbackFromChapter: Boolean = false,
     ) : SleepTimerState

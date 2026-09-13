@@ -50,8 +50,19 @@ public class MetadataCache
             val cacheTime: Long = System.currentTimeMillis(),
         )
 
-        // Cache up to 500 files (reasonable for most libraries)
-        private val cache = LruCache<String, CachedMetadata>(500)
+        public companion object {
+            // Sized in BYTES: cover art arrays are ~0.5-2MB each, so entry-count
+            // sizing would retain hundreds of MB during large scans.
+            private const val MAX_CACHE_BYTES = 32 * 1024 * 1024
+        }
+
+        private val cache =
+            object : LruCache<String, CachedMetadata>(MAX_CACHE_BYTES) {
+                override fun sizeOf(
+                    key: String,
+                    value: CachedMetadata,
+                ): Int = value.metadata.coverArt?.size ?: 0
+            }
 
         /**
          * Get metadata from cache or parse if not cached/invalid.

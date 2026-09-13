@@ -15,52 +15,38 @@
 package com.jabook.app.jabook.widget
 
 import kotlinx.coroutines.Job
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Keeps debounced widget update jobs bounded and ensures proper lifecycle cleanup.
  */
 internal class WidgetUpdateJobRegistry {
-    private val lock = Any()
-    private val jobsByWidgetId = mutableMapOf<Int, Job>()
+    private val jobsByWidgetId = ConcurrentHashMap<Int, Job>()
 
     internal fun replace(
         widgetId: Int,
         newJob: Job,
     ) {
-        synchronized(lock) {
-            jobsByWidgetId.remove(widgetId)?.cancel()
-            jobsByWidgetId[widgetId] = newJob
-        }
+        jobsByWidgetId.put(widgetId, newJob)?.cancel()
 
         newJob.invokeOnCompletion {
-            synchronized(lock) {
-                if (jobsByWidgetId[widgetId] == newJob) {
-                    jobsByWidgetId.remove(widgetId)
-                }
-            }
+            // Remove only if still the current job for this widget (prevents stale completion
+            // from evicting a newer job that was registered while this one was running).
+            jobsByWidgetId.remove(widgetId, newJob)
         }
     }
 
     internal fun cancelForIds(widgetIds: IntArray) {
-        synchronized(lock) {
-            widgetIds.forEach { widgetId ->
-                jobsByWidgetId.remove(widgetId)?.cancel()
-            }
+        widgetIds.forEach { widgetId ->
+            jobsByWidgetId.remove(widgetId)?.cancel()
         }
     }
 
     internal fun cancelAll() {
-        val jobsToCancel: List<Job> =
-            synchronized(lock) {
-                val snapshot = jobsByWidgetId.values.toList()
-                jobsByWidgetId.clear()
-                snapshot
-            }
-
-        jobsToCancel.forEach { job ->
-            job.cancel()
-        }
+        val snapshot = jobsByWidgetId.values.toList()
+        jobsByWidgetId.clear()
+        snapshot.forEach { it.cancel() }
     }
 
-    internal fun size(): Int = synchronized(lock) { jobsByWidgetId.size }
+    internal fun size(): Int = jobsByWidgetId.size
 }

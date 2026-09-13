@@ -16,6 +16,8 @@ package com.jabook.app.jabook.compose.data.permissions
 
 import kotlinx.coroutines.CancellationException
 import java.io.File
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.CopyOption
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.util.UUID
@@ -51,6 +53,19 @@ public class StorageTransferWorkflow(
     private val postCopyHook: ((tempTarget: File) -> Unit)? = null,
 ) {
     public fun transferFile(
+        sourcePath: String,
+        targetPath: String,
+        overwrite: Boolean,
+    ): StorageTransferWorkflowResult =
+        StorageTransferPathLocks.withLock(targetPath) {
+            transferFileLocked(
+                sourcePath = sourcePath,
+                targetPath = targetPath,
+                overwrite = overwrite,
+            )
+        }
+
+    private fun transferFileLocked(
         sourcePath: String,
         targetPath: String,
         overwrite: Boolean,
@@ -131,11 +146,9 @@ public class StorageTransferWorkflow(
                 )
             }
 
-            Files.move(
-                tempTarget.toPath(),
-                targetFile.toPath(),
-                StandardCopyOption.REPLACE_EXISTING,
-                StandardCopyOption.ATOMIC_MOVE,
+            StorageTransferMovePolicy.moveTempIntoPlace(
+                source = tempTarget,
+                target = targetFile,
             )
 
             val integrity =
@@ -218,4 +231,43 @@ public class StorageTransferWorkflow(
     }
 
     private fun containsTraversalSegment(path: String): Boolean = path.replace('\\', '/').split('/').any { it == ".." }
+}
+
+/**
+ * Moves a fully written temporary file into place. FAT/exFAT volumes do not
+ * support atomic renames, but the previous target has already been moved to a
+ * backup, so a replace-only move retains rollback safety there.
+ */
+internal object StorageTransferMovePolicy {
+    fun moveTempIntoPlace(
+        source: File,
+        target: File,
+        move: (Array<CopyOption>) -> Unit = { options -> Files.move(source.toPath(), target.toPath(), *options) },
+    ) {
+        try {
+            move(arrayOf(StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE))
+        } catch (_: AtomicMoveNotSupportedException) {
+            move(arrayOf(StandardCopyOption.REPLACE_EXISTING))
+        }
+    }
+}
+
+/**
+ * Serializes transfers that target the same canonical path within this process.
+ *
+ * This closes the check-then-move race between concurrent migration requests while
+ * retaining a bounded lock set for long-running app processes.
+ */
+private object StorageTransferPathLocks {
+    private const val LOCK_STRIPES: Int = 64
+    private val locks: Array<Any> = Array(LOCK_STRIPES) { Any() }
+
+    fun <T> withLock(
+        targetPath: String,
+        block: () -> T,
+    ): T {
+        val normalizedPath = runCatching { File(targetPath).canonicalPath }.getOrElse { targetPath }
+        val lock = locks[Math.floorMod(normalizedPath.hashCode(), LOCK_STRIPES)]
+        return synchronized(lock, block)
+    }
 }

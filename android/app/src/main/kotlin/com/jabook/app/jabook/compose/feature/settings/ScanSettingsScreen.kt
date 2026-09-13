@@ -20,6 +20,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -51,6 +52,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
+import com.jabook.app.jabook.compose.data.permissions.PersistedTreeUriPermissionGuard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,6 +62,28 @@ public fun ScanSettingsScreen(
 ) {
     val scanPaths by viewModel.scanPaths.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val persistedTreePermissionGuard =
+        remember(context) {
+            PersistedTreeUriPermissionGuard(
+                takePermission = { uri ->
+                    context.contentResolver.takePersistableUriPermission(
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                    )
+                },
+                releasePermission = { uri ->
+                    context.contentResolver.releasePersistableUriPermission(
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                    )
+                },
+                isPermissionPersisted = { uri ->
+                    context.contentResolver.persistedUriPermissions.any {
+                        it.uri == uri && it.isReadPermission && it.isWritePermission
+                    }
+                },
+            )
+        }
 
     val navigationClickGuard = remember { NavigationClickGuard() }
     val safeNavigateUp = dropUnlessResumed { navigationClickGuard.run(onNavigateUp) }
@@ -68,21 +92,14 @@ public fun ScanSettingsScreen(
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.OpenDocumentTree(),
         ) { uri ->
-            if (uri != null) {
-                // Take persistable permission
-                val takeFlags =
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                        Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                try {
-                    context.contentResolver.takePersistableUriPermission(uri, takeFlags)
-                } catch (e: Exception) {
-                    // Ignore if permission already exists or fails
-                }
+            if (uri != null && persistedTreePermissionGuard.take(uri)) {
                 viewModel.addScanPath(uri.toString())
             }
         }
 
     Scaffold(
+        // TopAppBar applies statusBars insets itself; zeroed to avoid double inset under NavigationSuiteScaffold.
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.libraryFoldersTitle)) },
@@ -143,10 +160,14 @@ public fun ScanSettingsScreen(
                     items(
                         items = scanPaths,
                         key = { path -> path },
+                        contentType = { "scan_path" },
                     ) { path ->
                         ScanPathItem(
                             path = path,
-                            onDelete = { viewModel.removeScanPath(path) },
+                            onDelete = {
+                                persistedTreePermissionGuard.release(android.net.Uri.parse(path))
+                                viewModel.removeScanPath(path)
+                            },
                         )
                     }
                 }

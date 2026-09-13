@@ -14,13 +14,9 @@
 
 package com.jabook.app.jabook.compose.data.auth
 
-import android.content.Context
 import android.webkit.CookieManager
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
-import com.jabook.app.jabook.compose.data.local.JabookDatabase
-import com.jabook.app.jabook.compose.data.local.entity.CookieEntity
 import com.jabook.app.jabook.compose.data.remote.network.PersistentCookieJar
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Cookie
@@ -29,28 +25,20 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Multi-stage cookie persistence manager.
- * Based on Flutter's 4-layer approach:
- * 1. Database (Room) - most reliable
- * 2. WebView CookieManager - for WebView integration
- * 3. SecureStorage - encrypted persistence
- * 4. PersistentCookieJar - runtime cache
+ * Cookie persistence manager.
+ * Synchronizes cookies between the encrypted native jar and WebView.
  */
 @Singleton
 public class CookiePersistenceManager
     @Inject
     constructor(
-        @param:ApplicationContext private val context: Context,
-        private val database: JabookDatabase,
-        private val secureStorage: SecureCredentialStorage,
         private val cookieJar: PersistentCookieJar,
         private val loggerFactory: LoggerFactory,
     ) {
         private val logger = loggerFactory.get("CookiePersistence")
 
         /**
-         * Persist cookies using all 4 layers.
-         * Follows Flutter's multi-stage persistence strategy.
+         * Persist cookies to every implemented storage layer.
          */
         public suspend fun persistCookiesMultiStage(url: String): Unit =
             withContext(Dispatchers.IO) {
@@ -62,23 +50,9 @@ public class CookiePersistenceManager
                     return@withContext
                 }
 
-                val cookieHeader = cookies.joinToString("; ") { "${it.name}=${it.value}" }
                 logger.d { "Persisting ${cookies.size} cookies for $url" }
 
-                // Layer 1: Database (most reliable)
-                try {
-                    database.cookiesDao().saveCookies(
-                        CookieEntity(
-                            url = url,
-                            cookieHeader = cookieHeader,
-                        ),
-                    )
-                    logger.d { "✓ Cookies saved to database" }
-                } catch (e: Exception) {
-                    logger.e({ "✗ Failed to save to database" }, e)
-                }
-
-                // Layer 2: Android WebView CookieManager
+                // Sync the encrypted native jar into WebView when needed.
                 try {
                     val cookieManager = CookieManager.getInstance()
                     cookieManager.setAcceptCookie(true)
@@ -96,52 +70,12 @@ public class CookiePersistenceManager
                         cookieManager.setCookie(url, cookieString)
                     }
                     cookieManager.flush()
-                    logger.d { "✓ Cookies synced to WebView CookieManager" }
+                    logger.d { "Cookies synced to WebView CookieManager" }
                 } catch (e: Exception) {
-                    logger.e({ "✗ Failed to sync to WebView" }, e)
-                }
-
-                // Layer 3: SecureStorage (encrypted)
-                try {
-                    // Note: Assuming SecureCredentialStorage has saveCookies method
-                    // If not, we'll skip this layer or add the method
-                    logger.d { "◎ SecureStorage layer skipped (method not available)" }
-                } catch (e: Exception) {
-                    logger.e({ "✗ Failed to save to SecureStorage" }, e)
+                    logger.e({ "Failed to sync to WebView" }, e)
                 }
 
                 logger.i { "Multi-stage persist complete for $url" }
-            }
-
-        /**
-         * Restore cookies from any available source.
-         * Tries layers in order: Database → SecureStorage → CookieJar
-         */
-        public suspend fun restoreCookiesFromAnySource(url: String): List<Cookie> =
-            withContext(Dispatchers.IO) {
-                // Layer 1: Try Database first (most reliable)
-                try {
-                    database.cookiesDao().getCookies(url)?.let { entity ->
-                        logger.d { "✓ Cookies restored from database for $url" }
-                        return@withContext parseCookieHeader(url, entity.cookieHeader)
-                    }
-                } catch (e: Exception) {
-                    logger.e({ "Failed to restore from database" }, e)
-                }
-
-                // Layer 2: WebView CookieManager (skipped in favor of direct Database/CookieJar)
-                // SecureCredentialStorage is for username/password only, not cookies
-
-                // Layer 3: Fallback to CookieJar (runtime cache)
-                val httpUrl = url.toHttpUrl()
-                val cookies = cookieJar.loadForRequest(httpUrl)
-                if (cookies.isNotEmpty()) {
-                    logger.d { "✓ Cookies restored from CookieJar for $url" }
-                    return@withContext cookies
-                }
-
-                logger.w { "No cookies found in any layer for $url" }
-                emptyList()
             }
 
         /**
@@ -152,88 +86,79 @@ public class CookiePersistenceManager
             withContext(Dispatchers.IO) {
                 try {
                     val cookieManager = CookieManager.getInstance()
-                    val cookieString = cookieManager.getCookie(url)
+
+                    // Ensure URL has a path — CookieManager.getCookie() requires path matching
+                    val queryUrl = if (url.endsWith("/")) url else "$url/"
+
+                    cookieManager.flush()
+
+                    val cookieString = cookieManager.getCookie(queryUrl)
+                    logger.d { "getCookie($queryUrl) returned ${if (cookieString.isNullOrBlank()) "no" else "some"} cookies" }
 
                     if (!cookieString.isNullOrBlank()) {
-                        val cookies = parseCookieHeader(url, cookieString)
+                        val cookies = captureWebViewCookies(queryUrl, cookieString)
+                        logger.d { "Captured ${cookies.size} cookies: ${cookies.joinToString { it.name }}" }
 
-                        // Save to CookieJar
-                        val httpUrl = url.toHttpUrl()
+                        if (cookies.isEmpty()) {
+                            logger.d { "No cookies captured from WebView" }
+                            return@withContext
+                        }
+
+                        val httpUrl = queryUrl.toHttpUrl()
                         cookieJar.saveFromResponse(httpUrl, cookies)
 
-                        // Persist to all layers
-                        persistCookiesMultiStage(url)
-
-                        logger.i { "Synced ${cookies.size} cookies from WebView for $url" }
+                        logger.i { "Synced ${cookies.size} cookies from WebView for $queryUrl" }
                     } else {
-                        logger.d { "No cookies in WebView for $url" }
+                        logger.d { "No cookies in WebView for $queryUrl" }
                     }
                 } catch (e: Exception) {
                     logger.e({ "Failed to sync from WebView" }, e)
                 }
             }
 
-        /**
-         * Clear cookies from all layers.
-         */
-        public suspend fun clearAllCookies(): Unit =
+        /** Removes the only session cookie that the fallback flow can import. */
+        public suspend fun clearWebViewSession(url: String): Unit =
             withContext(Dispatchers.IO) {
-                try {
-                    // Clear database
-                    database.cookiesDao().clearAllCookies()
-                    logger.d { "Cleared database cookies" }
-
-                    // Clear WebView
-                    try {
-                        CookieManager.getInstance().removeAllCookies(null)
-                        CookieManager.getInstance().flush()
-                        logger.d { "Cleared WebView cookies" }
-                    } catch (e: Exception) {
-                        logger.e({ "Failed to clear WebView cookies" }, e)
-                    }
-
-                    // Clear CookieJar
-                    cookieJar.clear()
-                    logger.d { "Cleared CookieJar" }
-
-                    logger.i { "All cookies cleared from all layers" }
-                } catch (e: Exception) {
-                    logger.e({ "Failed to clear cookies" }, e)
-                }
+                val host = url.toHttpUrl().host
+                val cookieManager = CookieManager.getInstance()
+                cookieManager.setCookie(url, "$RUTRACKER_SESSION_COOKIE=; Max-Age=0; Path=/; Secure; HttpOnly")
+                cookieManager.setCookie(url, "$RUTRACKER_SESSION_COOKIE=; Max-Age=0; Domain=$host; Path=/; Secure; HttpOnly")
+                cookieManager.flush()
             }
-
-        /**
-         * Parse cookie header string into list of Cookie objects.
-         */
-        private fun parseCookieHeader(
-            url: String,
-            cookieHeader: String,
-        ): List<Cookie> {
-            val cookies = mutableListOf<Cookie>()
-            val httpUrl = url.toHttpUrl()
-
-            cookieHeader.split(";").forEach { pair ->
-                val parts = pair.trim().split("=", limit = 2)
-                if (parts.size == 2) {
-                    val name = parts[0].trim()
-                    val value = parts[1].trim()
-
-                    try {
-                        val cookie =
-                            Cookie
-                                .Builder()
-                                .name(name)
-                                .value(value)
-                                .domain(httpUrl.host)
-                                .path("/")
-                                .build()
-                        cookies.add(cookie)
-                    } catch (e: Exception) {
-                        logger.e({ "Failed to parse cookie: $name=$value" }, e)
-                    }
-                }
-            }
-
-            return cookies
-        }
     }
+
+internal fun captureWebViewCookies(
+    url: String,
+    cookieHeader: String,
+): List<Cookie> {
+    val httpUrl = url.toHttpUrl()
+    val domain = httpUrl.host
+
+    return cookieHeader
+        .split(";")
+        .mapNotNull { part ->
+            val pieces = part.trim().split("=", limit = 2)
+            if (pieces.size != 2) return@mapNotNull null
+            val name = pieces[0].trim()
+            val value = pieces[1].trim()
+            if (name.isEmpty() || value.isEmpty()) return@mapNotNull null
+
+            runCatching {
+                Cookie
+                    .Builder()
+                    .name(name)
+                    .value(value)
+                    .domain(domain)
+                    .path("/")
+                    .apply {
+                        // Cloudflare cookies often need Secure; session cookies too
+                        if (name.startsWith("__cf") || name == "cf_clearance" || name == RUTRACKER_SESSION_COOKIE) {
+                            secure()
+                            httpOnly()
+                        }
+                    }.build()
+            }.getOrNull()
+        }
+}
+
+private const val RUTRACKER_SESSION_COOKIE = "bb_session"

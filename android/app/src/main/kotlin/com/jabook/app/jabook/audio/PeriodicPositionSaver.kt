@@ -14,9 +14,11 @@
 
 package com.jabook.app.jabook.audio
 
+import android.os.Looper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -36,11 +38,16 @@ import kotlinx.coroutines.launch
 internal class PeriodicPositionSaver(
     private val scope: CoroutineScope,
     private val repository: com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository,
+    private val updateCanonicalProgress: suspend (bookId: String, position: Long, chapterIndex: Int) -> Unit,
     private val getActivePlayer: () -> androidx.media3.exoplayer.ExoPlayer,
     private val getCurrentBookId: () -> String?,
     private val intervalMs: Long = 5_000L,
+    private val ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO,
 ) {
     private var saveJob: Job? = null
+    private var lastSavedBookId: String? = null
+    private var lastSavedTrackIndex: Int = -1
+    private var lastSavedPositionMs: Long = -1L
 
     /** Starts periodic position saving. Cancels any previous job. */
     fun start() {
@@ -49,7 +56,7 @@ internal class PeriodicPositionSaver(
             scope.launch {
                 while (isActive) {
                     delay(intervalMs)
-                    save()
+                    save(force = false)
                 }
             }
     }
@@ -62,15 +69,37 @@ internal class PeriodicPositionSaver(
 
     /** Saves current position to repository immediately. */
     fun save() {
+        save(force = true)
+    }
+
+    private fun save(force: Boolean) {
+        // ponytail: player getters must stay on Main (SimpleBasePlayer.verifyApplicationThread)
+        check(Looper.getMainLooper() == Looper.myLooper()) { "player getters must stay on Main" }
         val player = getActivePlayer()
         val bookId = getCurrentBookId()
         if (player.mediaItemCount > 0 && !bookId.isNullOrBlank()) {
-            scope.launch(Dispatchers.IO) {
+            val trackIndex = player.currentMediaItemIndex
+            val position = player.currentPosition
+            // Paused/stalled playback reports the same spot every tick — skip the no-op write.
+            if (!force &&
+                bookId == lastSavedBookId &&
+                trackIndex == lastSavedTrackIndex &&
+                position == lastSavedPositionMs
+            ) {
+                return
+            }
+            lastSavedBookId = bookId
+            lastSavedTrackIndex = trackIndex
+            lastSavedPositionMs = position
+            // The service cancels its scope immediately after onDestroy. This final
+            // database write must survive that cancellation to retain progress.
+            scope.launch(ioDispatcher + NonCancellable) {
                 repository.savePosition(
                     bookId = bookId,
-                    trackIndex = player.currentMediaItemIndex,
-                    position = player.currentPosition,
+                    trackIndex = trackIndex,
+                    position = position,
                 )
+                updateCanonicalProgress(bookId, position, trackIndex)
             }
         }
     }

@@ -14,12 +14,13 @@
 
 package com.jabook.app.jabook.compose.core.di
 
+import dagger.Binds
 import dagger.Module
-import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
@@ -69,20 +70,22 @@ public interface AppDispatchers {
  * Production implementation using real Kotlin dispatchers.
  */
 @Singleton
-public class ProductionDispatchers : AppDispatchers {
-    override val io: CoroutineDispatcher = Dispatchers.IO
-    override val default: CoroutineDispatcher = Dispatchers.Default
-    override val main: CoroutineDispatcher = Dispatchers.Main
-    override val unconfined: CoroutineDispatcher = Dispatchers.Unconfined
-}
+public class ProductionDispatchers
+    @Inject
+    constructor() : AppDispatchers {
+        override val io: CoroutineDispatcher = Dispatchers.IO
+        override val default: CoroutineDispatcher = Dispatchers.Default
+        override val main: CoroutineDispatcher = Dispatchers.Main
+        override val unconfined: CoroutineDispatcher = Dispatchers.Unconfined
+    }
 
 /**
  * Hilt module for providing AppDispatchers.
  */
 @Module
 @InstallIn(SingletonComponent::class)
-public object DispatchersModule {
-    @Provides
+public abstract class DispatchersModule {
+    @Binds
     @Singleton
-    public fun provideAppDispatchers(): AppDispatchers = ProductionDispatchers()
+    public abstract fun bindAppDispatchers(impl: ProductionDispatchers): AppDispatchers
 }

@@ -43,6 +43,7 @@ import org.robolectric.RobolectricTestRunner
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class MediaSessionManagerTest {
     private lateinit var context: Context
     private lateinit var exoPlayer: ExoPlayer
@@ -137,6 +138,17 @@ class MediaSessionManagerTest {
         assertEquals(30L, mediaSessionManager.getForwardDuration())
     }
 
+    @Test
+    fun `updatePlayer moves listener to replacement player`() {
+        val replacement: ExoPlayer = mock()
+        whenever(replacement.playWhenReady).thenReturn(false)
+
+        mediaSessionManager.updatePlayer(replacement)
+
+        verify(exoPlayer).removeListener(any())
+        verify(replacement).addListener(any())
+    }
+
     // ============ Player Listener Tests ============
 
     @Test
@@ -164,8 +176,7 @@ class MediaSessionManagerTest {
         )
 
         // Then
-        // Note: Callback is invoked, but we can't directly verify it without exposing state
-        // This test verifies the listener is set up correctly
+        assertEquals(true, playCallbackInvoked)
     }
 
     @Test
@@ -187,27 +198,44 @@ class MediaSessionManagerTest {
         )
 
         // Then
-        // Note: Callback is invoked, but we can't directly verify it without exposing state
-        // This test verifies the listener is set up correctly
+        assertEquals(true, pauseCallbackInvoked)
     }
 
     @Test
-    fun `onPlayWhenReadyChanged does not trigger callbacks for non-user requests`() {
+    fun `onPlayWhenReadyChanged closes listening session for audio focus loss`() {
         // Given
         val listenerCaptor = argumentCaptor<Player.Listener>()
         verify(exoPlayer).addListener(listenerCaptor.capture())
         val listener = listenerCaptor.firstValue
 
-        whenever(exoPlayer.playWhenReady).thenReturn(false)
+        whenever(exoPlayer.playWhenReady).thenReturn(true)
+        listener.onPlayWhenReadyChanged(
+            true,
+            Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST,
+        )
+        playCallbackInvoked = false
 
-        // When - audio focus loss (not user request)
+        // When - audio focus loss pauses playback without a user command.
         listener.onPlayWhenReadyChanged(
             false,
             Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS,
         )
 
-        // Then - callbacks should not be invoked
-        // This is verified by the fact that callbacks are only invoked for USER_REQUEST
+        // Then - the pause callback closes the active listening session.
+        assertEquals(false, playCallbackInvoked)
+        assertEquals(true, pauseCallbackInvoked)
+    }
+
+    @Test
+    fun `onPlayWhenReadyChanged starts tracking for remote playback command`() {
+        val listenerCaptor = argumentCaptor<Player.Listener>()
+        verify(exoPlayer).addListener(listenerCaptor.capture())
+        val listener = listenerCaptor.firstValue
+
+        whenever(exoPlayer.playWhenReady).thenReturn(true)
+        listener.onPlayWhenReadyChanged(true, Player.PLAY_WHEN_READY_CHANGE_REASON_REMOTE)
+
+        assertEquals(true, playCallbackInvoked)
     }
 
     @Test
@@ -237,16 +265,5 @@ class MediaSessionManagerTest {
 
         // Then - should not throw exception
         // MediaSession release is handled internally
-    }
-
-    // ============ Update Metadata Tests ============
-
-    @Test
-    fun `updateMetadata does not throw exception`() {
-        // When
-        mediaSessionManager.updateMetadata()
-
-        // Then - should not throw exception
-        // Metadata is automatically updated from ExoPlayer
     }
 }

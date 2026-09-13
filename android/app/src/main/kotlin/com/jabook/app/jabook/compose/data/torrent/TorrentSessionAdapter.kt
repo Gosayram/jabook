@@ -70,11 +70,8 @@ public class TorrentSessionAdapter
             delegate.resumeAll()
         }
 
-        override fun moveTorrentStorage(
-            hash: String,
-            newPath: String,
-        ) {
-            delegate.moveTorrentStorage(hash, newPath)
+        override fun pauseForMemoryPressure() {
+            delegate.pauseForMemoryPressure()
         }
 
         override fun setSequentialDownload(

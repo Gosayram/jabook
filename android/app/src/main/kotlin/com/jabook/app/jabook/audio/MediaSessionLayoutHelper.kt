@@ -14,10 +14,13 @@
 
 package com.jabook.app.jabook.audio
 
+import android.content.Context
 import androidx.annotation.OptIn
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaSession
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -33,11 +36,13 @@ import kotlinx.coroutines.launch
  *
  * Follows the Rhythm pattern for debounced layout updates to prevent flickering.
  *
+ * @param context Application context for string resources
  * @param scope Coroutine scope for async operations
  * @param getSession Function to get the current MediaSession (nullable)
  */
 @OptIn(UnstableApi::class)
 internal class MediaSessionLayoutHelper(
+    private val context: Context,
     private val scope: CoroutineScope,
     private val getSession: () -> MediaSession?,
 ) {
@@ -129,27 +134,41 @@ internal class MediaSessionLayoutHelper(
         val rewindButton =
             CommandButton
                 .Builder(CommandButton.ICON_SKIP_BACK)
-                .setDisplayName("-$rewindSeconds")
-                .setSessionCommand(
-                    androidx.media3.session.SessionCommand(
-                        AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_REWIND,
-                        android.os.Bundle.EMPTY,
-                    ),
-                ).build()
+                .setDisplayName("-${rewindSeconds}s")
+                .setPlayerCommand(Player.COMMAND_SEEK_BACK)
+                .setSlots(CommandButton.SLOT_BACK)
+                .build()
 
         val forwardButton =
             CommandButton
                 .Builder(CommandButton.ICON_SKIP_FORWARD)
-                .setDisplayName("+$forwardSeconds")
-                .setSessionCommand(
-                    androidx.media3.session.SessionCommand(
-                        AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_FORWARD,
-                        android.os.Bundle.EMPTY,
-                    ),
-                ).build()
+                .setDisplayName("+${forwardSeconds}s")
+                .setPlayerCommand(Player.COMMAND_SEEK_FORWARD)
+                .setSlots(CommandButton.SLOT_FORWARD)
+                .build()
 
-        session.setCustomLayout(listOf(rewindButton, forwardButton))
-        LogUtils.d(TAG, "Updated custom layout - Rewind: ${rewindSeconds}s, Forward: ${forwardSeconds}s")
+        val prevChapterButton =
+            CommandButton
+                .Builder(CommandButton.ICON_PREVIOUS)
+                .setDisplayName(context.getString(R.string.previousChapter))
+                .setPlayerCommand(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+                .setSlots(CommandButton.SLOT_BACK_SECONDARY)
+                .build()
+
+        val nextChapterButton =
+            CommandButton
+                .Builder(CommandButton.ICON_NEXT)
+                .setDisplayName(context.getString(R.string.nextChapter))
+                .setPlayerCommand(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
+                .setSlots(CommandButton.SLOT_FORWARD_SECONDARY)
+                .build()
+
+        // ponytail: 1.11 setSlots fully controls per-surface placement (notification/Auto/overflow);
+        // Proto slot filtering in AudioPlayerNotificationProvider honored only when slots ignored (legacy OEM).
+        session.setMediaButtonPreferences(
+            listOf(rewindButton, forwardButton, prevChapterButton, nextChapterButton),
+        )
+        LogUtils.d(TAG, "Updated media button preferences - Rewind: ${rewindSeconds}s, Forward: ${forwardSeconds}s")
     }
 
     private companion object {

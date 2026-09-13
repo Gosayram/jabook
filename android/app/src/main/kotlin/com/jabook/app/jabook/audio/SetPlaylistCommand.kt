@@ -87,6 +87,5 @@ public data class SetPlaylistCommand(
         internal const val MIN_SPEED = 0.5f
         internal const val MAX_SPEED = 4.0f
         internal const val DEFAULT_CROSSFADE_MS = 3_000L
-        private const val TAG = "SetPlaylistCommand"
     }
 }

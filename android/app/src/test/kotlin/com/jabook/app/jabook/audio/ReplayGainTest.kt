@@ -14,8 +14,8 @@
 
 package com.jabook.app.jabook.audio
 
+import android.content.Context
 import androidx.media3.common.Metadata
-import androidx.test.core.app.ApplicationProvider
 import com.jabook.app.jabook.audio.processors.LoudnessNormalizer
 import org.junit.Before
 import org.junit.Test
@@ -38,7 +38,7 @@ class ReplayGainTest {
         // Create PlayerListener with mocks for dependencies
         playerListener =
             PlayerListener(
-                context = ApplicationProvider.getApplicationContext(),
+                context = mock<Context>(),
                 getActivePlayer = { mock() },
                 getIsBookCompleted = { false },
                 setIsBookCompleted = { },

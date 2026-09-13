@@ -14,6 +14,8 @@
 
 package com.jabook.app.jabook.compose.core.constants
 
+import com.jabook.app.jabook.compose.core.util.UiFormatters
+
 /**
  * Playback speed constants shared between Settings and Player.
  */
@@ -47,5 +49,5 @@ public object PlaybackSpeedConstants {
     /**
      * Format speed for display.
      */
-    public fun formatSpeed(speed: Float): String = String.format("%.2fx", speed)
+    public fun formatSpeed(speed: Float): String = UiFormatters.formatSpeedDisplay(speed)
 }

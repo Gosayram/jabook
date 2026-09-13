@@ -18,6 +18,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
 /**
  * Unit tests for BookActionsProvider.
@@ -27,6 +29,7 @@ import org.junit.Test
  * - Contextual actions availability
  * - Default values
  */
+@RunWith(RobolectricTestRunner::class)
 class BookActionsProviderTest {
     @Test
     fun `isFavorite returns true when book ID is in favorites`() {

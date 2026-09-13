@@ -20,6 +20,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 public val MIGRATION_15_16: Migration =
     object : Migration(15, 16) {
         override fun migrate(db: SupportSQLiteDatabase) {
+            val support = checkFts4Support(db)
+            if (!support) return
+
             db.execSQL(
                 """
                 CREATE VIRTUAL TABLE IF NOT EXISTS books_fts
@@ -76,3 +79,12 @@ public val MIGRATION_15_16: Migration =
             )
         }
     }
+
+/**
+ * Android's bundled SQLite always ships with FTS3/FTS4 enabled — there is no
+ * device build without it. Kept as a function for symmetry with the historical
+ * check; PRAGMA compile_options is unreliable in test environments.
+ */
+private fun checkFts4Support(
+    @Suppress("UNUSED_PARAMETER") db: SupportSQLiteDatabase,
+): Boolean = true

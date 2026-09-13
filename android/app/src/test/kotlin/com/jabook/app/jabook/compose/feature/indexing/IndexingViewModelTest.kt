@@ -14,17 +14,24 @@
 
 package com.jabook.app.jabook.compose.feature.indexing
 
+import androidx.work.WorkInfo
+import androidx.work.workDataOf
 import com.jabook.app.jabook.compose.core.logger.Logger
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.indexing.ForumIndexer
 import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
+import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
+import com.jabook.app.jabook.compose.data.worker.IndexingWorkScheduler
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
 import com.jabook.app.jabook.compose.domain.usecase.auth.WithAuthorisedCheckUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -42,6 +49,8 @@ class IndexingViewModelTest {
     private val forumIndexer: ForumIndexer = mock()
     private val authRepository: AuthRepository = mock()
     private val withAuthorisedCheckUseCase: WithAuthorisedCheckUseCase = mock()
+    private val indexingWorkScheduler: IndexingWorkScheduler = mock()
+    private val settingsRepository: SettingsRepository = mock()
     private val loggerFactory: LoggerFactory = mock()
     private val logger: Logger = mock()
     private val testDispatcher = StandardTestDispatcher()
@@ -52,18 +61,23 @@ class IndexingViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         whenever(loggerFactory.get(any<String>())).thenReturn(logger)
+        whenever(indexingWorkScheduler.observe()).thenReturn(emptyFlow())
+        // Stub ForumIndexer StateFlows so ViewModel init can collect them
+        whenever(forumIndexer.forumStatuses).thenReturn(MutableStateFlow(emptyList()))
 
         viewModel =
             IndexingViewModel(
                 forumIndexer = forumIndexer,
                 authRepository = authRepository,
                 withAuthorisedCheckUseCase = withAuthorisedCheckUseCase,
+                indexingWorkScheduler = indexingWorkScheduler,
+                settingsRepository = settingsRepository,
                 loggerFactory = loggerFactory,
             )
 
-        // Stop infinite service monitor loop started in init for deterministic JVM tests.
+        // Stop the monitor started in init for deterministic JVM tests.
         runCatching {
-            val monitorField = IndexingViewModel::class.java.getDeclaredField("serviceMonitorJob")
+            val monitorField = IndexingViewModel::class.java.getDeclaredField("indexingMonitorJob")
             monitorField.isAccessible = true
             (monitorField.get(viewModel) as? Job)?.cancel()
             monitorField.set(viewModel, null)
@@ -77,12 +91,12 @@ class IndexingViewModelTest {
 
     @Test
     fun `clearIndex success resets index-related UI state`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             whenever(forumIndexer.getIndexSize()).thenReturn(42)
             whenever(forumIndexer.clearIndex()).thenAnswer { }
             // Bring view model state to non-zero index before clearing.
             viewModel.getIndexSize()
-            testDispatcher.scheduler.runCurrent()
+            runCurrent()
 
             val cleared = viewModel.clearIndex()
 
@@ -102,5 +116,26 @@ class IndexingViewModelTest {
 
             assertFalse(cleared)
             assertFalse(viewModel.clearingInProgress.value)
+        }
+
+    @Test
+    fun `work manager progress keeps only its reported status`() =
+        runTest(testDispatcher.scheduler) {
+            val workInfo: WorkInfo = mock()
+            whenever(workInfo.state).thenReturn(WorkInfo.State.RUNNING)
+            whenever(workInfo.progress).thenReturn(workDataOf("progress_message" to "Indexing fiction"))
+            whenever(indexingWorkScheduler.observe()).thenReturn(kotlinx.coroutines.flow.flowOf(listOf(workInfo)))
+
+            IndexingViewModel::class.java
+                .getDeclaredMethod("startIndexingWorkMonitor")
+                .apply { isAccessible = true }
+                .invoke(viewModel)
+            runCurrent()
+
+            val progress = viewModel.indexingProgress.value as IndexingProgress.InProgress
+            assertEquals("Indexing fiction", progress.detail.currentForumName)
+            assertFalse(progress.detail.hasDetailedProgress)
+            assertEquals(0, progress.detail.currentForumPage)
+            assertEquals(0, progress.detail.topicsFound)
         }
 }

@@ -16,9 +16,12 @@ package com.jabook.app.jabook.audio
 
 import androidx.media3.common.Player
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
+@RunWith(RobolectricTestRunner::class)
 class InactivityStartConditionPolicyTest {
     @Test
     fun `returns false when isPlaying is true`() {

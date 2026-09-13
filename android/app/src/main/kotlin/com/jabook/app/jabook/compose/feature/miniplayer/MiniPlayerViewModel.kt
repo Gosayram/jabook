@@ -17,6 +17,7 @@ package com.jabook.app.jabook.compose.feature.miniplayer
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.domain.model.Book
+import com.jabook.app.jabook.compose.feature.player.PlayerIntentGuardPolicy
 import com.jabook.app.jabook.compose.feature.player.controller.AudioPlayerController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -62,6 +63,12 @@ public class MiniPlayerViewModel
          * Current chapter/track index in playlist.
          */
         public val currentChapterIndex: StateFlow<Int> = audioPlayerController.currentChapterIndex
+
+        /** Whether the current playlist has a following chapter that can be selected. */
+        public val hasNextChapter: StateFlow<Boolean> = audioPlayerController.hasNextChapter
+
+        /** Whether the current playlist has a preceding chapter that can be selected. */
+        public val hasPreviousChapter: StateFlow<Boolean> = audioPlayerController.hasPreviousChapter
 
         /**
          * Current book being played (from PlayerPersistenceManager + BooksRepository).
@@ -119,5 +126,18 @@ public class MiniPlayerViewModel
          */
         public fun skipToPrevious() {
             audioPlayerController.skipToPrevious()
+        }
+
+        /**
+         * Seeks relative to the current position (global arrow-key seek from the app shell).
+         * Clamped with the same policy as PlayerScreen seeks.
+         */
+        public fun seekBy(deltaMs: Long) {
+            audioPlayerController.seekTo(
+                PlayerIntentGuardPolicy.clampSeekPosition(
+                    requestedPositionMs = currentPosition.value + deltaMs,
+                    chapterDurationMs = duration.value,
+                ),
+            )
         }
     }

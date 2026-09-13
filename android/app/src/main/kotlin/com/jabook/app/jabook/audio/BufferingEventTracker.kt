@@ -46,6 +46,8 @@ internal class BufferingEventTracker(
         @Player.State playbackState: Int,
     ) {
         when (playbackState) {
+            // IDLE is not buffering and never closes a rebuffer interval.
+            Player.STATE_IDLE -> Unit
             Player.STATE_BUFFERING -> {
                 if (bufferingStartTimeMs == null) {
                     bufferingStartTimeMs = nowMsProvider()

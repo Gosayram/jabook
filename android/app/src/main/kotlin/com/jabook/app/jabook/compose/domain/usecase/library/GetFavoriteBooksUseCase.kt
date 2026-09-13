@@ -14,11 +14,9 @@
 
 package com.jabook.app.jabook.compose.domain.usecase.library
 
-import com.jabook.app.jabook.compose.data.local.dao.BooksDao
+import com.jabook.app.jabook.compose.data.repository.BooksRepository
 import com.jabook.app.jabook.compose.domain.model.Book
-import com.jabook.app.jabook.compose.domain.model.toBooks
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 /**
@@ -29,12 +27,12 @@ import javax.inject.Inject
 public class GetFavoriteBooksUseCase
     @Inject
     constructor(
-        private val booksDao: BooksDao,
+        private val booksRepository: BooksRepository,
     ) {
         /**
          * Get all favorite books.
          *
          * @return Flow of favorite books
          */
-        public operator fun invoke(): Flow<List<Book>> = booksDao.getFavoriteBooksFlow().map { it.toBooks() }
+        public operator fun invoke(): Flow<List<Book>> = booksRepository.getFavoriteBooks()
     }

@@ -18,11 +18,11 @@ import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.core.util.PerfTrace
 import com.jabook.app.jabook.compose.data.model.ScanProgress
 import com.jabook.app.jabook.compose.domain.model.Result
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.merge
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -47,17 +47,12 @@ public class HybridBookScanner
         private val loggerFactory: LoggerFactory,
     ) : LocalBookScanner {
         private val logger = loggerFactory.get("HybridBookScanner")
+        private val _scanProgress = MutableStateFlow<ScanProgress>(ScanProgress.Idle)
+        override val scanProgress: StateFlow<ScanProgress> = _scanProgress.asStateFlow()
 
-        // Merge progress from both scanners (one is active at a time)
-        override val scanProgress: kotlinx.coroutines.flow.StateFlow<ScanProgress> =
-            merge(mediaStoreScanner.scanProgress, directScanner.scanProgress)
-                .stateIn(
-                    scope = CoroutineScope(Dispatchers.Default),
-                    started = SharingStarted.WhileSubscribed(5_000),
-                    initialValue = ScanProgress.Idle,
-                )
-
-        override suspend fun scanAudiobooks(): Result<List<ScannedBook>, com.jabook.app.jabook.compose.domain.model.AppError> =
+        override suspend fun scanAudiobooks(
+            knownDirectories: Set<String>,
+        ): Result<List<ScannedBook>, com.jabook.app.jabook.compose.domain.model.AppError> =
             PerfTrace.section(name = "HybridBookScanner.scanAudiobooks") {
                 // CRITICAL FIX: Validate and clean up non-existent folders before scanning
                 // Remove folders that were deleted from filesystem
@@ -66,13 +61,31 @@ public class HybridBookScanner
                         scanPathDao.getAllPathsList()
                     }
                 var removedCount = 0
+                var skippedPaths = 0
                 PerfTrace.section(name = "HybridBookScanner.cleanupInvalidPaths") {
                     for (pathEntity in customPaths) {
-                        val folder = java.io.File(pathEntity.path)
-                        if (!folder.exists() || !folder.isDirectory) {
-                            logger.w { "Removing non-existent scan folder: ${pathEntity.path}" }
-                            scanPathDao.deletePath(pathEntity)
-                            removedCount++
+                        val normalized = ScanPathValidator.normalize(pathEntity.path)
+                        when (ScanPathValidator.classify(normalized)) {
+                            ScanPathStatus.VALID -> Unit
+                            // SAF tree URIs can't be validated/scanned via File — keep the
+                            // row (don't drop user config) but COUNT it so the UI can show
+                            // "N path(s) skipped" instead of a silent zero.
+                            ScanPathStatus.UNSUPPORTED_URI -> {
+                                skippedPaths++
+                                logger.w { "Skipping non-filesystem scan path (unsupported storage): ${pathEntity.path}" }
+                            }
+                            // Missing folder may be a temporarily unmounted volume (SD hiccup).
+                            // Keep the path and retry next scan instead of dropping user config.
+                            ScanPathStatus.MISSING -> {
+                                skippedPaths++
+                                logger.w { "Skipping missing scan folder (may be temporarily unmounted): ${pathEntity.path}" }
+                            }
+                            ScanPathStatus.NOT_DIRECTORY -> {
+                                skippedPaths++
+                                logger.w { "Removing invalid scan folder (not a directory): ${pathEntity.path}" }
+                                scanPathDao.deletePath(pathEntity)
+                                removedCount++
+                            }
                         }
                     }
                 }
@@ -87,18 +100,38 @@ public class HybridBookScanner
                         scanPathDao.getAllPathsList()
                     }
 
-                if (validPaths.isEmpty()) {
-                    // No custom paths - use MediaStore (fast, indexed)
-                    logger.d { "Using MediaStore scanner (no custom paths)" }
-                    PerfTrace.section(name = "HybridBookScanner.mediaStoreScan") {
-                        mediaStoreScanner.scanAudiobooks()
+                val activeScanner =
+                    if (validPaths.isEmpty()) {
+                        // No custom paths - use MediaStore (fast, indexed)
+                        logger.d { "Using MediaStore scanner (no custom paths)" }
+                        mediaStoreScanner
+                    } else {
+                        // Has custom paths - use direct file system scan
+                        // This ignores .nomedia files (user's use case: hide images, show audio)
+                        logger.d { "Using direct file scanner (${validPaths.size} custom paths)" }
+                        directScanner
                     }
-                } else {
-                    // Has custom paths - use direct file system scan
-                    // This ignores .nomedia files (user's use case: hide images, show audio)
-                    logger.d { "Using direct file scanner (${validPaths.size} custom paths)" }
-                    PerfTrace.section(name = "HybridBookScanner.directScan") {
-                        directScanner.scanAudiobooks()
+
+                // Forward progress from active scanner without unscoped coroutine
+                supervisorScope {
+                    val progressJob =
+                        launch {
+                            activeScanner.scanProgress.collect { _scanProgress.value = it }
+                        }
+                    try {
+                        val result =
+                            PerfTrace.section(name = "HybridBookScanner.activeScan") {
+                                activeScanner.scanAudiobooks(knownDirectories)
+                            }
+                        val bookCount = (result as? Result.Success)?.data?.size ?: 0
+                        // Inaccessible dirs found by the direct scanner (permission loss)
+                        // count as skipped paths so partial failures are user-visible.
+                        val inaccessibleDirs =
+                            if (activeScanner === directScanner) directScanner.lastInaccessibleDirCount else 0
+                        _scanProgress.value = ScanProgress.Completed(bookCount, 0L, skippedPaths + inaccessibleDirs)
+                        result
+                    } finally {
+                        progressJob.cancel()
                     }
                 }
             }

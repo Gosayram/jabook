@@ -14,16 +14,19 @@
 
 package com.jabook.app.jabook.compose.data.torrent
 
+import androidx.annotation.Keep
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
+import com.jabook.app.jabook.compose.core.util.PersistentJson
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 
 /**
  * Room entity for persisting torrent downloads
  */
+@Keep
 @Entity(tableName = "torrent_downloads")
 @TypeConverters(TorrentDownloadConverters::class)
 public class TorrentDownloadEntity(
@@ -42,8 +45,6 @@ public class TorrentDownloadEntity(
     public val completedTime: Long,
     public val pauseReason: PauseReason?,
     public val topicId: String? = null,
-    /** libtorrent resume data BLOB for crash-safe download resumption. Null until first save. */
-    public val resumeData: ByteArray? = null,
 ) {
     /**
      * Convert to domain model
@@ -82,8 +83,7 @@ public class TorrentDownloadEntity(
             addedTime == other.addedTime &&
             completedTime == other.completedTime &&
             pauseReason == other.pauseReason &&
-            topicId == other.topicId &&
-            resumeData.contentEquals(other.resumeData)
+            topicId == other.topicId
     }
 
     override fun hashCode(): Int {
@@ -101,7 +101,6 @@ public class TorrentDownloadEntity(
         result = 31 * result + completedTime.hashCode()
         result = 31 * result + (pauseReason?.hashCode() ?: 0)
         result = 31 * result + (topicId?.hashCode() ?: 0)
-        result = 31 * result + (resumeData?.contentHashCode() ?: 0)
         return result
     }
 
@@ -109,10 +108,7 @@ public class TorrentDownloadEntity(
         /**
          * Create from domain model
          */
-        public fun fromDomain(
-            download: TorrentDownload,
-            resumeData: ByteArray? = null,
-        ): TorrentDownloadEntity =
+        public fun fromDomain(download: TorrentDownload): TorrentDownloadEntity =
             TorrentDownloadEntity(
                 hash = download.hash,
                 name = download.name,
@@ -128,17 +124,56 @@ public class TorrentDownloadEntity(
                 completedTime = download.completedTime,
                 pauseReason = download.pauseReason,
                 topicId = download.topicId,
-                resumeData = resumeData,
             )
     }
+}
+
+/**
+ * Room projection for torrent_downloads WITHOUT the resumeData BLOB.
+ *
+ * Used by all list/read queries so hot UI flows never materialize the
+ * multi-KB libtorrent resume BLOBs for every row. Resume data is only read
+ * via [getAllResumeData] on the session-restore path.
+ */
+public data class TorrentDownloadRow(
+    public val hash: String,
+    public val name: String,
+    public val state: TorrentState,
+    public val progress: Float,
+    public val totalSize: Long,
+    public val downloadedSize: Long,
+    public val uploadedSize: Long,
+    public val savePath: String,
+    public val files: List<TorrentFile>,
+    public val errorMessage: String?,
+    public val addedTime: Long,
+    public val completedTime: Long,
+    public val pauseReason: PauseReason?,
+    public val topicId: String? = null,
+) {
+    public fun toDomain(): TorrentDownload =
+        TorrentDownload(
+            hash = hash,
+            name = name,
+            state = state,
+            progress = progress,
+            totalSize = totalSize,
+            downloadedSize = downloadedSize,
+            uploadedSize = uploadedSize,
+            savePath = savePath,
+            files = files,
+            errorMessage = errorMessage,
+            addedTime = addedTime,
+            completedTime = completedTime,
+            pauseReason = pauseReason,
+            topicId = topicId,
+        )
 }
 
 /**
  * Type converters for Room
  */
 public class TorrentDownloadConverters {
-    private val gson = Gson()
-
     @TypeConverter
     public fun fromTorrentState(state: TorrentState): String = state.name
 
@@ -152,11 +187,8 @@ public class TorrentDownloadConverters {
     public fun toPauseReason(value: String?): PauseReason? = value?.let { PauseReason.valueOf(it) }
 
     @TypeConverter
-    public fun fromFileList(files: List<TorrentFile>): String = gson.toJson(files)
+    public fun fromFileList(files: List<TorrentFile>): String = PersistentJson.encodeToString(files)
 
     @TypeConverter
-    public fun toFileList(value: String): List<TorrentFile> {
-        val type = object : TypeToken<List<TorrentFile>>() {}.type
-        return gson.fromJson(value, type)
-    }
+    public fun toFileList(value: String): List<TorrentFile> = PersistentJson.decodeFromString(value)
 }

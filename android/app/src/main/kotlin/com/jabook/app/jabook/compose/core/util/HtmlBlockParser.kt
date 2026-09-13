@@ -45,6 +45,13 @@ public sealed interface DescriptionBlock {
  * Utility for parsing HTML into structured blocks (Text and Spoilers).
  */
 public object HtmlBlockParser {
+    private val POST_BR_PATTERN = Regex("<span[^>]*class=\"post-br\"[^>]*>.*?</span>", RegexOption.DOT_MATCHES_ALL)
+
+    private val REPEATED_BR_PATTERN = Regex("<br\\s*/?>\\s*<br\\s*/?>+")
+
+    // Recursion guard against hostile deeply-nested spoilers (StackOverflowError).
+    private const val MAX_DEPTH = 20
+
     /**
      * Parse HTML string into a list of DescriptionBlocks.
      */
@@ -55,7 +62,12 @@ public object HtmlBlockParser {
         if (html.isBlank()) return emptyList()
 
         return try {
-            val doc = Jsoup.parse(html)
+            val cleanedHtml =
+                html
+                    .replace(POST_BR_PATTERN, "<br>")
+                    .replace(REPEATED_BR_PATTERN, "<br><br>")
+                    .trim()
+            val doc = Jsoup.parse(cleanedHtml)
             parseNodes(doc.body().childNodes(), linkColor)
         } catch (e: Exception) {
             // Fallback: return as single text block
@@ -66,6 +78,7 @@ public object HtmlBlockParser {
     private fun parseNodes(
         nodes: List<Node>,
         linkColor: Color,
+        depth: Int = 0,
     ): List<DescriptionBlock> {
         val blocks = mutableListOf<DescriptionBlock>()
 
@@ -88,7 +101,7 @@ public object HtmlBlockParser {
                 flushText()
 
                 // Parse spoiler
-                val spoiler = parseSpoiler(node, linkColor)
+                val spoiler = parseSpoiler(node, linkColor, depth)
                 if (spoiler != null) {
                     blocks.add(spoiler)
                 } else {
@@ -113,12 +126,14 @@ public object HtmlBlockParser {
     private fun parseSpoiler(
         element: Element,
         linkColor: Color,
+        depth: Int,
     ): DescriptionBlock.Spoiler? {
+        if (depth > MAX_DEPTH) return null
         val head = element.selectFirst(".sp-head") ?: return null
         val body = element.selectFirst(".sp-body") ?: return null
 
         val title = HtmlToAnnotatedString.convert(head.html(), linkColor)
-        val content = parseNodes(body.childNodes(), linkColor)
+        val content = parseNodes(body.childNodes(), linkColor, depth + 1)
 
         return DescriptionBlock.Spoiler(title, content)
     }

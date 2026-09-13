@@ -19,12 +19,16 @@ import androidx.datastore.core.CorruptionException
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.mutablePreferencesOf
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.test.core.app.ApplicationProvider
+import com.google.crypto.tink.Aead
 import com.jabook.app.jabook.compose.domain.model.UserCredentials
 import com.jabook.app.jabook.crash.CrashDiagnostics
 import com.jabook.app.jabook.crash.CrashDiagnosticsSink
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertFalse
@@ -36,6 +40,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class SecureCredentialStorageTest {
     private lateinit var context: Context
     private lateinit var crashSink: TestCrashSink
@@ -77,6 +82,34 @@ class SecureCredentialStorageTest {
             assertFalse(storage.hasEncryptedCredentialsForTesting())
             assertTrue(
                 crashSink.logs.any { it.contains("secure_credentials_decrypt_failed") },
+            )
+        }
+
+    @Test
+    fun `invalid stale credentials do not clear newer credentials saved before cleanup`() =
+        runTest {
+            val staleCredentials =
+                mutablePreferencesOf(
+                    stringPreferencesKey("encrypted_username") to "stale-username",
+                    stringPreferencesKey("encrypted_password") to "stale-password",
+                )
+            val newerCredentials =
+                mutablePreferencesOf(
+                    stringPreferencesKey("encrypted_username") to "newer-username",
+                    stringPreferencesKey("encrypted_password") to "newer-password",
+                )
+            val dataStore = StaleReadDataStore(staleCredentials, newerCredentials)
+            SecureCredentialStorageFactories.dataStoreFactoryOverride = { dataStore }
+            SecureCredentialStorageFactories.aeadFactoryOverride = { FailingDecryptAead }
+
+            val credentials = SecureCredentialStorage(context).getCredentials()
+
+            assertNull(credentials)
+            assertTrue(
+                dataStore.current[stringPreferencesKey("encrypted_username")] == "newer-username",
+            )
+            assertTrue(
+                dataStore.current[stringPreferencesKey("encrypted_password")] == "newer-password",
             )
         }
 
@@ -168,5 +201,28 @@ class SecureCredentialStorageTest {
 
         override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences =
             throw CorruptionException("Corrupted DataStore payload")
+    }
+
+    private class StaleReadDataStore(
+        staleValue: Preferences,
+        initialCurrentValue: Preferences,
+    ) : DataStore<Preferences> {
+        override val data: Flow<Preferences> = flowOf(staleValue)
+        var current: Preferences = initialCurrentValue
+
+        override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences =
+            transform(current).also { current = it }
+    }
+
+    private object FailingDecryptAead : Aead {
+        override fun encrypt(
+            plaintext: ByteArray,
+            associatedData: ByteArray?,
+        ): ByteArray = error("Encryption is not used by this test")
+
+        override fun decrypt(
+            ciphertext: ByteArray,
+            associatedData: ByteArray?,
+        ): ByteArray = error("Invalid stale payload")
     }
 }

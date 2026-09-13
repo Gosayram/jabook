@@ -16,13 +16,13 @@ package com.jabook.app.jabook.compose.feature.favorites
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Sort
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
@@ -31,7 +31,6 @@ import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -39,10 +38,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
@@ -51,9 +51,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -62,8 +66,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
+import com.jabook.app.jabook.compose.designsystem.component.ConfirmDialog
+import com.jabook.app.jabook.compose.designsystem.component.SortOrderBottomSheet
 import com.jabook.app.jabook.compose.domain.model.FavoriteItem
 import com.jabook.app.jabook.compose.ui.favorites.FavoritesViewModel
+import kotlinx.coroutines.launch
 
 /**
  * Favorites screen displaying user's favorite audiobooks.
@@ -77,15 +84,24 @@ public fun FavoritesScreen(
 ) {
     val favorites by viewModel.favorites.collectAsStateWithLifecycle()
     val favoriteIds by viewModel.favoriteIds.collectAsStateWithLifecycle()
-    val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
+
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     val navigationClickGuard = remember { NavigationClickGuard() }
     val safeNavigateBack = dropUnlessResumed { navigationClickGuard.run(onNavigateBack) }
 
-    var isSelectionMode by remember { mutableStateOf(false) }
-    val selectedIds = remember { mutableSetOf<String>() }
+    var isSelectionMode by rememberSaveable { mutableStateOf(false) }
+    val selectedIds =
+        rememberSaveable(
+            saver =
+                listSaver<MutableSet<String>, String>(
+                    save = { it.toList() },
+                    restore = { it.toMutableSet() },
+                ),
+        ) { mutableSetOf<String>() }
     var showClearAllDialog by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
@@ -93,14 +109,13 @@ public fun FavoritesScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Show error messages
-    LaunchedEffect(errorMessage) {
-        errorMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearErrorMessage()
-        }
+    LaunchedEffect(viewModel) {
+        viewModel.errorMessages.collect { snackbarHostState.showSnackbar(it) }
     }
 
     Scaffold(
+        // TopAppBar applies statusBars insets itself; zeroed to avoid double inset under NavigationSuiteScaffold.
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
                 title = {
@@ -176,63 +191,33 @@ public fun FavoritesScreen(
                             if (selectedIds.isNotEmpty()) {
                                 IconButton(
                                     onClick = {
+                                        val removedFavorites = favorites.filter { it.topicId in selectedIds }
                                         viewModel.removeMultipleFavorites(selectedIds.toList())
                                         selectedIds.clear()
                                         isSelectionMode = false
+                                        scope.launch {
+                                            val result =
+                                                snackbarHostState.showSnackbar(
+                                                    message = context.getString(R.string.favoritesDeleted, removedFavorites.size),
+                                                    actionLabel = context.getString(R.string.undoAction),
+                                                    duration = SnackbarDuration.Indefinite,
+                                                )
+                                            if (result == SnackbarResult.ActionPerformed) {
+                                                viewModel.restoreFavorites(removedFavorites)
+                                            }
+                                        }
                                     },
                                 ) {
                                     Icon(Icons.Default.Delete, stringResource(R.string.deleteSelected))
                                 }
                             }
                         } else {
-                            // Sort menu
+                            // Sort sheet
                             IconButton(onClick = { showSortMenu = true }) {
                                 Icon(
                                     Icons.AutoMirrored.Filled.Sort,
                                     contentDescription = stringResource(R.string.sort_by),
                                 )
-                            }
-                            DropdownMenu(
-                                expanded = showSortMenu,
-                                onDismissRequest = { showSortMenu = false },
-                            ) {
-                                com.jabook.app.jabook.compose.data.model.BookSortOrder.entries.forEach { order ->
-                                    DropdownMenuItem(
-                                        text = {
-                                            Text(
-                                                text =
-                                                    when (order) {
-                                                        com.jabook.app.jabook.compose.data.model.BookSortOrder.BY_ACTIVITY ->
-                                                            stringResource(R.string.sort_by_activity)
-                                                        com.jabook.app.jabook.compose.data.model.BookSortOrder.TITLE_ASC ->
-                                                            stringResource(R.string.sort_title_asc)
-                                                        com.jabook.app.jabook.compose.data.model.BookSortOrder.TITLE_DESC ->
-                                                            stringResource(R.string.sort_title_desc)
-                                                        com.jabook.app.jabook.compose.data.model.BookSortOrder.AUTHOR_ASC ->
-                                                            stringResource(R.string.sort_author_asc)
-                                                        com.jabook.app.jabook.compose.data.model.BookSortOrder.AUTHOR_DESC ->
-                                                            stringResource(R.string.sort_author_desc)
-                                                        com.jabook.app.jabook.compose.data.model.BookSortOrder.RECENTLY_ADDED ->
-                                                            stringResource(R.string.sort_recently_added)
-                                                        com.jabook.app.jabook.compose.data.model.BookSortOrder.OLDEST_FIRST ->
-                                                            stringResource(R.string.sort_oldest_first)
-                                                    },
-                                            )
-                                        },
-                                        onClick = {
-                                            viewModel.onSortOrderChanged(order)
-                                            showSortMenu = false
-                                        },
-                                        leadingIcon = {
-                                            if (order == sortOrder) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Check,
-                                                    contentDescription = null,
-                                                )
-                                            }
-                                        },
-                                    )
-                                }
                             }
 
                             // Normal mode: show menu
@@ -329,6 +314,17 @@ public fun FavoritesScreen(
             onDismiss = { showClearAllDialog = false },
         )
     }
+
+    if (showSortMenu) {
+        SortOrderBottomSheet(
+            currentSortOrder = sortOrder,
+            onSortOrderChanged = { order ->
+                viewModel.onSortOrderChanged(order)
+                showSortMenu = false
+            },
+            onDismiss = { showSortMenu = false },
+        )
+    }
 }
 
 /**
@@ -397,7 +393,10 @@ private fun FavoritesList(
                     downloadStatus = com.jabook.app.jabook.compose.data.model.DownloadStatus.NOT_DOWNLOADED,
                     downloadProgress = 0f,
                     localPath = null,
-                    addedDate = System.currentTimeMillis(),
+                    addedDate =
+                        com.jabook.app.jabook.compose.util.DateTimeFormatter
+                            .parseISO8601ToMillis(favorite.addedToFavorites)
+                            .takeIf { it > 0L } ?: System.currentTimeMillis(),
                     lastPlayedDate = null,
                     isFavorite = favoriteIds.contains(favorite.topicId),
                     sourceUrl = favorite.magnetUrl.takeIf { it.isNotEmpty() },
@@ -432,21 +431,12 @@ private fun ClearAllFavoritesDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.clearAllFavoritesTitle)) },
-        text = {
-            Text(stringResource(R.string.thisWillRemoveAllFavoriteAudiobooksThisActionCanno))
-        },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text(stringResource(R.string.clearAll), color = MaterialTheme.colorScheme.error)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
-            }
-        },
+    ConfirmDialog(
+        title = stringResource(R.string.clearAllFavoritesTitle),
+        text = stringResource(R.string.thisWillRemoveAllFavoriteAudiobooksThisActionCanno),
+        confirmLabel = stringResource(R.string.clearAll),
+        onConfirm = onConfirm,
+        onDismiss = onDismiss,
+        destructive = true,
     )
 }

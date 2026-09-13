@@ -14,68 +14,60 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetState
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.hapticfeedback.HapticFeedback
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
-import com.jabook.app.jabook.compose.core.constants.PlaybackSpeedConstants
-import com.jabook.app.jabook.compose.core.util.HapticManager
-import kotlin.math.roundToInt
-
-private object SpeedDialDefaults {
-    val DIAL_SIZE = 140.dp
-    val STROKE_WIDTH = 10.dp
-    val ARC_INSET = 16.dp
-}
+import com.jabook.app.jabook.audio.processors.SpeedDialPolicy
+import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
 
 /**
  * Bottom sheet for selecting playback speed.
  *
+ * ponytail: Media3 1.11 androidx.media3:media3-ui-compose provides PlaybackSpeedControl/
+ * ProgressState — enabled in app/build.gradle.kts (cached offline). Custom sheet kept for
+ * app-specific SpeedDialPolicy/presets/recent chips; inner Slider swappable to ProgressState when scrub binding needed.
+ *
  * Features:
- * - Slider for fine-grained speed selection (0.5x - 2.0x)
  * - Preset chips for quick selection of common speeds
+ * - Inline fine-tune slider (0.5x - 3.5x) snapped to SpeedDialPolicy steps
  * - Live preview of current speed
+ * - Pitch correction toggle
  *
  * @param currentSpeed Current playback speed (e.g., 1.0f)
  * @param onSpeedSelected Callback when speed is selected
@@ -89,11 +81,8 @@ public fun PlaybackSpeedSheet(
     onSpeedSelected: (Float) -> Unit,
     onPitchCorrectionChanged: (Boolean) -> Unit,
     onDismiss: () -> Unit,
-    sheetState: SheetState,
 ) {
-    // Local state for slider - allows real-time preview
     var sliderSpeed by remember { mutableFloatStateOf(currentSpeed) }
-    val hapticFeedback = LocalHapticFeedback.current
     val recentSpeeds =
         rememberSaveable(
             saver =
@@ -106,89 +95,101 @@ public fun PlaybackSpeedSheet(
                     },
                 ),
         ) {
-            mutableStateListOf(currentSpeed)
+            mutableStateListOf<Float>()
         }
 
-    val presetSpeeds = listOf(0.75f, 1.0f, 1.25f, 1.5f, 2.0f, 2.5f, 3.0f)
-
-    ModalBottomSheet(
+    JabookModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
+        title = stringResource(R.string.playbackSpeed),
     ) {
         Column(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 32.dp),
+                    .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // Title
-            Text(
-                text = stringResource(R.string.playbackSpeed),
-                style = MaterialTheme.typography.titleLarge,
+            Row(
                 modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(
+                    onClick = {
+                        val next = SpeedDialPolicy.snapToStep(sliderSpeed - 0.1f)
+                        sliderSpeed = next
+                        onSpeedSelected(next)
+                        addRecentSpeed(recentSpeeds, next)
+                    },
+                    modifier = Modifier.size(48.dp),
+                ) {
+                    Icon(imageVector = Icons.Filled.Remove, contentDescription = "-0.1")
+                }
+                Text(
+                    text = SpeedDialPolicy.formatSpeed(sliderSpeed),
+                    style = MaterialTheme.typography.displayMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(
+                    onClick = {
+                        val next = SpeedDialPolicy.snapToStep(sliderSpeed + 0.1f)
+                        sliderSpeed = next
+                        onSpeedSelected(next)
+                        addRecentSpeed(recentSpeeds, next)
+                    },
+                    modifier = Modifier.size(48.dp),
+                ) {
+                    Icon(imageVector = Icons.Filled.Add, contentDescription = "+0.1")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            SpeedPresetsRow(
+                currentSpeed = sliderSpeed,
+                onPresetClick = { speed ->
+                    sliderSpeed = speed
+                    onSpeedSelected(speed)
+                    addRecentSpeed(recentSpeeds, speed)
+                },
             )
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Current speed display - large and prominent
             Text(
-                text = formatSpeedDisplay(sliderSpeed),
-                style = MaterialTheme.typography.displayMedium,
-                color = MaterialTheme.colorScheme.primary,
-                textAlign = TextAlign.Center,
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            SpeedDial(
-                speed = sliderSpeed,
-                onSpeedChange = { newSpeed ->
-                    sliderSpeed = roundToStep(newSpeed)
-                },
-                onSpeedChangeFinished = {
-                    val rounded = roundToStep(sliderSpeed)
-                    sliderSpeed = rounded
-                    onSpeedSelected(rounded)
-                    addRecentSpeed(recentSpeeds, rounded)
-                },
-                hapticFeedback = hapticFeedback,
+                text = stringResource(R.string.fineTuneSpeed),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Speed slider
             Slider(
                 value = sliderSpeed,
-                onValueChange = { newSpeed ->
-                    // Round to nearest step for cleaner values
-                    sliderSpeed = roundToStep(newSpeed)
+                onValueChange = { next ->
+                    val snapped = SpeedDialPolicy.snapToStep(next)
+                    if (snapped != sliderSpeed) {
+                        sliderSpeed = snapped
+                        onSpeedSelected(snapped)
+                    }
                 },
-                onValueChangeFinished = {
-                    val rounded = roundToStep(sliderSpeed)
-                    sliderSpeed = rounded
-                    onSpeedSelected(rounded)
-                    addRecentSpeed(recentSpeeds, rounded)
-                },
-                valueRange = PlaybackSpeedConstants.MIN_SPEED..PlaybackSpeedConstants.MAX_SPEED,
-                steps = PlaybackSpeedConstants.SLIDER_STEPS,
-                modifier = Modifier.fillMaxWidth(),
+                valueRange = SpeedDialPolicy.MIN_SPEED..SpeedDialPolicy.MAX_SPEED,
             )
 
-            // Min/Max labels
-            androidx.compose.foundation.layout.Row(
+            Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
-                    text = "${PlaybackSpeedConstants.MIN_SPEED}x",
+                    text = SpeedDialPolicy.formatSpeed(SpeedDialPolicy.MIN_SPEED),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    text = "${PlaybackSpeedConstants.MAX_SPEED}x",
+                    text = SpeedDialPolicy.formatSpeed(SpeedDialPolicy.MAX_SPEED),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -196,12 +197,17 @@ public fun PlaybackSpeedSheet(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Pitch Correction Toggle
-            androidx.compose.foundation.layout.Row(
+            Row(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 8.dp),
+                        .padding(horizontal = 8.dp)
+                        .semantics { role = Role.Switch }
+                        .toggleable(
+                            value = pitchCorrectionEnabled,
+                            onValueChange = onPitchCorrectionChanged,
+                            role = Role.Switch,
+                        ),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -216,15 +222,14 @@ public fun PlaybackSpeedSheet(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                androidx.compose.material3.Switch(
+                Switch(
                     checked = pitchCorrectionEnabled,
-                    onCheckedChange = onPitchCorrectionChanged,
+                    onCheckedChange = null,
                 )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Last used quick speeds (max 3)
             if (recentSpeeds.isNotEmpty()) {
                 Text(
                     text = stringResource(R.string.recentSpeedsTitle),
@@ -246,74 +251,20 @@ public fun PlaybackSpeedSheet(
                                 onSpeedSelected(speed)
                                 addRecentSpeed(recentSpeeds, speed)
                             },
-                            label = { Text(formatSpeedChip(speed)) },
+                            label = { Text(SpeedDialPolicy.formatSpeed(speed)) },
                         )
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
             }
-
-            // Preset speed chips
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                presetSpeeds.forEach { speed ->
-                    FilterChip(
-                        selected = isSpeedSelected(sliderSpeed, speed),
-                        onClick = {
-                            sliderSpeed = speed
-                            onSpeedSelected(speed)
-                            addRecentSpeed(recentSpeeds, speed)
-                        },
-                        label = {
-                            Text(formatSpeedChip(speed))
-                        },
-                    )
-                }
-            }
         }
     }
 }
 
-/**
- * Round speed to nearest step (0.05).
- */
-private fun roundToStep(speed: Float): Float {
-    val step = PlaybackSpeedConstants.SPEED_STEP
-    return (speed / step).roundToInt() * step
-}
-
-/**
- * Check if speed matches preset (with tolerance for floating point).
- */
-private fun isSpeedSelected(
+internal fun isSpeedSelected(
     current: Float,
     preset: Float,
 ): Boolean = kotlin.math.abs(current - preset) < 0.01f
-
-/**
- * Format speed for large display.
- */
-internal fun formatSpeedDisplay(speed: Float): String =
-    if (speed % 1.0f == 0.0f) {
-        "${speed.toInt()}x"
-    } else {
-        String.format(java.util.Locale.US, "%.2fx", speed)
-    }
-
-/**
- * Format speed for chip label.
- */
-internal fun formatSpeedChip(speed: Float): String =
-    if (speed % 1.0f == 0.0f) {
-        "${speed.toInt()}x"
-    } else if (speed * 100 % 10 == 0f) {
-        String.format(java.util.Locale.US, "%.1fx", speed)
-    } else {
-        String.format(java.util.Locale.US, "%.2fx", speed)
-    }
 
 internal fun addRecentSpeed(
     recentSpeeds: MutableList<Float>,
@@ -323,107 +274,5 @@ internal fun addRecentSpeed(
     recentSpeeds.add(0, speed)
     while (recentSpeeds.size > 3) {
         recentSpeeds.removeAt(recentSpeeds.lastIndex)
-    }
-}
-
-internal fun dialSpeedForDrag(
-    currentSpeed: Float,
-    dragDeltaX: Float,
-    dialWidthPx: Float,
-): Float {
-    if (!dialWidthPx.isFinite() || dialWidthPx <= 0f) {
-        return currentSpeed.coerceIn(
-            PlaybackSpeedConstants.MIN_SPEED,
-            PlaybackSpeedConstants.MAX_SPEED,
-        )
-    }
-    val speedSpan = PlaybackSpeedConstants.MAX_SPEED - PlaybackSpeedConstants.MIN_SPEED
-    val delta = (dragDeltaX / dialWidthPx) * speedSpan
-    return (currentSpeed + delta).coerceIn(
-        PlaybackSpeedConstants.MIN_SPEED,
-        PlaybackSpeedConstants.MAX_SPEED,
-    )
-}
-
-internal fun dialTickStep(speed: Float): Int = (speed / PlaybackSpeedConstants.SPEED_STEP).toInt()
-
-internal fun dialSweepAngle(speed: Float): Float {
-    val speedSpan = PlaybackSpeedConstants.MAX_SPEED - PlaybackSpeedConstants.MIN_SPEED
-    return ((speed - PlaybackSpeedConstants.MIN_SPEED) / speedSpan).coerceIn(0f, 1f) * PlaybackSpeedConstants.DIAL_TOTAL_SWEEP
-}
-
-@Composable
-private fun SpeedDial(
-    speed: Float,
-    onSpeedChange: (Float) -> Unit,
-    onSpeedChangeFinished: () -> Unit,
-    hapticFeedback: HapticFeedback,
-    modifier: Modifier = Modifier,
-) {
-    val currentSpeed by rememberUpdatedState(speed)
-    var lastHapticTickStep by remember {
-        mutableIntStateOf(dialTickStep(speed))
-    }
-    LaunchedEffect(currentSpeed) {
-        lastHapticTickStep = dialTickStep(currentSpeed)
-    }
-    val trackColor = MaterialTheme.colorScheme.surfaceVariant
-    val progressColor = MaterialTheme.colorScheme.primary
-
-    Box(
-        modifier = modifier.wrapContentHeight(),
-        contentAlignment = Alignment.Center,
-    ) {
-        Canvas(
-            modifier =
-                Modifier
-                    .size(SpeedDialDefaults.DIAL_SIZE)
-                    .pointerInput(Unit) {
-                        detectHorizontalDragGestures(
-                            onDragEnd = { onSpeedChangeFinished() },
-                        ) { change, dragDelta ->
-                            change.consume()
-                            val newSpeed = dialSpeedForDrag(currentSpeed, dragDelta, size.width.toFloat())
-                            val newTickStep = dialTickStep(newSpeed)
-                            if (newTickStep != lastHapticTickStep) {
-                                lastHapticTickStep = newTickStep
-                                HapticManager.performTap(hapticFeedback)
-                            }
-                            onSpeedChange(newSpeed)
-                        }
-                    },
-        ) {
-            val stroke = Stroke(width = SpeedDialDefaults.STROKE_WIDTH.toPx(), cap = StrokeCap.Round)
-            val inset = SpeedDialDefaults.ARC_INSET.toPx()
-            val arcSize = Size(size.width - inset * 2, size.height - inset * 2)
-            val arcTopLeft = Offset(inset, inset)
-            val sweep = dialSweepAngle(speed)
-
-            drawArc(
-                color = trackColor,
-                startAngle = PlaybackSpeedConstants.DIAL_START_ANGLE,
-                sweepAngle = PlaybackSpeedConstants.DIAL_TOTAL_SWEEP,
-                useCenter = false,
-                style = stroke,
-                topLeft = arcTopLeft,
-                size = arcSize,
-            )
-            drawArc(
-                color = progressColor,
-                startAngle = PlaybackSpeedConstants.DIAL_START_ANGLE,
-                sweepAngle = sweep,
-                useCenter = false,
-                style = stroke,
-                topLeft = arcTopLeft,
-                size = arcSize,
-            )
-        }
-        Text(
-            text = formatSpeedDisplay(speed),
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.width(88.dp),
-        )
     }
 }

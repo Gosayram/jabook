@@ -19,24 +19,6 @@
         </trust-anchors>
     </base-config>
 
-    <!--
-        Domain-specific allowlist for RuTracker mirrors.
-        Only these domains are permitted to use cleartext HTTP.
-    -->
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">rutracker.net</domain>
-        <domain includeSubdomains="true">rutracker.org</domain>
-        <domain includeSubdomains="true">rutracker.me</domain>
-        <domain includeSubdomains="true">rutracker.nl</domain>
-        <domain includeSubdomains="true">rutracker.ru</domain>
-        <domain includeSubdomains="true">rutracker.lib</domain>
-        <domain includeSubdomains="true">rutracker.info</domain>
-        <trust-anchors>
-            <certificates src="system" />
-            <certificates src="user" />
-        </trust-anchors>
-    </domain-config>
-
     <!-- Allow localhost connections for debug tooling -->
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="false">localhost</domain>

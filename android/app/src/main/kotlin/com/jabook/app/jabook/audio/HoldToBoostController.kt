@@ -93,6 +93,38 @@ internal class HoldToBoostController(
         }
     }
 
+    /**
+     * ponytail: Media3 1.11 PlaybackSpeedState bridge — system UI long-press FF.
+     * Delegates to PlaybackSpeedState.temporarilyOverrideSpeedWith / restoreOverriddenSpeed
+     * so the speed slider and MiniController reflect the boost.
+     */
+    fun onHoldStartWithState(
+        state: androidx.media3.ui.compose.state.PlaybackSpeedState,
+        scope: CoroutineScope,
+    ) {
+        val currentSpeed = player.playbackParameters.speed
+        policy.onPress(currentSpeed)
+        // ponytail: system UI path — 3.0× override visible in PlaybackSpeedState
+        // ponytail fallback: if player null, caller (PlayerSpeedHandler) uses SetPlaybackSpeed intent
+        state.temporarilyOverrideSpeedWith(policy.boostSpeed)
+        rampJob?.cancel()
+        rampJob = scope.launch { animateSpeed(from = currentSpeed, to = policy.boostSpeed, durationMs = rampUpMs) }
+    }
+
+    fun onHoldEndWithState(
+        state: androidx.media3.ui.compose.state.PlaybackSpeedState,
+        scope: CoroutineScope,
+    ) {
+        val restoreSpeed = policy.onRelease() ?: return
+        state.restoreOverriddenSpeed()
+        val currentSpeed = player.playbackParameters.speed
+        rampJob?.cancel()
+        rampJob = scope.launch { animateSpeed(from = currentSpeed, to = restoreSpeed, durationMs = rampDownMs) }
+    }
+
+    // ponytail: exposed for PlayerSpeedHandler fallback check
+    public fun currentBoostSpeed(): Float = policy.boostSpeed
+
     private suspend fun animateSpeed(
         from: Float,
         to: Float,
@@ -103,7 +135,7 @@ internal class HoldToBoostController(
             val fraction = (i + 1).toFloat() / rampSteps
             val speed = from + (to - from) * fraction
             player.playbackParameters = PlaybackParameters(speed)
-            LogUtils.v(TAG, "Speed ramp: ${String.format("%.2f", speed)}x (${i + 1}/$rampSteps)")
+            LogUtils.v(TAG, "Speed ramp: ${String.format(java.util.Locale.US, "%.2f", speed)}x (${i + 1}/$rampSteps)")
             delay(stepDelay)
         }
     }

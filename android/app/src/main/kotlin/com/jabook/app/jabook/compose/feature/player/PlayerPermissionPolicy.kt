@@ -18,13 +18,13 @@ import android.Manifest
 import android.os.Build
 
 /**
- * Permission request policy for Player screen.
+ * Permission request policy for user-initiated player actions.
  *
- * Only notification permission is requested on screen entry.
- * RECORD_AUDIO is explicitly requested from user intent (visualizer CTA).
+ * Notification permission is requested only when playback is explicitly requested.
+ * RECORD_AUDIO remains explicitly requested from the visualizer CTA.
  */
 internal object PlayerPermissionPolicy {
-    internal fun entryPermissionsToRequest(
+    internal fun playbackPermissionsToRequest(
         sdkInt: Int,
         isNotificationPermissionGranted: Boolean,
     ): List<String> =

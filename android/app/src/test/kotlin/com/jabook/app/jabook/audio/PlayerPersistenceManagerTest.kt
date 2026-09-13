@@ -17,19 +17,15 @@ package com.jabook.app.jabook.audio
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.test.runTest
-import org.json.JSONArray
-import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class PlayerPersistenceManagerTest {
     private lateinit var context: Context
     private lateinit var manager: PlayerPersistenceManager
@@ -47,82 +43,55 @@ class PlayerPersistenceManagerTest {
     }
 
     @Test
-    fun `retrievePersistedPlayerState migrates legacy JSON snapshot to versioned keys`() =
+    fun `persisted snapshot restores clip windows for chapters in one M4B`() =
         runTest {
-            val legacyJson =
-                JSONObject()
-                    .put("groupPath", "book://legacy")
-                    .put("currentIndex", 1)
-                    .put("currentPosition", 42_000L)
-                    .put("filePaths", JSONArray().put("a.mp3").put("b.mp3"))
-                    .put("metadata", JSONObject().put("title", "Legacy Book"))
-                    .toString()
-
-            prefs()
-                .edit()
-                .putString("flutter.player_state", legacyJson)
-                .apply()
+            val items =
+                listOf(
+                    PlaylistItem("/book.m4b", "chapter-1", 0L, 10_000L),
+                    PlaylistItem("/book.m4b", "chapter-2", 10_000L, null),
+                )
+            manager.savePersistedPlayerState(
+                PlayerPersistenceManager.PersistedPlayerState(
+                    groupPath = "book-1",
+                    filePaths = items.map(PlaylistItem::path),
+                    playlistItems = items,
+                    currentIndex = 1,
+                    currentPosition = 500L,
+                    metadata = null,
+                ),
+            )
 
             val restored = manager.retrievePersistedPlayerState()
 
-            assertNotNull(restored)
-            assertEquals("book://legacy", restored?.groupPath)
-            assertEquals(listOf("a.mp3", "b.mp3"), restored?.filePaths)
+            assertEquals(items, restored?.playlistItems)
             assertEquals(1, restored?.currentIndex)
-            assertEquals(42_000L, restored?.currentPosition)
-            assertEquals("Legacy Book", restored?.metadata?.get("title"))
-
-            assertEquals(1, prefs().getInt("playback_snapshot_version", 0))
-            assertEquals("book://legacy", prefs().getString("playback_snapshot_group_path", null))
-            assertNotNull(prefs().getString("playback_snapshot_file_paths", null))
         }
 
     @Test
-    fun `retrievePersistedPlayerState falls back to legacy when versioned snapshot is corrupted`() =
+    fun `persisted snapshot round-trips playback speed and defaults to 1x for legacy snapshots`() =
         runTest {
-            prefs()
-                .edit()
-                .putInt("playback_snapshot_version", 1)
-                .putString("playback_snapshot_group_path", "book://broken")
-                .putString("playback_snapshot_file_paths", "{not_json")
-                .apply()
+            val items = listOf(PlaylistItem("/book.m4b", "chapter-1", 0L, null))
+            manager.savePersistedPlayerState(
+                PlayerPersistenceManager.PersistedPlayerState(
+                    groupPath = "book-1",
+                    filePaths = items.map(PlaylistItem::path),
+                    playlistItems = items,
+                    currentIndex = 0,
+                    currentPosition = 0L,
+                    metadata = null,
+                    speed = 1.75f,
+                ),
+            )
 
-            val legacyJson =
-                JSONObject()
-                    .put("groupPath", "book://safe")
-                    .put("currentIndex", 0)
-                    .put("currentPosition", 123L)
-                    .put("filePaths", JSONArray().put("safe.mp3"))
-                    .toString()
+            assertEquals(1.75f, manager.retrievePersistedPlayerState()?.speed)
 
-            prefs()
-                .edit()
-                .putString("flutter.player_state", legacyJson)
-                .apply()
+            // Legacy snapshot written before the speed field existed → default 1.0x
+            prefs().edit().remove("playback_snapshot_speed").apply()
 
-            val restored = manager.retrievePersistedPlayerState()
-
-            assertNotNull(restored)
-            assertEquals("book://safe", restored?.groupPath)
-            assertEquals(listOf("safe.mp3"), restored?.filePaths)
-            assertEquals(1, prefs().getInt("playback_snapshot_version", 0))
-            assertTrue(prefs().getInt("playback_snapshot_corruption_count", 0) >= 1)
-            assertEquals("book://safe", prefs().getString("playback_snapshot_group_path", null))
-        }
-
-    @Test
-    fun `retrievePersistedPlayerState clears invalid legacy snapshot`() =
-        runTest {
-            prefs()
-                .edit()
-                .putString("flutter.player_state", "{broken_json")
-                .apply()
-
-            val restored = manager.retrievePersistedPlayerState()
-
-            assertNull(restored)
-            assertTrue(prefs().getInt("playback_snapshot_corruption_count", 0) >= 1)
-            assertNull(prefs().getString("flutter.player_state", null))
+            assertEquals(
+                PlayerPersistenceManager.DEFAULT_PLAYBACK_SPEED,
+                manager.retrievePersistedPlayerState()?.speed,
+            )
         }
 
     private fun prefs() = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)

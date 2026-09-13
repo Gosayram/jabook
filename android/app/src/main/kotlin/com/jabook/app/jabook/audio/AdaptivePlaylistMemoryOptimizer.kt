@@ -24,10 +24,33 @@ import com.jabook.app.jabook.util.LogUtils
  * few for high-RAM devices. This optimizer queries available memory and
  * adjusts the buffer window accordingly.
  *
+ * This is an **in-memory** calculation only — it does NOT write to the
+ * [androidx.media3.datasource.cache.SimpleCache] disk cache provided in
+ * [MediaModule] (`MediaModule.kt:103`, 200 MB LRU). The playlist preload
+ * path (`PlaylistManager.preloadNextTrack` → `ExoPlayer.addMediaSource`) and
+ * memory trimming (`PlaylistManager.optimizeMemoryUsage` →
+ * `PlaylistMemoryOptimizer.applyPlan`) operate on the ExoPlayer timeline
+ * in RAM, not on [SimpleCache] entries. There is no contention between this
+ * optimizer and [androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor]:
+ * disk eviction is LRU-managed and the actively playing track (including any
+ * A-B repeat range in [com.jabook.app.jabook.compose.feature.player.PlayerABRepeatHandler])
+ * is MRU due to continuous reads, so preloading a single neighbor
+ * (`PlaybackEventProcessor.kt:248`) cannot evict it. With 200 MB holding
+ * ~6-20 chapters (10-30 MB each), window ±1-10 stays well under the limit.
+ * No cache pinning is required — see issue #61 (resolved as speculative).
+ *
+ * Supplemented by Media3 official preload (#10): [MediaModule] now calls
+ * `ExoPlayer.setPreloadConfiguration(PreloadConfiguration(30s))` after
+ * creation so playlist preloading is throttled by [androidx.media3.exoplayer.LoadControl]
+ * rather than competing with active playback. This optimizer is **kept** for
+ * window sizing (±1..10 based on availMem/lowMemory); Media3 handles the
+ * actual preload scheduling and LoadControl limits I/O contention vs the
+ * custom timeline-manipulation path.
+ *
  * Usage:
  * ```
  * val window = optimizer.calculateBufferWindow()
- * playlistMemoryOptimizer.setBufferWindow(currentIndex - window, currentIndex + window)
+ * playlistManager.optimizeMemoryUsage(currentIndex, keepWindow = window)
  * ```
  *
  * @param activityManager System activity manager for memory queries
