@@ -214,6 +214,7 @@ public fun TopicScreen(
             is TopicUiState.Success -> {
                 TopicDetailsContent(
                     details = state.details,
+                    hasMorePages = state.hasMorePages,
                     viewModel = viewModel,
                     isRefreshing = isRefreshing,
                     isLoadingMoreComments = isLoadingMoreComments,
@@ -246,6 +247,7 @@ public fun TopicScreen(
 @Composable
 private fun TopicDetailsContent(
     details: RutrackerTopicDetails,
+    hasMorePages: Boolean,
     viewModel: TopicViewModel,
     isRefreshing: Boolean,
     isLoadingMoreComments: Boolean,
@@ -512,7 +514,7 @@ private fun TopicDetailsContent(
                     onRefresh = onRefresh,
                     currentPage = details.currentPage,
                     totalPages = details.totalPages,
-                    hasMorePages = (viewModel.uiState.value as? TopicUiState.Success)?.hasMorePages == true,
+                    hasMorePages = hasMorePages,
                     isLoadingMore = isLoadingMoreComments,
                     onLoadMore = { viewModel.loadMoreComments() },
                     onNavigateToTopic = onNavigateToTopic,

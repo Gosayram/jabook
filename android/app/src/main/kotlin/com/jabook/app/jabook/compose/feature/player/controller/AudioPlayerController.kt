@@ -335,6 +335,8 @@ public class AudioPlayerController
                         Player.MEDIA_ITEM_TRANSITION_REASON_AUTO,
                         Player.MEDIA_ITEM_TRANSITION_REASON_SEEK,
                         -> onChapterChangedCallback?.invoke()
+                        // Playlist changes are not chapter transitions.
+                        Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED -> Unit
                     }
                     _currentChapterIndex.value = controller.currentMediaItemIndex
                     updateChapterNavigation(controller)
@@ -452,6 +454,8 @@ public class AudioPlayerController
                         Player.MEDIA_ITEM_TRANSITION_REASON_AUTO,
                         Player.MEDIA_ITEM_TRANSITION_REASON_SEEK,
                         -> onChapterChangedCallback?.invoke()
+                        // Playlist changes are not chapter transitions.
+                        Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED -> Unit
                     }
                     _currentChapterIndex.value = exoPlayer.currentMediaItemIndex
                     updateChapterNavigation(exoPlayer)

@@ -79,6 +79,10 @@ class DynamicBaseUrlInterceptorTest {
     @Test
     fun `500 with failed switch attempt returns original open response with readable body`() {
         val env = startEnvironment(autoSwitchEnabled = true, customMirrors = listOf(mirrorB), healthyHosts = emptySet())
+        // Same settle-wait as the other tests: without it the request can race
+        // MirrorManager's init collector (Dispatchers.IO) and go out with
+        // DEFAULT_MIRROR instead of mirrorA under load.
+        env.awaitMirrorSettled()
 
         val response = env.sendRequest()
 

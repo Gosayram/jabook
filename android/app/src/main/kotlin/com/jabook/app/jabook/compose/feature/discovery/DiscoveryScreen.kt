@@ -49,6 +49,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.invisibleToUser
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -212,7 +215,10 @@ private fun DiscoveryShelf(
     Text(
         text = title,
         style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier =
+            Modifier
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .semantics { heading() },
     )
     if (useCarousel) {
         HorizontalMultiBrowseCarousel(
@@ -349,6 +355,7 @@ private fun GenreTiltedCovers(
                     style = MaterialTheme.typography.titleSmall,
                     color = Color.Black,
                     fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.semantics { invisibleToUser() },
                 )
             }
         }

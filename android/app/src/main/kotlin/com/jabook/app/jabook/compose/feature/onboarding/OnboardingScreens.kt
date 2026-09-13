@@ -41,7 +41,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
@@ -63,6 +62,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.theme.LocalJabookMotionScheme
+import com.jabook.app.jabook.compose.core.util.rememberReduceMotion
 import com.jabook.app.jabook.compose.feature.permissions.PermissionScreen
 import kotlinx.coroutines.launch
 import kotlin.math.absoluteValue
@@ -85,20 +85,10 @@ public fun OnboardingScreen(
         }
     }
 
-    // Respect reduced-motion settings
-    val context = androidx.compose.ui.platform.LocalContext.current
+    // Respect reduced-motion settings (shared policy: any of the three
+    // system animation scales at 0x — see ReducedMotionPolicy)
     val motionScheme = LocalJabookMotionScheme.current
-    val reducedMotion =
-        remember {
-            val resolver = context.contentResolver
-            val scale =
-                android.provider.Settings.Global.getFloat(
-                    resolver,
-                    android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,
-                    1.0f,
-                )
-            scale == 0f
-        }
+    val reducedMotion = rememberReduceMotion()
 
     androidx.compose.animation.Crossfade(
         targetState = uiState.currentStep,
