@@ -23,8 +23,11 @@ import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.mapper.toDomain
 import com.jabook.app.jabook.compose.data.remote.model.SearchResult
+import com.jabook.app.jabook.compose.data.remote.parser.ParsingValidators
 import com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser
 import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
+import com.jabook.app.jabook.compose.domain.repository.AuthRepository
+import com.jabook.app.jabook.utils.RetryConfig
 import com.jabook.app.jabook.utils.parseRetryAfterMs
 import com.jabook.app.jabook.utils.retryWithBackoff
 import kotlinx.coroutines.Dispatchers
@@ -79,6 +82,7 @@ public class ForumIndexer
         private val mirrorManager: MirrorManager,
         private val forumCatalog: ForumCatalog,
         private val userPreferencesRepository: UserPreferencesRepository,
+        private val authRepository: AuthRepository,
         private val loggerFactory: LoggerFactory,
     ) {
         private val logger = loggerFactory.get("ForumIndexer")
@@ -100,6 +104,12 @@ public class ForumIndexer
 
         // Forum ID → display name mapping (populated at start of indexForums)
         private val forumNames = mutableMapOf<String, String>()
+
+        // One silent re-login attempt per indexing run (reset in indexForums).
+        // Atomic: N forum coroutines race for the single attempt via getAndSet.
+        private val reloginAttempted =
+            java.util.concurrent.atomic
+                .AtomicBoolean(false)
 
         /**
          * Resolve a human-readable forum name from ID.
@@ -146,6 +156,10 @@ public class ForumIndexer
         public companion object {
             private const val TOPICS_PER_PAGE = 50
             private const val BASE_DELAY_MS = 300L
+
+            // Backfill pages are deeper history — pace them slower so long runs
+            // don't trip Cloudflare's rate heuristics.
+            private const val BACKFILL_BASE_DELAY_MS = 600L
             private const val JITTER_RANGE_MS = 150L // ±150ms random jitter
             internal const val MAX_PAGES_PER_FORUM = 100_000
 
@@ -169,8 +183,43 @@ public class ForumIndexer
             internal fun backfillPageBudget(daysWindow: Int): Int = if (daysWindow > 0) BACKFILL_PAGES_PER_RUN else MAX_PAGES_PER_FORUM
 
             private const val INITIAL_BACKOFF_MS = 1000L
-            private const val MAX_BACKOFF_MS = 30_000L
+            internal const val MAX_BACKOFF_MS = 30_000L
             private const val BACKOFF_MULTIPLIER = 2.0
+
+            // ±30% jitter on rate-limit backoff so parallel forum crawls don't
+            // re-synchronize into a burst after a shared 429/503.
+            private const val BACKOFF_JITTER_RATIO = 0.30
+
+            // Cap in-page retries on 429/503: without it the same page retried
+            // forever while the server kept rate-limiting.
+            internal const val MAX_RATE_LIMIT_RETRIES_PER_PAGE = 3
+
+            // ±25% jitter on the page-fetch retry delays (RetryUtils default is 0.0).
+            private const val PAGE_FETCH_JITTER_RATIO = 0.25
+
+            // Stagger forum starts so MAX_CONCURRENT_FORUMS crawls don't fire
+            // their first page fetch in the same instant (de-sync bursts).
+            internal const val FORUM_START_STAGGER_MS = 1_000L
+
+            /**
+             * Pure backoff calculator for rate-limit responses: exponential in the
+             * real retry attempt (not the page number), capped at [MAX_BACKOFF_MS],
+             * with ±[BACKOFF_JITTER_RATIO] jitter. A server Retry-After is honored
+             * verbatim (no jitter — politeness contract with the server).
+             */
+            internal fun calculateAdaptiveBackoffMs(
+                attempt: Int,
+                retryAfterMs: Long?,
+                random: Double = Math.random(),
+            ): Long {
+                if (retryAfterMs != null) return retryAfterMs.coerceIn(0L, MAX_BACKOFF_MS)
+                val base =
+                    (INITIAL_BACKOFF_MS * Math.pow(BACKOFF_MULTIPLIER, attempt.toDouble()))
+                        .toLong()
+                        .coerceAtMost(MAX_BACKOFF_MS)
+                val jitter = (base * BACKOFF_JITTER_RATIO * (random * 2 - 1)).toLong()
+                return (base + jitter).coerceIn(0L, MAX_BACKOFF_MS)
+            }
 
             /**
              * Polite delay with jitter (±150ms around base).
@@ -189,12 +238,7 @@ public class ForumIndexer
                 attempt: Int,
                 retryAfterMs: Long? = null,
             ) {
-                val backoff =
-                    retryAfterMs
-                        ?: (INITIAL_BACKOFF_MS * Math.pow(BACKOFF_MULTIPLIER, attempt.toDouble()))
-                            .toLong()
-                            .coerceAtMost(MAX_BACKOFF_MS)
-                delay(backoff)
+                delay(calculateAdaptiveBackoffMs(attempt, retryAfterMs))
             }
 
             private const val MIN_VALID_TOPICS_ABSOLUTE = 10
@@ -256,6 +300,11 @@ public class ForumIndexer
             if (withTimeoutOrNull(mutexAcquireTimeoutMs) { indexingMutex.lock() } == null) {
                 throw IndexingInProgressException()
             }
+            // Pin the current mirror for the whole run: the interceptor stops
+            // auto-switching on 5xx (ForumIndexer's own adaptiveBackoff handles
+            // rate limits in place), so a mid-run mirror flip can't strand the
+            // run on an unverified domain. Unpinned in finally.
+            mirrorManager.pinMirror()
             return try {
                 withContext(Dispatchers.IO) {
                     val startTime = System.currentTimeMillis()
@@ -323,6 +372,95 @@ public class ForumIndexer
                     val freshFailedForums = ConcurrentHashMap.newKeySet<String>()
                     val forumTopicCounts = ConcurrentHashMap<String, Int>()
 
+                    // Session-expiry self-healing state: one silent re-login per
+                    // run; forums that can't resume are PAUSED with cursors kept.
+                    reloginAttempted.set(false)
+                    val authExpired =
+                        java.util.concurrent.atomic
+                            .AtomicBoolean(false)
+                    val pausedForumIds = ConcurrentHashMap.newKeySet<String>()
+
+                    /**
+                     * One silent re-login per run using stored credentials.
+                     * CaptchaRequiredException (or any login failure) → false.
+                     */
+                    suspend fun attemptSilentRelogin(): Boolean {
+                        val credentials =
+                            runCatching { authRepository.getStoredCredentials() }
+                                .onFailure { logger.w { "Could not read stored credentials: ${it.message}" } }
+                                .getOrNull()
+                        if (credentials == null || credentials.username.isBlank() || credentials.password.isBlank()) {
+                            logger.w { "No stored credentials — silent re-login unavailable" }
+                            return false
+                        }
+                        return try {
+                            val ok = authRepository.login(credentials).getOrDefault(false)
+                            if (ok) logger.i { "Silent re-login succeeded" } else logger.w { "Silent re-login failed" }
+                            ok
+                        } catch (e: Exception) {
+                            if (e is kotlinx.coroutines.CancellationException) throw e
+                            // Includes CaptchaRequiredException — captcha needs the user, not a retry.
+                            logger.w { "Silent re-login failed: ${e.javaClass.simpleName}" }
+                            false
+                        }
+                    }
+
+                    fun pauseForumForAuth(forumId: String) {
+                        pausedForumIds.add(forumId)
+                        authExpired.set(true)
+                        updateForumStatus(forumId, ForumState.PAUSED)
+                    }
+
+                    /**
+                     * Crawl a forum; on [SessionExpiredException] attempt the single
+                     * silent re-login and retry the SAME forum from the SAME page.
+                     * Returns null when the forum ended up PAUSED for auth.
+                     */
+                    suspend fun runForumCrawl(
+                        forumId: String,
+                        phase: String,
+                        startPage: Int,
+                        maxPages: Int,
+                        persistCursor: (suspend (nextPage: Int?) -> Unit)?,
+                        onCrawlProgress: (suspend (page: Int, topicsInForum: Int) -> Unit)?,
+                    ): ForumCrawlResult? =
+                        try {
+                            indexForum(
+                                forumId = forumId,
+                                indexVersion = currentIndexVersion,
+                                daysWindow = daysWindow,
+                                phase = phase,
+                                startPage = startPage,
+                                maxPages = maxPages,
+                                persistCursor = persistCursor,
+                                onProgress = onCrawlProgress,
+                            )
+                        } catch (e: SessionExpiredException) {
+                            logger.w { "Auth wall on forum $forumId page ${e.page} — session expired mid-run" }
+                            val canRetry = !reloginAttempted.getAndSet(true) && attemptSilentRelogin()
+                            if (canRetry) {
+                                logger.i { "Retrying forum $forumId from page ${e.page} after re-login" }
+                                try {
+                                    indexForum(
+                                        forumId = forumId,
+                                        indexVersion = currentIndexVersion,
+                                        daysWindow = daysWindow,
+                                        phase = phase,
+                                        startPage = startPage,
+                                        maxPages = maxPages,
+                                        persistCursor = persistCursor,
+                                        onProgress = onCrawlProgress,
+                                    )
+                                } catch (retryEx: SessionExpiredException) {
+                                    pauseForumForAuth(forumId)
+                                    null
+                                }
+                            } else {
+                                pauseForumForAuth(forumId)
+                                null
+                            }
+                        }
+
                     // Resume cursors from a previous interrupted backfill run
                     val persistedCursors =
                         runCatching { userPreferencesRepository.getIndexingPageCursors() }
@@ -380,16 +518,17 @@ public class ForumIndexer
                     coroutineScope {
                         val forumSlots = Semaphore(MAX_CONCURRENT_FORUMS)
                         forumIdList
-                            .map { forumId ->
+                            .mapIndexed { forumIndex, forumId ->
                                 async(Dispatchers.IO) {
                                     forumSlots.withPermit {
+                                        // Stagger starts: concurrent crawls must not
+                                        // fire their first page fetch simultaneously.
+                                        delay(forumIndex * FORUM_START_STAGGER_MS)
                                         updateForumStatus(forumId, ForumState.IN_PROGRESS)
                                         try {
                                             val result =
-                                                indexForum(
+                                                runForumCrawl(
                                                     forumId = forumId,
-                                                    indexVersion = currentIndexVersion,
-                                                    daysWindow = daysWindow,
                                                     phase = IndexProgress.PHASE_FRESH,
                                                     startPage = 0,
                                                     maxPages = FRESH_MAX_PAGES,
@@ -400,10 +539,15 @@ public class ForumIndexer
                                                         emitProgress(IndexProgress.PHASE_FRESH, forumId, page, topicsInForum)
                                                     }
                                                 }
-                                            forumTopicCounts.merge(forumId, result.topicsIndexed, Int::plus)
-                                            topicsIndexedAtomic.addAndGet(result.topicsIndexed)
-                                            freshStopPages[forumId] = result.nextUncrawledPage
-                                            if (result.boundaryHit) freshBoundaryForums.add(forumId)
+                                            if (result != null) {
+                                                forumTopicCounts.merge(forumId, result.topicsIndexed, Int::plus)
+                                                topicsIndexedAtomic.addAndGet(result.topicsIndexed)
+                                                freshStopPages[forumId] = result.nextUncrawledPage
+                                                if (result.boundaryHit) freshBoundaryForums.add(forumId)
+                                            } else {
+                                                // PAUSED for auth — skip backfill like a failure would
+                                                freshFailedForums.add(forumId)
+                                            }
                                         } catch (e: Exception) {
                                             if (e is kotlinx.coroutines.CancellationException) throw e
                                             recordForumFailure(forumId, 0, e)
@@ -419,49 +563,54 @@ public class ForumIndexer
                     coroutineScope {
                         val forumSlots = Semaphore(MAX_CONCURRENT_FORUMS)
                         forumIdList
-                            .map { forumId ->
+                            .mapIndexed { forumIndex, forumId ->
                                 async(Dispatchers.IO) {
-                                    if (forumId in freshFailedForums) return@async
-                                    updateForumStatus(forumId, ForumState.IN_PROGRESS)
-                                    if (forumId in freshBoundaryForums) {
-                                        // Fresh pass proved this forum is up to date —
-                                        // nothing to backfill; drop any stale resume cursor.
-                                        runCatching { userPreferencesRepository.clearIndexingPageCursor(forumId) }
-                                        finishForum(forumId)
-                                        return@async
-                                    }
-                                    try {
-                                        val cursor = persistedCursors[forumId]?.coerceAtLeast(0) ?: 0
-                                        val startIndex = maxOf(cursor, freshStopPages[forumId] ?: 0)
-                                        val result =
-                                            indexForum(
-                                                forumId = forumId,
-                                                indexVersion = currentIndexVersion,
-                                                daysWindow = daysWindow,
-                                                phase = IndexProgress.PHASE_BACKFILL,
-                                                startPage = startIndex,
-                                                maxPages = backfillBudget,
-                                                persistCursor = { nextPage ->
-                                                    runCatching {
-                                                        if (nextPage == null) {
-                                                            userPreferencesRepository.clearIndexingPageCursor(forumId)
-                                                        } else {
-                                                            userPreferencesRepository.updateIndexingPageCursor(forumId, nextPage)
+                                    forumSlots.withPermit {
+                                        // Stagger starts (same anti-burst as phase 1)
+                                        delay(forumIndex * FORUM_START_STAGGER_MS)
+                                        if (forumId in freshFailedForums) return@withPermit
+                                        updateForumStatus(forumId, ForumState.IN_PROGRESS)
+                                        if (forumId in freshBoundaryForums) {
+                                            // Fresh pass proved this forum is up to date —
+                                            // nothing to backfill; drop any stale resume cursor.
+                                            runCatching { userPreferencesRepository.clearIndexingPageCursor(forumId) }
+                                            finishForum(forumId)
+                                            return@withPermit
+                                        }
+                                        try {
+                                            val cursor = persistedCursors[forumId]?.coerceAtLeast(0) ?: 0
+                                            val startIndex = maxOf(cursor, freshStopPages[forumId] ?: 0)
+                                            val result =
+                                                runForumCrawl(
+                                                    forumId = forumId,
+                                                    phase = IndexProgress.PHASE_BACKFILL,
+                                                    startPage = startIndex,
+                                                    maxPages = backfillBudget,
+                                                    persistCursor = { nextPage ->
+                                                        runCatching {
+                                                            if (nextPage == null) {
+                                                                userPreferencesRepository.clearIndexingPageCursor(forumId)
+                                                            } else {
+                                                                userPreferencesRepository.updateIndexingPageCursor(forumId, nextPage)
+                                                            }
                                                         }
+                                                    },
+                                                ) { page, topicsInForum ->
+                                                    updateForumStatusPage(forumId, page)
+                                                    if (page == 0 || page % 2 == 0 || topicsInForum < 50) {
+                                                        emitProgress(IndexProgress.PHASE_BACKFILL, forumId, page, topicsInForum)
                                                     }
-                                                },
-                                            ) { page, topicsInForum ->
-                                                updateForumStatusPage(forumId, page)
-                                                if (page == 0 || page % 2 == 0 || topicsInForum < 50) {
-                                                    emitProgress(IndexProgress.PHASE_BACKFILL, forumId, page, topicsInForum)
                                                 }
+                                            if (result != null) {
+                                                forumTopicCounts.merge(forumId, result.topicsIndexed, Int::plus)
+                                                topicsIndexedAtomic.addAndGet(result.topicsIndexed)
+                                                finishForum(forumId)
                                             }
-                                        forumTopicCounts.merge(forumId, result.topicsIndexed, Int::plus)
-                                        topicsIndexedAtomic.addAndGet(result.topicsIndexed)
-                                        finishForum(forumId)
-                                    } catch (e: Exception) {
-                                        if (e is kotlinx.coroutines.CancellationException) throw e
-                                        recordForumFailure(forumId, 0, e)
+                                            // result == null → forum PAUSED for auth (already marked)
+                                        } catch (e: Exception) {
+                                            if (e is kotlinx.coroutines.CancellationException) throw e
+                                            recordForumFailure(forumId, 0, e)
+                                        }
                                     }
                                 }
                             }.awaitAll()
@@ -469,6 +618,30 @@ public class ForumIndexer
 
                     val totalIndexed: Int = topicsIndexedAtomic.get()
                     val duration = System.currentTimeMillis() - startTime
+
+                    // Session-expiry precedence: takes priority over the "all forums
+                    // failed" and daysWindow zero-topics guards — the run paused at
+                    // persisted cursors, the index is intact, and re-login is on the
+                    // user (surfaced as structured error_reason downstream).
+                    if (authExpired.get()) {
+                        val firstPaused = pausedForumIds.firstOrNull()
+                        val message =
+                            "RuTracker session expired — indexing paused at persisted cursors" +
+                                (firstPaused?.let { " (forum ${resolveForumName(it)})" } ?: "")
+                        logger.w { message }
+                        _indexProgress.value =
+                            _indexProgress.value.copy(
+                                errors = listOf(message) + _indexProgress.value.errors,
+                            )
+                        onProgress?.invoke(
+                            IndexingProgress.Error(
+                                message = message,
+                                forumId = firstPaused,
+                                errorReason = IndexingProgress.ERROR_REASON_AUTH_EXPIRED,
+                            ),
+                        )
+                        return@withContext totalIndexed
+                    }
 
                     if (failedForums.get() == forumIdList.size) {
                         val messages = synchronized(failedForumMessages) { failedForumMessages.toList() }
@@ -537,6 +710,7 @@ public class ForumIndexer
                     actualCountInDb
                 }
             } finally {
+                mirrorManager.unpinMirror()
                 indexingMutex.unlock()
             }
         }
@@ -616,10 +790,15 @@ public class ForumIndexer
             var page: Int = startPage
             var hasMorePages: Boolean = true
             var boundaryReached: Boolean = false
+            var rateLimitRetries: Int = 0
             val entitiesBuffer = mutableListOf<CachedTopicEntity>() // Buffer for intra-page batching
             var lastPageSignature: String? = null
             var repeatedSignatureCount: Int = 0
             val pageLimit = startPage + maxPages
+
+            // Backfill pages are polite-slower than fresh pages
+            val pageDelayBaseMs =
+                if (phase == IndexProgress.PHASE_BACKFILL) BACKFILL_BASE_DELAY_MS else BASE_DELAY_MS
 
             val forumStartTime = System.currentTimeMillis()
             val initialMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()
@@ -628,22 +807,37 @@ public class ForumIndexer
             while (hasMorePages && page < pageLimit) {
                 try {
                     val pageStartTime = System.currentTimeMillis()
-                    val response = retryWithBackoff { api.getForumPage(forumId, start = page * TOPICS_PER_PAGE) }
+                    val response =
+                        retryWithBackoff(RetryConfig(jitterRatio = PAGE_FETCH_JITTER_RATIO)) {
+                            api.getForumPage(forumId, start = page * TOPICS_PER_PAGE)
+                        }
                     val fetchTime = System.currentTimeMillis() - pageStartTime
 
                     if (!response.isSuccessful) {
+                        // Adaptive backoff for rate-limit responses — capped per page
+                        if (response.code() == 429 || response.code() == 503) {
+                            rateLimitRetries++
+                            if (rateLimitRetries > MAX_RATE_LIMIT_RETRIES_PER_PAGE) {
+                                logger.w {
+                                    "Forum $forumId page $page still rate-limited after " +
+                                        "$MAX_RATE_LIMIT_RETRIES_PER_PAGE retries — stopping forum"
+                                }
+                                break
+                            }
+                            val retryAfter = parseRetryAfterMs(response.headers())
+                            logger.i {
+                                "Rate-limited (${response.code()}), backing off " +
+                                    "(retry $rateLimitRetries/$MAX_RATE_LIMIT_RETRIES_PER_PAGE)..."
+                            }
+                            adaptiveBackoff(attempt = rateLimitRetries, retryAfterMs = retryAfter)
+                            continue // Retry same page
+                        }
                         logger.w {
                             "Failed to fetch forum $forumId page $page: HTTP ${response.code()} (took ${fetchTime}ms)"
                         }
-                        // Adaptive backoff for rate-limit responses
-                        if (response.code() == 429 || response.code() == 503) {
-                            val retryAfter = parseRetryAfterMs(response.headers())
-                            logger.i { "Rate-limited (${response.code()}), backing off..." }
-                            adaptiveBackoff(attempt = page, retryAfterMs = retryAfter)
-                            continue // Retry same page
-                        }
                         break
                     }
+                    rateLimitRetries = 0
 
                     val body = response.body() ?: break
                     // Read body bytes ONCE — parser needs them, health check needs them
@@ -655,18 +849,22 @@ public class ForumIndexer
                     val parseTime = System.currentTimeMillis() - parseStartTime
 
                     if (topics.isEmpty()) {
-                        if (page == 0) {
-                            val decodedHtml =
-                                try {
-                                    parser.decodeBytes(rawBytes, contentType)
-                                } catch (e: Exception) {
-                                    String(rawBytes, Charsets.UTF_8)
-                                }
-                            if (!isHealthyForumPage(decodedHtml, 0)) {
-                                val errorMsg = "Forum $forumId page 0: unhealthy response (CAPTCHA/login-wall/block page)"
-                                logger.w { errorMsg }
-                                throw IllegalStateException(errorMsg)
+                        val decodedHtml =
+                            try {
+                                parser.decodeBytes(rawBytes, contentType)
+                            } catch (e: Exception) {
+                                String(rawBytes, Charsets.UTF_8)
                             }
+                        // Auth wall on ANY page (not just page 0) means the session
+                        // died mid-run. Throw BEFORE the cursor is nulled so the
+                        // cursor stays on this page and a re-login can resume here.
+                        if (ParsingValidators.requiresAuthentication(decodedHtml)) {
+                            throw SessionExpiredException(forumId, page)
+                        }
+                        if (page == 0 && !isHealthyForumPage(decodedHtml, 0)) {
+                            val errorMsg = "Forum $forumId page 0: unhealthy response (CAPTCHA/login-wall/block page)"
+                            logger.w { errorMsg }
+                            throw IllegalStateException(errorMsg)
                         }
                         logger.d {
                             "Forum $forumId page $page: no topics found, ending (fetch: ${fetchTime}ms, parse: ${parseTime}ms)"
@@ -761,7 +959,7 @@ public class ForumIndexer
                         // all-invalid topics still advances (legacy behavior).
                         if (!boundaryReached) {
                             onProgress?.invoke(page, totalTopics)
-                            politeDelay()
+                            politeDelay(pageDelayBaseMs)
                             page++
                             if (hasMorePages) {
                                 persistCursor?.invoke(page) // resume here if the run dies
@@ -770,6 +968,9 @@ public class ForumIndexer
                     }
                 } catch (e: Exception) {
                     if (e is kotlinx.coroutines.CancellationException) throw e
+                    // Session expiry must propagate for the re-login flow —
+                    // swallowing it here would corrupt the run silently.
+                    if (e is SessionExpiredException) throw e
                     val isNetworkError =
                         e is java.net.UnknownHostException ||
                             e is java.net.ConnectException ||
@@ -1045,6 +1246,16 @@ public class ForumIndexer
  * Callers should treat this as a benign "nothing to do" condition — never a stuck worker.
  */
 public class IndexingInProgressException : Exception("Indexing already in progress; another index run owns the mutex")
+
+/**
+ * Thrown when a forum page response is an auth wall — the RuTracker session
+ * expired mid-run. Carries the exact crawl position so callers can re-login
+ * and resume from the same page; the persisted cursor is left untouched.
+ */
+public class SessionExpiredException(
+    public val forumId: String,
+    public val page: Int,
+) : Exception("RuTracker session expired while indexing forum $forumId page $page (auth wall detected)")
 
 /**
  * Outcome of a single [ForumIndexer.indexForum] crawl.

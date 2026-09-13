@@ -337,6 +337,16 @@ public class IndexingViewModel
                             val sizeAfterFinish = resolveIndexSizeAfterServiceCompletion()
                             _indexingProgress.value =
                                 when {
+                                    latestTerminal?.state == WorkInfo.State.SUCCEEDED &&
+                                        latestTerminal.outputData.getString(IndexingWorker.KEY_ERROR_REASON) ==
+                                        IndexingWorker.ERROR_REASON_AUTH_EXPIRED -> {
+                                        // Message is resolved to the localized string by
+                                        // IndexingProgressDialog via errorReason.
+                                        IndexingProgress.Error(
+                                            message = "RuTracker session expired",
+                                            errorReason = IndexingProgress.ERROR_REASON_AUTH_EXPIRED,
+                                        )
+                                    }
                                     latestTerminal?.state == WorkInfo.State.SUCCEEDED && sizeAfterFinish > 0 -> {
                                         IndexingProgress.Completed(totalTopics = sizeAfterFinish, durationMs = 0L)
                                     }

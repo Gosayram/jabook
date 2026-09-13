@@ -2988,6 +2988,10 @@
     <string name="indexingPhaseFresh">Свежие релизы…</string>
     <string name="indexingPhaseBackfill">Догрузка истории в фоне…</string>
     <string name="hideAction">Скрыть</string>
+    <string name="indexingSessionExpired">Сессия истекла — войдите в RuTracker, чтобы продолжить</string>
+    <string name="indexingLoginAction">Войти</string>
+    <string name="indexingResumeAction">Продолжить</string>
+    <string name="indexingStatusPaused">Приостановлена</string>
     <string name="cannotShareLogsActivityRequired">Не удалось поделиться логами: требуется Activity-контекст</string>
     <string name="torrentBufferingTitle">Буферизация...</string>
     <string name="torrentBufferingDescription">Подождите, пока загрузится достаточно данных для плавного воспроизведения.</string>

@@ -92,6 +92,24 @@ public class MirrorManager
             // response, not a mirror failure, so switching must be conservative)
             private const val SWITCH_SUCCESS_GRACE_MS = 10_000L
             private const val SWITCH_FAILURE_BACKOFF_MS = 60_000L
+
+            // While a run pins the mirror, a switch is only justified after a long
+            // grace — the pinned run handles 429/503 in place via its own backoff.
+            private const val PINNED_SWITCH_SUCCESS_GRACE_MS = 120_000L
+
+            // Consecutive request-path failures of the CURRENT mirror required
+            // before a mirror switch is justified (don't fall off a working
+            // mirror on a single timeout/5xx).
+            private const val MIRROR_SWITCH_FAILURE_THRESHOLD = 3
+
+            /**
+             * Browser-style UA for health checks: Cloudflare scores non-browser
+             * UAs ("JaBook/x") harder and hard-blocks with a challenge page.
+             * Same style as RutrackerHeadersInterceptor's device UA fallback.
+             */
+            private fun healthCheckUserAgent(): String =
+                "Mozilla/5.0 (Linux; Android ${android.os.Build.VERSION.RELEASE}; ${android.os.Build.MODEL})" +
+                    " AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
         }
 
         private val scope =
@@ -115,6 +133,17 @@ public class MirrorManager
         //  - backoff after a failed switch attempt (no mirror worked)
         private val lastSuccessfulSwitchMs = AtomicLong(0L)
         private val lastFailedSwitchMs = AtomicLong(0L)
+
+        // Consecutive request-path failures per mirror (recorded by
+        // DynamicBaseUrlInterceptor on transport errors / 5xx). Reset on any
+        // success. A switch is only justified at/above the threshold, or
+        // immediately for DNS death (UnknownHostException sets the counter).
+        private val consecutiveFailures = ConcurrentHashMap<String, AtomicInteger>()
+
+        // Indexing pin: while set, auto-switching is blocked entirely (the
+        // pinned run handles 429/503 in place); effective switch grace raised.
+        @Volatile
+        private var pinnedMirror: String? = null
 
         // Dedicated health-check client built in NetworkModule (short call/connect/read
         // timeouts, DoH, cert pinning). No re-wrapping here: a newBuilder() layer would
@@ -214,7 +243,7 @@ public class MirrorManager
                         Request
                             .Builder()
                             .url("https://$domain/forum/")
-                            .header("User-Agent", "JaBook/${BuildConfig.VERSION_NAME}")
+                            .header("User-Agent", healthCheckUserAgent())
                             // GET, not HEAD: Cloudflare challenge pages carry no body on
                             // HEAD responses, so body-based detection would never fire.
                             .get()
@@ -320,10 +349,19 @@ public class MirrorManager
             switchMutex.withLock {
                 val now = System.currentTimeMillis()
 
+                // Indexing pin: the running crawl owns this mirror — auto-switching
+                // would strand the run mid-way. (Manual setMirror() still works.)
+                if (pinnedMirror != null) {
+                    logger.d { "Mirror pinned for indexing, staying on ${_currentMirror.value}" }
+                    return@withLock false
+                }
+
                 // Anti-flap: mirrors share one backend, so rapid re-switching on 4xx
                 // only ping-pongs between domains. If we just switched, stay put and
                 // let the application layer surface the error instead.
-                if (now - lastSuccessfulSwitchMs.get() < SWITCH_SUCCESS_GRACE_MS) {
+                val effectiveGraceMs =
+                    if (pinnedMirror != null) PINNED_SWITCH_SUCCESS_GRACE_MS else SWITCH_SUCCESS_GRACE_MS
+                if (now - lastSuccessfulSwitchMs.get() < effectiveGraceMs) {
                     logger.d { "Mirror switched recently, staying on ${_currentMirror.value} (grace period)" }
                     return@withLock false
                 }
@@ -341,6 +379,15 @@ public class MirrorManager
                 val currentIndex = mirrors.indexOf(currentDomain)
 
                 logger.i { "Attempting to switch from $currentDomain to next mirror" }
+
+                // Confirm the CURRENT mirror is actually dead before abandoning it —
+                // one timeout/5xx burst must not flip a working mirror.
+                val currentHealth = checkMirrorHealth(currentDomain)
+                if (currentHealth is MirrorHealth.Healthy || currentHealth is MirrorHealth.CloudflareProtected) {
+                    logger.i { "Current mirror $currentDomain is ${currentHealth::class.simpleName}; staying put" }
+                    recordSuccess(currentDomain)
+                    return@withLock false
+                }
 
                 // Try all mirrors starting from next one
                 val mirrorsToTry =
@@ -486,6 +533,58 @@ public class MirrorManager
             val now = System.currentTimeMillis()
             return now - lastSuccessfulSwitchMs.get() >= SWITCH_SUCCESS_GRACE_MS &&
                 now - lastFailedSwitchMs.get() >= SWITCH_FAILURE_BACKOFF_MS
+        }
+
+        /**
+         * Pin the current mirror for a long-running operation (indexing).
+         * While pinned, [switchToNextMirror] refuses and the effective switch
+         * grace is raised, so the run keeps its verified mirror.
+         */
+        public fun pinMirror() {
+            pinnedMirror = _currentMirror.value
+            logger.i { "Mirror ${_currentMirror.value} pinned for indexing" }
+        }
+
+        /** Release the indexing pin (in a finally block of the pinned run). */
+        public fun unpinMirror() {
+            if (pinnedMirror != null) logger.i { "Mirror pin released" }
+            pinnedMirror = null
+        }
+
+        /** True while a run holds the mirror pin. */
+        public fun isMirrorPinned(): Boolean = pinnedMirror != null
+
+        /**
+         * Record a request-path failure for [domain] (transport error or 5xx).
+         * DNS death ([UnknownHostException]) is terminal for a mirror — the
+         * counter jumps straight to the switch threshold.
+         */
+        public fun recordFailure(
+            domain: String,
+            isDnsFailure: Boolean = false,
+        ) {
+            val counter = consecutiveFailures.getOrPut(domain) { AtomicInteger(0) }
+            if (isDnsFailure) {
+                counter.set(MIRROR_SWITCH_FAILURE_THRESHOLD)
+            } else {
+                counter.incrementAndGet()
+            }
+        }
+
+        /** Reset the consecutive-failure counter — any success proves the mirror alive. */
+        public fun recordSuccess(domain: String) {
+            consecutiveFailures.remove(domain)
+        }
+
+        /**
+         * Synchronous failover gate for the interceptor: true only when the
+         * current mirror has accumulated at least [MIRROR_SWITCH_FAILURE_THRESHOLD]
+         * consecutive failures (or DNS death) AND we're outside grace/backoff.
+         */
+        public fun canFailoverNowSync(): Boolean {
+            if (!canSwitchNowSync()) return false
+            val failures = consecutiveFailures[_currentMirror.value]?.get() ?: 0
+            return failures >= MIRROR_SWITCH_FAILURE_THRESHOLD
         }
 
         /**

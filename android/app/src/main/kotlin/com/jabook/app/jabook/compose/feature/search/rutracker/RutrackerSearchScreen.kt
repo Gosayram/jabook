@@ -107,6 +107,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 public fun RutrackerSearchScreen(
     onNavigateBack: () -> Unit,
     onTopicClick: (String) -> Unit,
+    onNavigateToAuth: () -> Unit = {},
     modifier: Modifier = Modifier,
     initialQuery: String? = null,
     viewModel: RutrackerSearchViewModel = hiltViewModel(),
@@ -169,6 +170,12 @@ public fun RutrackerSearchScreen(
                 // Hide dialog and start foreground service to continue indexing in background
                 showIndexingDialog = false
                 indexingViewModel.startIndexingInBackground(context)
+            },
+            onNavigateToAuth = onNavigateToAuth,
+            onResumeIndexing = {
+                showIndexingDialog = false
+                // Re-enqueues the worker; backfill resumes from persisted cursors
+                indexingViewModel.startIndexing(context)
             },
         )
     }

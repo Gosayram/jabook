@@ -67,11 +67,15 @@ class DynamicBaseUrlInterceptorTest {
         env.awaitMirrorSettled()
         env.serverDispatcher.successHost = mirrorB
 
-        val response = env.sendRequest()
+        // Stickiness: single 5xx no longer flips a mirror — the switch only
+        // fires on the third consecutive failure of the current mirror.
+        val responses = (1..3).map { env.sendRequest() }
+        val response = responses.last()
+        responses.dropLast(1).forEach { it.close() }
 
         assertEquals(200, response.code)
         assertEquals("ok", response.body.string())
-        assertEquals(listOf(mirrorA, mirrorB), env.serverDispatcher.receivedHosts.toList())
+        assertEquals(listOf(mirrorA, mirrorA, mirrorA, mirrorB), env.serverDispatcher.receivedHosts.toList())
         assertTrue(env.healthProbes.get() > 0)
         assertEquals(mirrorB, env.mirrorManager.getCurrentMirrorDomain())
     }
@@ -84,14 +88,35 @@ class DynamicBaseUrlInterceptorTest {
         // DEFAULT_MIRROR instead of mirrorA under load.
         env.awaitMirrorSettled()
 
-        val response = env.sendRequest()
+        val responses = (1..3).map { env.sendRequest() }
+        val response = responses.last()
+        responses.dropLast(1).forEach { it.close() }
 
         // Locks the closed-response regression: the original 500 must come back
         // OPEN with its body readable — reading a closed body throws.
         assertEquals(500, response.code)
         assertEquals("boom", response.body.string())
-        assertEquals(listOf(mirrorA), env.serverDispatcher.receivedHosts.toList())
+        assertEquals(listOf(mirrorA, mirrorA, mirrorA), env.serverDispatcher.receivedHosts.toList())
         assertTrue(env.healthProbes.get() > 0)
+    }
+
+    @Test
+    fun `pinned mirror skips auto-switch entirely on 5xx`() {
+        val env = startEnvironment(autoSwitchEnabled = true, customMirrors = listOf(mirrorB), healthyHosts = setOf(mirrorB))
+        env.awaitMirrorSettled()
+        env.mirrorManager.pinMirror()
+
+        val responses = (1..3).map { env.sendRequest() }
+        val response = responses.last()
+        responses.dropLast(1).forEach { it.close() }
+
+        // Pinned (indexing): no switch attempt even at the failure threshold —
+        // the pinned run handles 5xx with its own in-place backoff.
+        assertEquals(500, response.code)
+        assertEquals("boom", response.body.string())
+        assertEquals(listOf(mirrorA, mirrorA, mirrorA), env.serverDispatcher.receivedHosts.toList())
+        assertEquals(0, env.healthProbes.get())
+        assertEquals(mirrorA, env.mirrorManager.getCurrentMirrorDomain())
     }
 
     @Test

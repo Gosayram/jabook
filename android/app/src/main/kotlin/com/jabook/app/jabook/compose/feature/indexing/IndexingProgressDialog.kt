@@ -65,6 +65,10 @@ import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
  * @param onDismiss Callback when dialog is dismissed
  * @param onHide Callback when user wants to hide dialog and continue in background
  * @param indexSize Current index size from database (used for accurate count display)
+ * @param forumStatuses Per-forum statuses
+ * @param onNavigateToAuth Invoked by "Войти" when the session expired mid-run
+ * @param onResumeIndexing Invoked by "Продолжить" to re-enqueue indexing —
+ *   backfill resumes from the persisted cursors
  * @param modifier Modifier for the dialog
  */
 @Composable
@@ -74,6 +78,8 @@ public fun IndexingProgressDialog(
     onHide: (() -> Unit)? = null,
     indexSize: Int = 0,
     forumStatuses: List<ForumStatus> = emptyList(),
+    onNavigateToAuth: (() -> Unit)? = null,
+    onResumeIndexing: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     AlertDialog(
@@ -211,8 +217,14 @@ public fun IndexingProgressDialog(
                     }
 
                     is IndexingProgress.Error -> {
+                        val displayMessage =
+                            if (progress.errorReason == IndexingProgress.ERROR_REASON_AUTH_EXPIRED) {
+                                stringResource(R.string.indexingSessionExpired)
+                            } else {
+                                progress.message
+                            }
                         Text(
-                            text = progress.message,
+                            text = displayMessage,
                             textAlign = TextAlign.Center,
                             color = MaterialTheme.colorScheme.error,
                         )
@@ -229,9 +241,31 @@ public fun IndexingProgressDialog(
             }
         },
         confirmButton = {
-            if (progress is IndexingProgress.Completed || progress is IndexingProgress.Error) {
-                TextButton(onClick = onDismiss) {
-                    Text(stringResource(R.string.close))
+            val isAuthExpiredError =
+                progress is IndexingProgress.Error &&
+                    progress.errorReason == IndexingProgress.ERROR_REASON_AUTH_EXPIRED
+            when {
+                isAuthExpiredError -> {
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        if (onNavigateToAuth != null) {
+                            TextButton(onClick = onNavigateToAuth) {
+                                Text(stringResource(R.string.indexingLoginAction))
+                            }
+                        }
+                        if (onResumeIndexing != null) {
+                            TextButton(onClick = onResumeIndexing) {
+                                Text(stringResource(R.string.indexingResumeAction))
+                            }
+                        }
+                        TextButton(onClick = onDismiss) {
+                            Text(stringResource(R.string.close))
+                        }
+                    }
+                }
+                progress is IndexingProgress.Completed || progress is IndexingProgress.Error -> {
+                    TextButton(onClick = onDismiss) {
+                        Text(stringResource(R.string.close))
+                    }
                 }
             }
         },
@@ -282,6 +316,14 @@ private fun ForumStatusRow(status: ForumStatus) {
                     contentDescription = stringResource(R.string.indexingStatusFailed),
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.error,
+                )
+            }
+            ForumState.PAUSED -> {
+                Icon(
+                    imageVector = Icons.Filled.Pending,
+                    contentDescription = stringResource(R.string.indexingStatusPaused),
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.tertiary,
                 )
             }
             ForumState.PENDING -> {

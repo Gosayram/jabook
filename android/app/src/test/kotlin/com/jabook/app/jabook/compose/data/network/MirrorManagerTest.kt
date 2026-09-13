@@ -138,7 +138,9 @@ class MirrorManagerTest {
                         createHealthCheckClient(
                             statusByHost =
                                 mapOf(
-                                    mirrorOrg to 200,
+                                    // Current mirror must be DEAD for the "confirm current
+                                    // is dead" probe to allow the first switch.
+                                    mirrorOrg to 503,
                                     mirrorNet to 200,
                                 ),
                         ),
@@ -189,12 +191,102 @@ class MirrorManagerTest {
                 )
 
             assertFalse(mirrorManager.switchToNextMirror())
-            assertEquals(1, probeCount) // net probed; org skipped as current mirror
+            // Current mirror dead-probed first (stay-put guard), then net probed.
+            assertEquals(2, probeCount)
 
             // Backoff: the second attempt must NOT re-probe dead mirrors.
             assertFalse(mirrorManager.switchToNextMirror())
-            assertEquals(1, probeCount)
+            assertEquals(2, probeCount)
         }
+
+    @Test
+    fun `pinned mirror refuses switchToNextMirror until unpinned`() =
+        runTest {
+            val settingsRepository =
+                FakeSettingsRepository(
+                    initial =
+                        UserPreferences
+                            .newBuilder()
+                            .setSelectedMirror(mirrorOrg)
+                            .build(),
+                )
+            val mirrorManager =
+                MirrorManager(
+                    settingsRepository = settingsRepository,
+                    okHttpClient =
+                        createHealthCheckClient(
+                            statusByHost =
+                                mapOf(
+                                    mirrorOrg to 503,
+                                    mirrorNet to 200,
+                                ),
+                        ),
+                    loggerFactory = noOpLoggerFactory(),
+                )
+
+            mirrorManager.pinMirror()
+            assertTrue(mirrorManager.isMirrorPinned())
+            // Even with the current mirror dead, the pin blocks auto-switching.
+            assertFalse(mirrorManager.switchToNextMirror())
+            assertEquals(mirrorOrg, mirrorManager.getCurrentMirrorDomain())
+
+            mirrorManager.unpinMirror()
+            assertFalse(mirrorManager.isMirrorPinned())
+            assertTrue(mirrorManager.switchToNextMirror())
+            assertEquals(mirrorNet, mirrorManager.getCurrentMirrorDomain())
+        }
+
+    @Test
+    fun `failover requires consecutive failure threshold and resets on success`() {
+        val settingsRepository =
+            FakeSettingsRepository(
+                initial =
+                    UserPreferences
+                        .newBuilder()
+                        .setSelectedMirror(mirrorOrg)
+                        .build(),
+            )
+        val mirrorManager =
+            MirrorManager(
+                settingsRepository = settingsRepository,
+                okHttpClient = createHealthCheckClient(statusByHost = emptyMap()),
+                loggerFactory = noOpLoggerFactory(),
+            )
+
+        assertFalse(mirrorManager.canFailoverNowSync())
+        mirrorManager.recordFailure(mirrorOrg)
+        mirrorManager.recordFailure(mirrorOrg)
+        assertFalse(mirrorManager.canFailoverNowSync())
+
+        mirrorManager.recordFailure(mirrorOrg)
+        assertTrue(mirrorManager.canFailoverNowSync())
+
+        // Any success proves the mirror alive — counter resets.
+        mirrorManager.recordSuccess(mirrorOrg)
+        assertFalse(mirrorManager.canFailoverNowSync())
+    }
+
+    @Test
+    fun `dns failure is immediate failover justification`() {
+        val settingsRepository =
+            FakeSettingsRepository(
+                initial =
+                    UserPreferences
+                        .newBuilder()
+                        .setSelectedMirror(mirrorOrg)
+                        .build(),
+            )
+        val mirrorManager =
+            MirrorManager(
+                settingsRepository = settingsRepository,
+                okHttpClient = createHealthCheckClient(statusByHost = emptyMap()),
+                loggerFactory = noOpLoggerFactory(),
+            )
+
+        assertFalse(mirrorManager.canFailoverNowSync())
+        mirrorManager.recordFailure(mirrorOrg, isDnsFailure = true)
+        assertTrue(mirrorManager.canFailoverNowSync())
+    }
 
     @Test
     fun `403 without Cloudflare markers is treated as Dead not CloudflareProtected`() =

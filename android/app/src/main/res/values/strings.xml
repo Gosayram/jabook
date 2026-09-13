@@ -2953,6 +2953,10 @@
     <string name="indexingPhaseFresh">Fresh releases…</string>
     <string name="indexingPhaseBackfill">Backfilling history in background…</string>
     <string name="hideAction">Hide</string>
+    <string name="indexingSessionExpired">Session expired — sign in to RuTracker to continue</string>
+    <string name="indexingLoginAction">Sign in</string>
+    <string name="indexingResumeAction">Continue</string>
+    <string name="indexingStatusPaused">Paused</string>
     <string name="cannotShareLogsActivityRequired">Cannot share logs: activity context required</string>
     <string name="torrentBufferingTitle">Buffering...</string>
     <string name="torrentBufferingDescription">Please wait while we buffer enough data for smooth playback.</string>

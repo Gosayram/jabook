@@ -80,16 +80,28 @@ public class DynamicBaseUrlInterceptor
                     }
                 }
 
+                // Any success proves the current mirror alive — reset stickiness counter
+                if (response.isSuccessful) {
+                    mirrorManager.recordSuccess(currentMirror)
+                }
+
                 // If auto-switch is enabled and request failed, try switching mirror
                 if (!response.isSuccessful && shouldTriggerAutoSwitch(response.code)) {
                     logger.w {
                         "Request failed: HTTP ${response.code} ${response.message} (${requestDuration}ms) - ${originalUrl.encodedPath}, checking auto-switch"
                     }
 
+                    // Stickiness: only switch once the CURRENT mirror has failed
+                    // repeatedly — a single 5xx/timeout must not flip a working mirror.
+                    mirrorManager.recordFailure(currentMirror)
+
                     // Check if auto-switch is enabled (sync read from in-memory cache)
                     val autoSwitchEnabled = mirrorManager.isAutoSwitchEnabledSync()
 
-                    if (autoSwitchEnabled) {
+                    if (autoSwitchEnabled &&
+                        !mirrorManager.isMirrorPinned() &&
+                        mirrorManager.canFailoverNowSync()
+                    ) {
                         // Grace/backoff check before blocking: a switch attempt
                         // during these windows is guaranteed to fail anyway.
                         if (!mirrorManager.canSwitchNowSync()) {
@@ -139,6 +151,7 @@ public class DynamicBaseUrlInterceptor
                                 logger.i {
                                     "Retry succeeded: ${retryResponse.code} (${retryDuration}ms) with mirror $newMirror"
                                 }
+                                mirrorManager.recordSuccess(newMirror)
                             }
                             return retryResponse
                         } else {
@@ -183,12 +196,25 @@ public class DynamicBaseUrlInterceptor
                     "Request failed with exception: ${e.javaClass.simpleName} - ${e.message} (${requestDuration}ms) - ${originalUrl.encodedPath}"
                 }, e)
 
+                // DNS death is terminal for a mirror (immediate failover);
+                // other transport failures count toward the stickiness threshold.
+                val isDnsFailure =
+                    e is java.net.UnknownHostException ||
+                        (e.message?.contains("Unable to resolve host", ignoreCase = true) == true)
+                mirrorManager.recordFailure(currentMirror, isDnsFailure)
+
                 // Check if auto-switch is enabled (sync read from in-memory cache)
                 val autoSwitchEnabled = mirrorManager.isAutoSwitchEnabledSync()
 
                 // Only transport failures (DNS/connect/timeout/TLS) justify a mirror
                 // switch — mirror failover cannot fix an application-level error.
-                if (autoSwitchEnabled && isNetworkError) {
+                // While pinned (indexing) only DNS death may switch; otherwise the
+                // stickiness threshold must be met first.
+                if (autoSwitchEnabled &&
+                    isNetworkError &&
+                    (!mirrorManager.isMirrorPinned() || isDnsFailure) &&
+                    mirrorManager.canFailoverNowSync()
+                ) {
                     // Grace/backoff check before blocking: a switch attempt
                     // during these windows is guaranteed to fail anyway.
                     if (!mirrorManager.canSwitchNowSync()) {
@@ -236,6 +262,7 @@ public class DynamicBaseUrlInterceptor
                                 logger.i {
                                     "Retry succeeded: ${retryResponse.code} (${retryDuration}ms) with mirror $newMirror"
                                 }
+                                mirrorManager.recordSuccess(newMirror)
                             }
                             return retryResponse
                         } catch (retryException: Exception) {

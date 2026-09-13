@@ -49,11 +49,19 @@ public sealed class IndexingProgress {
      *
      * @param message Error message
      * @param forumId Forum ID where error occurred (if applicable)
+     * @param errorReason Machine-readable reason for structured handling
+     *   (e.g. [ERROR_REASON_AUTH_EXPIRED]); null for generic errors.
      */
     public data class Error(
         val message: String,
         val forumId: String? = null,
+        val errorReason: String? = null,
     ) : IndexingProgress()
+
+    public companion object {
+        /** RuTracker session died mid-run; cursors preserved, re-login required. */
+        public const val ERROR_REASON_AUTH_EXPIRED: String = "auth_expired"
+    }
 }
 
 /**
@@ -64,6 +72,9 @@ public enum class ForumState {
     IN_PROGRESS,
     INDEXED,
     FAILED,
+
+    /** Crawl stopped because the RuTracker session expired; cursors preserved. */
+    PAUSED,
 }
 
 /**

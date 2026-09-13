@@ -1650,6 +1650,12 @@ public fun SettingsScreen(
                         showIndexingDialog = false
                         indexingViewModel.startIndexingInBackground(context)
                     },
+                    onNavigateToAuth = safeNavigateToAuth,
+                    onResumeIndexing = {
+                        showIndexingDialog = false
+                        // Re-enqueues the worker; backfill resumes from persisted cursors
+                        indexingViewModel.startIndexing(context)
+                    },
                 )
             }
 

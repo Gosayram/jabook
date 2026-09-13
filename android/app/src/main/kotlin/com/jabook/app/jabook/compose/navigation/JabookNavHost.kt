@@ -434,6 +434,11 @@ public fun JabookNavHost(
                         launchSingleTop = true
                     }
                 },
+                onNavigateToAuth = {
+                    navController.navigate(com.jabook.app.jabook.compose.feature.auth.AuthRoute) {
+                        launchSingleTop = true
+                    }
+                },
             )
         }
 

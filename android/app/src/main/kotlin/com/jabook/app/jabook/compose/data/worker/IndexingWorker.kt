@@ -90,6 +90,12 @@ public class IndexingWorker
             public const val KEY_INDEXING_DAYS_WINDOW: String = "indexingDaysWindow"
             private const val DAYS_WINDOW_ABSENT: Int = -1
 
+            // Structured terminal-state key: set on Result.success() output when the
+            // run paused because the RuTracker session expired (never Result.retry —
+            // no hammering the login page; cursors are preserved for resume).
+            public const val KEY_ERROR_REASON: String = "error_reason"
+            public const val ERROR_REASON_AUTH_EXPIRED: String = "auth_expired"
+
             internal fun parseForumIds(input: String?): String {
                 val forumIds =
                     input
@@ -144,6 +150,7 @@ public class IndexingWorker
                 logger.i { "Starting indexing worker (attempt=$runAttemptCount)" }
 
                 var errorOccurred = false
+                var authExpired = false
                 val progressMutex = Mutex()
 
                 try {
@@ -243,14 +250,32 @@ public class IndexingWorker
                                 // when the worker finishes.
                             }
                             is IndexingProgress.Error -> {
-                                errorOccurred = true
-                                logger.e({ "Indexing error: ${progress.message}" })
+                                if (progress.errorReason == IndexingProgress.ERROR_REASON_AUTH_EXPIRED) {
+                                    // Session expired mid-run: ForumIndexer paused the
+                                    // forum(s) with cursors intact. NOT a retryable error.
+                                    authExpired = true
+                                    logger.w { "Indexing paused: ${progress.message}" }
+                                } else {
+                                    errorOccurred = true
+                                    logger.e({ "Indexing error: ${progress.message}" })
+                                }
                             }
                             else -> { /* Idle */ }
                         }
                     }
 
-                    if (errorOccurred) {
+                    if (authExpired) {
+                        // Succeed with a structured reason — Result.retry/failure would
+                        // hammer the login page; the user re-authenticates instead and
+                        // the next run resumes from the persisted cursors.
+                        logger.w { "Session expired mid-run; succeeding with error_reason=$ERROR_REASON_AUTH_EXPIRED" }
+                        Result.success(
+                            workDataOf(
+                                KEY_ERROR_REASON to ERROR_REASON_AUTH_EXPIRED,
+                                "error_message" to "RuTracker session expired during indexing",
+                            ),
+                        )
+                    } else if (errorOccurred) {
                         // Errors surfaced via the progress callback (often transient
                         // network issues) deserve the same capped retry as exceptions.
                         if (runAttemptCount < 3) {
