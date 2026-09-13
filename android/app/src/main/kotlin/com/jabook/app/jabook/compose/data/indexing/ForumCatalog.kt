@@ -53,8 +53,15 @@ public class ForumCatalog
             withContext(Dispatchers.IO) {
                 runCatching {
                     val categories = rutrackerRepository.getCategories().getOrThrow()
-                    forumsDao.replaceAll(flatten(categories))
-                    logger.i { "Forum catalog refreshed: ${categories.size} categories" }
+                    val rows = flatten(categories)
+                    if (rows.isEmpty()) {
+                        // A login-wall or block page can parse as "success" with
+                        // zero categories — treat as failure so callers see it in
+                        // logs and the table keeps its last good contents.
+                        throw IllegalStateException("Category fetch returned 0 categories (login wall?)")
+                    }
+                    forumsDao.replaceAll(rows)
+                    logger.i { "Forum catalog refreshed: ${categories.size} categories, ${rows.size} forums" }
                 }.onFailure { e ->
                     if (e is CancellationException) throw e
                     logger.e({ "Forum catalog refresh failed — keeping last good data" }, e)

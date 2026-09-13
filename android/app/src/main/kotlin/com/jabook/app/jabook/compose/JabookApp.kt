@@ -238,6 +238,10 @@ public fun JabookApp(
             val hasNextChapter by miniPlayerViewModel.hasNextChapter.collectAsStateWithLifecycle()
             val hasPreviousChapter by miniPlayerViewModel.hasPreviousChapter.collectAsStateWithLifecycle()
             val currentBook by miniPlayerViewModel.currentBook.collectAsStateWithLifecycle()
+            // Real-playback gate from the VM: visible only while the player session is
+            // actually live (book loaded into the player, no terminal error) — not merely
+            // because a "last played" book exists.
+            val miniPlayerSessionActive by miniPlayerViewModel.isVisible.collectAsStateWithLifecycle()
             val currentDestination = appState.currentDestination // Hoist to Composable scope
             val currentOnPlayerScreenVisibilityChanged by rememberUpdatedState(onPlayerScreenVisibilityChanged)
 
@@ -250,8 +254,10 @@ public fun JabookApp(
                 }
             }
 
-            // State for mini player visibility (can be hidden by swipe)
+            // State for mini player visibility — user-dismiss override on top of the
+            // session gate (dismiss stays hidden until the book changes).
             var isMiniPlayerVisible by remember { mutableStateOf(true) }
+            val miniPlayerShown = miniPlayerSessionActive && isMiniPlayerVisible && !isOnPlayerScreen
 
             // Reset visibility when book changes
             LaunchedEffect(currentBook?.id) {
@@ -355,9 +361,7 @@ public fun JabookApp(
                             // handler/policy (its repeats are incidental KeyDown auto-repeat),
                             // which a KeyUp handler cannot mirror; add a repeat policy if needed.
                             .onKeyEvent { event ->
-                                val miniPlayerActive =
-                                    currentBook != null && isMiniPlayerVisible && !isOnPlayerScreen
-                                if (event.type == KeyEventType.KeyUp && miniPlayerActive) {
+                                if (event.type == KeyEventType.KeyUp && miniPlayerShown) {
                                     when {
                                         event.key == Key.Spacebar -> {
                                             miniPlayerViewModel.togglePlayPause()
@@ -400,25 +404,19 @@ public fun JabookApp(
                                     onPlayerShortcut = { appState.navigateToPlayer(currentBook?.id) },
                                 )
 
-                                // Snackbar host positioned above mini player
-                                androidx.compose.material3.SnackbarHost(
+                                SnackbarHost(
                                     hostState = appState.snackbarHostState,
                                     modifier =
                                         Modifier
                                             .align(Alignment.BottomCenter)
                                             .padding(
-                                                bottom =
-                                                    if (currentBook != null && isMiniPlayerVisible && !isOnPlayerScreen) {
-                                                        MINI_PLAYER_FOOTER_CLEARANCE
-                                                    } else {
-                                                        16.dp
-                                                    },
+                                                bottom = if (miniPlayerShown) MINI_PLAYER_FOOTER_CLEARANCE else 16.dp,
                                             ),
                                 )
                             }
 
                             // Mini player — inside same SharedTransitionLayout for cover morph
-                            if (!isOnPlayerScreen && isMiniPlayerVisible) {
+                            if (miniPlayerShown) {
                                 currentBook?.let { book ->
                                     androidx.compose.animation.AnimatedVisibility(
                                         visible = true,

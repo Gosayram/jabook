@@ -66,6 +66,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -110,6 +111,24 @@ public class SettingsViewModel
                     val tags = appLocales.toLanguageTags()
                     val stored = settingsRepository.userPreferences.first().languageCode
                     if (stored != tags) userPreferencesRepository.setLanguage(tags)
+                }
+            }
+
+            // Eager forum-name refresh: the indexing forum selector shows the
+            // "Форум {id}" fallback until the catalog table is populated, and
+            // the only prior writers were the periodic SyncWorker (hours away)
+            // and an explicit indexing run. Refresh once on this screen's first
+            // entry when signed in and the table is still cold; unauthenticated
+            // users keep the fallback labels (categories require a session).
+            viewModelScope.launch {
+                val authenticated =
+                    withTimeoutOrNull(15_000L) {
+                        authRepository.authStatus.first { it is com.jabook.app.jabook.compose.domain.model.AuthStatus.Authenticated }
+                    }
+                if (authenticated != null) {
+                    runCatching {
+                        if (forumCatalog.namesById().isEmpty()) forumCatalog.refresh()
+                    }
                 }
             }
         }
@@ -572,20 +591,14 @@ public class SettingsViewModel
          * Forum display labels (forum ID → real name, optionally prefixed with
          * its parent category) for the indexing forum selector. Empty until
          * [ForumCatalog.refresh] has succeeded at least once — UI falls back to
-         * "Forum {id}" strings while empty.
+         * "Forum {id}" strings while empty. The init block eagerly refreshes
+         * the catalog when the table is cold and the user is signed in.
          */
         public val forumNameLabels: StateFlow<Map<String, String>> =
             forumCatalog
                 .observeAll()
                 .map { forums ->
-                    forums.associate { forum ->
-                        forum.forumId to
-                            if (forum.categoryName.isBlank()) {
-                                forum.name
-                            } else {
-                                "${forum.categoryName} — ${forum.name}"
-                            }
-                    }
+                    forums.associate { forum -> forum.forumId to forumLabel(forum.name, forum.categoryName) }
                 }.stateIn(
                     scope = viewModelScope,
                     started = SharingStarted.WhileSubscribed(5000),
@@ -799,6 +812,12 @@ internal fun resolveProductivePeriodFromHour(peakHour: Int): ProductivePeriod {
         else -> ProductivePeriod.NIGHT
     }
 }
+
+/** Display label for the indexing forum selector: category prefix when known, else bare name. */
+internal fun forumLabel(
+    name: String,
+    categoryName: String,
+): String = if (categoryName.isBlank()) name else "$categoryName — $name"
 
 private fun resolveYearStartEpochMs(): Long =
     java.time.LocalDate

@@ -176,6 +176,14 @@ public object AudioProcessorFactory {
                 }
             }
 
+            if (processors.isNotEmpty()) {
+                // Chain-head PCM converter: all DSP processors above are 16-bit only.
+                // Convert float raw PCM (local WAV, encoding=4) to int16 before it
+                // reaches them — otherwise the sink rejects the format with
+                // UnhandledAudioFormatException → renderer error 5001.
+                processors.add(0, FloatToInt16PcmProcessor())
+            }
+
             LogUtils.i(
                 "AudioProcessorFactory",
                 "Created processor chain with ${processors.size} processors: " +
@@ -261,6 +269,25 @@ public data class AudioProcessingSettings(
                 settings.autoVolumeLeveling ||
                 settings.skipSilence ||
                 settings.noiseGateLevel != NoiseGateLevel.Off
+
+        /**
+         * Copy of [settings] with every custom processor disabled.
+         *
+         * Used by the playback fallback: when the processor chain rejects a format
+         * (renderer error 5001), the player is rebuilt from this copy so playback
+         * survives on exotic formats the chain cannot handle.
+         */
+        public fun processorsDisabled(settings: AudioProcessingSettings): AudioProcessingSettings =
+            settings.copy(
+                normalizeVolume = false,
+                speechCompressorLevel = SpeechCompressorLevel.Off,
+                volumeBoostLevel = VolumeBoostLevel.Off,
+                drcLevel = DRCLevel.Off,
+                speechEnhancer = false,
+                autoVolumeLeveling = false,
+                skipSilence = false,
+                noiseGateLevel = NoiseGateLevel.Off,
+            )
     }
 }
 

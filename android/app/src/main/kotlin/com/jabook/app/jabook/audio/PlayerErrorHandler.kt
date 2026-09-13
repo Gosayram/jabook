@@ -47,6 +47,13 @@ internal class PlayerErrorHandler(
     private val getCurrentBookId: () -> String?,
     private val scheduleNotificationUpdate: () -> Unit = {},
     private val onTerminalError: (String) -> Unit = {},
+    /**
+     * Graceful fallback for renderer error 5001 (audio sink rejected the input format,
+     * e.g. float PCM reaching the 16-bit processor chain). Returns true when the caller
+     * rebuilt the player without processors; false (or null) falls through to the
+     * regular retry/skip policy. One-shot — the callback guards itself against loops.
+     */
+    private val retryWithoutProcessors: (() -> Boolean)? = null,
 ) {
     private var retryCount = 0
     private var skipCount = 0
@@ -96,6 +103,17 @@ internal class PlayerErrorHandler(
      */
     fun handlePlayerError(error: androidx.media3.common.PlaybackException) {
         ErrorHandler.handlePlaybackError(TAG, error, "Player error during playback")
+
+        // Error 5001 with the processors-enabled player almost always means the
+        // processor chain rejected the input format (UnhandledInputFormatException).
+        // Rebuild once without processors instead of skipping every track.
+        if (error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED &&
+            retryWithoutProcessors?.invoke() == true
+        ) {
+            LogUtils.w(TAG, "Audio sink rejected input format — retrying without processors")
+            scheduleNotificationUpdate()
+            return
+        }
 
         val resolution =
             PlaybackErrorPolicy.resolve(

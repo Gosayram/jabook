@@ -15,22 +15,31 @@
 package com.jabook.app.jabook.compose.feature.miniplayer
 
 import com.jabook.app.jabook.audio.PlayerPersistenceManager
+import com.jabook.app.jabook.compose.data.model.DownloadStatus
 import com.jabook.app.jabook.compose.data.repository.BooksRepository
+import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.feature.player.controller.AudioPlayerController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MiniPlayerViewModelTest {
@@ -43,6 +52,9 @@ class MiniPlayerViewModelTest {
     private val isPlayingFlow = MutableStateFlow(false)
     private val currentPositionFlow = MutableStateFlow(0L)
     private val durationFlow = MutableStateFlow(0L)
+    private val currentBookIdFlow = MutableStateFlow<String?>(null)
+    private val terminalErrorsFlow = MutableSharedFlow<String>(replay = 1, extraBufferCapacity = 1)
+    private val lastPlayedBookIdFlow = MutableStateFlow<String?>(null)
 
     private lateinit var viewModel: MiniPlayerViewModel
 
@@ -55,7 +67,9 @@ class MiniPlayerViewModelTest {
         whenever(audioPlayerController.currentChapterIndex).thenReturn(MutableStateFlow(0))
         whenever(audioPlayerController.hasNextChapter).thenReturn(MutableStateFlow(false))
         whenever(audioPlayerController.hasPreviousChapter).thenReturn(MutableStateFlow(false))
-        whenever(playerPersistenceManager.lastPlayedBookId).thenReturn(MutableStateFlow<String?>(null))
+        whenever(audioPlayerController.currentBookId).thenReturn(currentBookIdFlow)
+        whenever(audioPlayerController.terminalPlaybackErrors).thenReturn(terminalErrorsFlow)
+        whenever(playerPersistenceManager.lastPlayedBookId).thenReturn(lastPlayedBookIdFlow)
         viewModel = MiniPlayerViewModel(audioPlayerController, playerPersistenceManager, booksRepository)
     }
 
@@ -117,5 +131,82 @@ class MiniPlayerViewModelTest {
             viewModel.seekBy(5_000L)
 
             verify(audioPlayerController).seekTo(15_000L)
+        }
+
+    private fun testBook(id: String = "book-1"): Book =
+        Book(
+            id = id,
+            title = "Test Audiobook",
+            author = "Author",
+            coverUrl = null,
+            description = null,
+            totalDuration = 3_600_000.milliseconds,
+            currentPosition = 0.milliseconds,
+            progress = 0f,
+            currentChapterIndex = 0,
+            downloadStatus = DownloadStatus.DOWNLOADED,
+            downloadProgress = 1.0f,
+            localPath = "/data/test.mp3",
+            addedDate = 1000L,
+            lastPlayedDate = null,
+            isFavorite = false,
+            sourceUrl = null,
+        )
+
+    /** isVisible uses WhileSubscribed — tests subscribe eagerly, then read the state value. */
+    private fun TestScope.collectIsVisible() {
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.isVisible.collect {}
+        }
+    }
+
+    @Test
+    fun `mini player hidden when playback never started`() =
+        runTest {
+            // No last-played book, no loaded session — defaults from setUp
+            collectIsVisible()
+
+            assertFalse(viewModel.isVisible.value)
+        }
+
+    @Test
+    fun `mini player hidden when persisted book is not loaded into player`() =
+        runTest {
+            whenever(booksRepository.getBook(any())).thenReturn(MutableStateFlow(testBook()))
+            lastPlayedBookIdFlow.value = "book-1"
+            // controller never loaded the book
+            collectIsVisible()
+
+            assertFalse(viewModel.isVisible.value)
+        }
+
+    @Test
+    fun `mini player visible when book is loaded even while paused`() =
+        runTest {
+            whenever(booksRepository.getBook(any())).thenReturn(MutableStateFlow(testBook()))
+            lastPlayedBookIdFlow.value = "book-1"
+            currentBookIdFlow.value = "book-1"
+            isPlayingFlow.value = false
+            collectIsVisible()
+
+            assertTrue(viewModel.isVisible.value)
+        }
+
+    @Test
+    fun `mini player hidden on terminal playback error and recovers on replay`() =
+        runTest {
+            whenever(booksRepository.getBook(any())).thenReturn(MutableStateFlow(testBook()))
+            lastPlayedBookIdFlow.value = "book-1"
+            currentBookIdFlow.value = "book-1"
+            collectIsVisible()
+            assertTrue(viewModel.isVisible.value)
+
+            // terminal error gates visibility off…
+            terminalErrorsFlow.tryEmit("decode failed")
+            assertFalse(viewModel.isVisible.value)
+
+            // …and a real (re)start of playback clears it
+            isPlayingFlow.value = true
+            assertTrue(viewModel.isVisible.value)
         }
 }

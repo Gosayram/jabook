@@ -180,13 +180,21 @@ public fun LibraryScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val navigationClickGuard = remember { NavigationClickGuard() }
-    val safeNavigateToFavorites = dropUnlessResumed { navigationClickGuard.run(onNavigateToFavorites) }
-    val safeNavigateToSearch = dropUnlessResumed { navigationClickGuard.run(onNavigateToSearch) }
-    val safeNavigateToDownloads = dropUnlessResumed { navigationClickGuard.run(onNavigateToDownloads) }
-    val safeNavigateToSettings = dropUnlessResumed { navigationClickGuard.run(onNavigateToSettings) }
-    val safeNavigateToScanSettings = dropUnlessResumed { navigationClickGuard.run(onNavigateToScanSettings) }
-    val safeNavigateToAuth = dropUnlessResumed { navigationClickGuard.run(onNavigateToAuth) }
+    // ponytail: one guard per action — a single shared guard armed a 350ms lockout for
+    // EVERY other nav button on this screen after any accepted tap ("nav buttons don't
+    // work"). Per-action guards keep double-tap protection without cross-suppression.
+    val favoritesGuard = remember { NavigationClickGuard() }
+    val searchGuard = remember { NavigationClickGuard() }
+    val downloadsGuard = remember { NavigationClickGuard() }
+    val settingsGuard = remember { NavigationClickGuard() }
+    val scanSettingsGuard = remember { NavigationClickGuard() }
+    val authGuard = remember { NavigationClickGuard() }
+    val safeNavigateToFavorites = dropUnlessResumed { favoritesGuard.run(onNavigateToFavorites) }
+    val safeNavigateToSearch = dropUnlessResumed { searchGuard.run(onNavigateToSearch) }
+    val safeNavigateToDownloads = dropUnlessResumed { downloadsGuard.run(onNavigateToDownloads) }
+    val safeNavigateToSettings = dropUnlessResumed { settingsGuard.run(onNavigateToSettings) }
+    val safeNavigateToScanSettings = dropUnlessResumed { scanSettingsGuard.run(onNavigateToScanSettings) }
+    val safeNavigateToAuth = dropUnlessResumed { authGuard.run(onNavigateToAuth) }
     var activeQuickFilter by rememberSaveable { mutableStateOf(LibraryQuickFilter.ALL) }
     var showSortBottomSheet by rememberSaveable { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }

@@ -115,6 +115,24 @@ class ForumCatalogTest {
         }
 
     @Test
+    fun `empty category parse is treated as failure and keeps last good data`() =
+        runBlocking {
+            whenever(repository.getCategories()).thenReturn(
+                Result.success(listOf(AudiobookCategory(id = "574", name = "Радиоспектакли", url = ""))),
+            )
+            catalog.refresh()
+
+            // Login-wall/block page parsing as "success" with zero categories
+            // must not wipe the table.
+            whenever(repository.getCategories()).thenReturn(Result.success(emptyList()))
+            val result = catalog.refresh()
+
+            assertTrue(result.isFailure)
+            val rows = catalog.observeAll().first()
+            assertEquals(listOf("574"), rows.map { it.forumId })
+        }
+
+    @Test
     fun `flatten preserves site order with parent name on subcategories`() {
         val rows =
             catalog.flatten(

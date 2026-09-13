@@ -66,6 +66,8 @@ internal class PlayerListener(
     private val onIsPlayingChanged: ((Boolean) -> Unit)? = null,
     private val onTerminalPlaybackError: (String) -> Unit = {},
     onManualSeek: (() -> Unit)? = null,
+    /** See [PlayerErrorHandler.retryWithoutProcessors]. */
+    private val retryWithoutProcessors: (() -> Boolean)? = null,
 ) : Player.Listener {
     private var ownedScope: kotlinx.coroutines.CoroutineScope? = null
 
@@ -112,6 +114,7 @@ internal class PlayerListener(
             getCurrentMetadata = { getCurrentMetadata() },
             getCurrentBookId = { getCurrentBookId?.invoke() },
             onTerminalError = onTerminalPlaybackError,
+            retryWithoutProcessors = retryWithoutProcessors,
         )
 
     private val metadataHandler: PlayerMetadataHandler =

@@ -324,4 +324,93 @@ class PlayerListenerEventTest {
 
         verify(player, never()).prepare()
     }
+
+    @Test
+    fun `error 5001 triggers one-shot fallback without processors`() {
+        val context: android.content.Context = mock()
+        val player: ExoPlayer = mock()
+        val error =
+            ExoPlaybackException.createForSource(
+                java.io.IOException("Unhandled input format: AudioFormat[sampleRate=44100]"),
+                PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED,
+            )
+        whenever(player.currentMediaItemIndex).thenReturn(0)
+        whenever(player.playWhenReady).thenReturn(true)
+        val testScope = TestScope(UnconfinedTestDispatcher())
+
+        var fallbackCalls = 0
+        val listener =
+            PlayerListener(
+                context = context,
+                coroutineScope = testScope,
+                getActivePlayer = { player },
+                getIsBookCompleted = { false },
+                setIsBookCompleted = { },
+                getSleepTimerEndOfChapter = { false },
+                getSleepTimerEndOfTrack = { false },
+                cancelSleepTimer = { },
+                sendTimerExpiredEvent = { },
+                saveCurrentPosition = { },
+                getEmbeddedArtworkPath = { null },
+                setEmbeddedArtworkPath = { },
+                getCurrentMetadata = { null },
+                getActualPlaylistSize = { 1 },
+                retryWithoutProcessors = {
+                    // Simulates PlayerConfigurator's one-shot guard.
+                    fallbackCalls++
+                    fallbackCalls == 1
+                },
+            )
+
+        listener.onPlayerError(error)
+        // Second 5001 on the same player build: the handler consults the callback again
+        // (fallbackCalls == 2) but it declines (one fallback per player build), so no
+        // second rebuild happens and playback recovery proceeds without prepare().
+        listener.onPlayerError(error)
+        testScope.testScheduler.advanceUntilIdle()
+
+        assertEquals(2, fallbackCalls)
+        verify(player, never()).prepare()
+    }
+
+    @Test
+    fun `error 5001 falls through to skip policy when fallback declines`() {
+        val context: android.content.Context = mock()
+        val player: ExoPlayer = mock()
+        val error =
+            ExoPlaybackException.createForSource(
+                java.io.IOException("Unhandled input format"),
+                PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED,
+            )
+        whenever(player.currentMediaItemIndex).thenReturn(0)
+        whenever(player.currentMediaItem).thenReturn(null)
+        whenever(player.playWhenReady).thenReturn(true)
+        val testScope = TestScope(UnconfinedTestDispatcher())
+
+        val listener =
+            PlayerListener(
+                context = context,
+                coroutineScope = testScope,
+                getActivePlayer = { player },
+                getIsBookCompleted = { false },
+                setIsBookCompleted = { },
+                getSleepTimerEndOfChapter = { false },
+                getSleepTimerEndOfTrack = { false },
+                cancelSleepTimer = { },
+                sendTimerExpiredEvent = { },
+                saveCurrentPosition = { },
+                getEmbeddedArtworkPath = { null },
+                setEmbeddedArtworkPath = { },
+                getCurrentMetadata = { null },
+                getActualPlaylistSize = { 5 },
+                retryWithoutProcessors = { false },
+            )
+
+        listener.onPlayerError(error)
+        testScope.testScheduler.advanceUntilIdle()
+
+        // Declined fallback → legacy policy: skip to next track (the production bug
+        // behaviour when the chain rejects every track's format).
+        verify(player).seekTo(1, 0L)
+    }
 }

@@ -256,7 +256,10 @@ public fun PlayerScreen(
         androidx.media3.ui.compose.state
             .rememberPlaybackSpeedState(playerForSpeedState)
 
-    val navigationClickGuard = remember { NavigationClickGuard() }
+    // ponytail: guard per action — the shared guard let a series-autoplay NavigateToBook
+    // arm the 350ms lockout that then swallowed the user's next back-press (and vice versa).
+    val backNavClickGuard = remember { NavigationClickGuard() }
+    val bookNavClickGuard = remember { NavigationClickGuard() }
 
     // Auto-initialize player when book data is ready
     // Only initialize once when we have Success state with actual chapters
@@ -334,8 +337,8 @@ public fun PlayerScreen(
                         viewModel.dispatch(effect.actionIntent)
                     }
                 }
-                PlayerEffect.NavigateBack -> navigationClickGuard.run(currentOnNavigateBack)
-                is PlayerEffect.NavigateToBook -> navigationClickGuard.run { currentOnNavigateToBook(effect.bookId) }
+                PlayerEffect.NavigateBack -> backNavClickGuard.run(currentOnNavigateBack)
+                is PlayerEffect.NavigateToBook -> bookNavClickGuard.run { currentOnNavigateToBook(effect.bookId) }
             }
         }
     }
@@ -525,7 +528,7 @@ public fun PlayerScreen(
                     scaffoldNavigator.navigateBack()
                 }
             }
-            else -> navigationClickGuard.run { currentOnNavigateBack() }
+            else -> backNavClickGuard.run { currentOnNavigateBack() }
         }
     }
 
@@ -754,7 +757,7 @@ public fun PlayerScreen(
                             },
                             navigationIcon = {
                                 androidx.compose.material3.IconButton(
-                                    onClick = { navigationClickGuard.run(currentOnNavigateBack) },
+                                    onClick = { backNavClickGuard.run(currentOnNavigateBack) },
                                 ) {
                                     androidx.compose.material3.Icon(
                                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -827,7 +830,7 @@ public fun PlayerScreen(
                                             if (scaffoldNavigator.canNavigateBack()) {
                                                 scope.launch { scaffoldNavigator.navigateBack() }
                                             } else {
-                                                navigationClickGuard.run { onNavigateBack() }
+                                                backNavClickGuard.run { onNavigateBack() }
                                             }
                                             true
                                         }

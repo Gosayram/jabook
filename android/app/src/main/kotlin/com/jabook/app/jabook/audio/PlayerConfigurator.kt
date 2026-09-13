@@ -85,6 +85,14 @@ internal class PlayerConfigurator(
     var audioProcessingSettings: AudioProcessingSettings = AudioProcessingSettings()
         private set
 
+    /** One fallback per player build — prevents 5001 → rebuild → 5001 retry loops. */
+    @Volatile
+    private var processorsFallbackUsed = false
+
+    /** Set when the fallback must resume playback of the same chapter after rebuild. */
+    @Volatile
+    private var resumeAfterProcessorFallback = false
+
     /**
      * Gets the active ExoPlayer instance (custom with processors or singleton).
      * @param defaultPlayer The singleton ExoPlayer instance to return if no custom player exists
@@ -167,6 +175,7 @@ internal class PlayerConfigurator(
                     onIsPlayingChanged = { isPlaying -> service.onPlaybackIsPlayingChanged(isPlaying) },
                     onTerminalPlaybackError = service::reportTerminalPlaybackError,
                     onManualSeek = { service.playbackController?.finalizeActiveTransitionNow() },
+                    retryWithoutProcessors = { fallbackToPlainPlayer() },
                 )
 
             playerListener?.let {
@@ -201,12 +210,51 @@ internal class PlayerConfigurator(
      *
      * @param settings Audio processing settings
      */
+
+    /**
+     * Graceful fallback: rebuild the player WITHOUT custom processors for the current
+     * session and resume the same chapter. Used when the audio sink rejects an input
+     * format the 16-bit processor chain cannot handle (renderer error 5001).
+     *
+     * @return true when the plain player rebuild was started; false when the fallback
+     * was already used for this player build or no processor is enabled (guard against
+     * rebuild/retry loops).
+     */
+    @androidx.annotation.OptIn(UnstableApi::class)
+    public fun fallbackToPlainPlayer(): Boolean {
+        if (processorsFallbackUsed) {
+            LogUtils.w("PlayerConfigurator", "Processor fallback already used — not retrying again")
+            return false
+        }
+        if (!AudioProcessingSettings.hasAnyProcessorEnabled(audioProcessingSettings)) return false
+
+        processorsFallbackUsed = true
+        // The errored player is in STATE_IDLE (isPlaying=false) but playWhenReady still
+        // reflects user intent — resume the same chapter after the rebuild.
+        resumeAfterProcessorFallback = service.getActivePlayer().playWhenReady
+        LogUtils.w(
+            "PlayerConfigurator",
+            "Unhandled audio format with processors enabled — retrying without processors",
+        )
+        configureExoPlayer(AudioProcessingSettings.processorsDisabled(audioProcessingSettings))
+        return true
+    }
+
     @androidx.annotation.OptIn(UnstableApi::class)
     public fun configureExoPlayer(settings: AudioProcessingSettings) {
         try {
+            // Deliberate re-enable of processors grants a fresh fallback budget.
+            if (AudioProcessingSettings.hasAnyProcessorEnabled(settings)) {
+                processorsFallbackUsed = false
+            }
+
             // Snapshot before changing routing: enabling crossfade makes PlayerFacade
             // resolve the initially empty CrossFadePlayer instead of the current player.
             val activePlayer = service.getActivePlayer()
+            // Consume immediately so an early return below cannot leak it into a later
+            // reconfiguration.
+            val resumeAfterFallback = resumeAfterProcessorFallback
+            resumeAfterProcessorFallback = false
 
             // Create processor chain — pass the device output buffer size so
             // SkipSilenceAudioProcessor can align silence-transition boundaries.
@@ -235,7 +283,7 @@ internal class PlayerConfigurator(
 
             // Save current playback state before recreating player
             // BUT only if playlist is not currently loading (prevent saving stale state)
-            val wasPlaying = activePlayer.isPlaying
+            val wasPlaying = activePlayer.isPlaying || resumeAfterFallback
             val currentIndex = activePlayer.currentMediaItemIndex
             val currentPosition = activePlayer.currentPosition
             val hasPlaylist = activePlayer.mediaItemCount > 0

@@ -25,7 +25,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -45,19 +44,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
@@ -85,7 +79,6 @@ import com.jabook.app.jabook.compose.designsystem.component.ThinProgressBar
 import com.jabook.app.jabook.ui.theme.JabookTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlin.math.abs
 
 /** Shared empty flows so default parameters keep a stable identity across recompositions. */
 private val NoPosition: StateFlow<Long> = MutableStateFlow(0L)
@@ -94,9 +87,11 @@ private val NoDuration: StateFlow<Long> = MutableStateFlow(0L)
 /**
  * Mini player component displayed above bottom navigation.
  *
+ * Static bar — no swipe/drag gestures. Dismiss is exposed as an accessibility
+ * custom action only.
+ *
  * Features:
- * - Smooth slide-in/out animations
- * - Swipe to dismiss with visual feedback
+ * - Tap opens the full player
  * - Play/pause control
  * - Progress indicator
  *
@@ -104,10 +99,9 @@ private val NoDuration: StateFlow<Long> = MutableStateFlow(0L)
  * @param title Book title
  * @param author Book author
  * @param isPlaying Whether audio is playing
- * @param progress Playback progress (0.0 to 1.0)
  * @param onPlayPauseClick Callback for play/pause button
  * @param onMiniPlayerClick Callback when mini player card is clicked
- * @param onDismiss Callback when mini player is dismissed via swipe
+ * @param onDismiss Callback when mini player is dismissed via the accessibility action
  * @param modifier Modifier
  */
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -141,34 +135,6 @@ public fun MiniPlayer(
         animationSpec = motionScheme.defaultEffectsSpec(),
         label = "miniPlayerProgress",
     )
-    val density = LocalDensity.current
-    var offsetX by remember { mutableFloatStateOf(0f) }
-    var offsetY by remember { mutableFloatStateOf(0f) }
-
-    // Smooth spring animation for drag
-    val animatedOffsetX by animateFloatAsState(
-        targetValue = offsetX,
-        animationSpec = motionScheme.defaultSpatialSpec(),
-        label = "miniPlayerOffset",
-    )
-    val animatedOffsetY by animateFloatAsState(
-        targetValue = offsetY,
-        animationSpec = motionScheme.defaultSpatialSpec(),
-        label = "miniPlayerOffsetY",
-    )
-
-    // Calculate alpha based on vertical drag distance (dismiss)
-    val dismissThreshold = with(density) { 100.dp.toPx() }
-    val horizontalThreshold = with(density) { 100.dp.toPx() }
-
-    // Alpha fades primarily on vertical dismiss
-    val dragProgress = (animatedOffsetY.coerceAtLeast(0f) / dismissThreshold).coerceIn(0f, 1f)
-    val dragAlpha = 1f - (dragProgress * 0.5f)
-
-    // Scale during drag
-    val scale = 1f - (dragProgress * 0.05f)
-
-    val interactionSource = remember { MutableInteractionSource() }
     val currentOnDismiss by rememberUpdatedState(onDismiss)
     val currentOnMiniPlayerClick by rememberUpdatedState(onMiniPlayerClick)
     val currentOnNextClick by rememberUpdatedState(onNextClick)
@@ -176,18 +142,13 @@ public fun MiniPlayer(
     val dismissActionLabel = stringResource(R.string.dismissAction)
     val nextChapterActionLabel = stringResource(R.string.nextChapter)
     val previousChapterActionLabel = stringResource(R.string.previousChapter)
+    val interactionSource = remember { MutableInteractionSource() }
 
     Surface(
         modifier =
             modifier
                 .fillMaxWidth()
-                .graphicsLayer {
-                    translationX = animatedOffsetX
-                    translationY = animatedOffsetY
-                    scaleX = scale
-                    scaleY = scale
-                    alpha = dragAlpha
-                }.semantics {
+                .semantics {
                     customActions =
                         listOf(
                             CustomAccessibilityAction(dismissActionLabel) {
@@ -207,65 +168,8 @@ public fun MiniPlayer(
                     role = Role.Button,
                     interactionSource = interactionSource,
                     indication = null,
-                    onClick = {
-                        // Only handle click if not dragging
-                        if (abs(offsetX) < 10f && abs(offsetY) < 10f) {
-                            currentOnMiniPlayerClick()
-                        }
-                    },
-                ).pointerInput(hasNextChapter, hasPreviousChapter) {
-                    detectDragGestures(
-                        onDragEnd = {
-                            val absX = abs(offsetX)
-                            val absY = abs(offsetY)
-
-                            // Determine dominant axis
-                            if (absX > absY) {
-                                // Horizontal Swipe
-                                if (absX > horizontalThreshold) {
-                                    if (offsetX > 0) {
-                                        // Swiped Right -> Previous
-                                        if (hasPreviousChapter) currentOnPreviousClick()
-                                    } else {
-                                        // Swiped Left -> Next
-                                        if (hasNextChapter) currentOnNextClick()
-                                    }
-                                    // Snap back after trigger (or maybe animate out? For now snap back like Spotify)
-                                    offsetX = 0f
-                                } else {
-                                    offsetX = 0f
-                                }
-                                offsetY = 0f
-                            } else {
-                                // Vertical Swipe
-                                if (offsetY > dismissThreshold) {
-                                    // Swiped Down -> Dismiss
-                                    currentOnDismiss()
-                                } else if (offsetY < -dismissThreshold) {
-                                    // Swiped Up -> Open
-                                    currentOnMiniPlayerClick()
-                                    offsetY = 0f
-                                } else {
-                                    offsetY = 0f
-                                }
-                                offsetX = 0f
-                            }
-                        },
-                        onDragCancel = {
-                            offsetX = 0f
-                            offsetY = 0f
-                        },
-                    ) {
-                        change: androidx.compose.ui.input.pointer.PointerInputChange,
-                        dragAmount: androidx.compose.ui.geometry.Offset,
-                        ->
-                        change.consume()
-
-                        // Update offsets
-                        offsetX += dragAmount.x
-                        offsetY += dragAmount.y
-                    }
-                },
+                    onClick = currentOnMiniPlayerClick,
+                ),
         shape = RoundedCornerShape(12.dp),
         tonalElevation = SurfaceElevationTokens.Level3,
     ) {
