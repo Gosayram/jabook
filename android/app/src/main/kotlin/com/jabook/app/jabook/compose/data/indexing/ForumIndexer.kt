@@ -190,12 +190,37 @@ public class ForumIndexer
             // re-synchronize into a burst after a shared 429/503.
             private const val BACKOFF_JITTER_RATIO = 0.30
 
-            // Cap in-page retries on 429/503: without it the same page retried
-            // forever while the server kept rate-limiting.
-            internal const val MAX_RATE_LIMIT_RETRIES_PER_PAGE = 3
-
             // ±25% jitter on the page-fetch retry delays (RetryUtils default is 0.0).
             private const val PAGE_FETCH_JITTER_RATIO = 0.25
+
+            // Page-fetch retry ceiling: 1 retry, and once 20s have elapsed in a
+            // single fetch (e.g. one 45s read timeout) give up — a hung page
+            // costs one timeout, not 3 retries × timeout ≈ 3 minutes.
+            internal const val PAGE_FETCH_MAX_RETRIES = 1
+            internal const val PAGE_FETCH_MAX_ELAPSED_MS = 20_000L
+
+            // Indexing-specific Retry-After cap: a server asking 30-60s per page
+            // turns a 429 storm into a 10+ minute crawl. Wait at most 8s per
+            // rate-limit response; the per-forum-per-run budget below bounds how
+            // many such waits a forum may consume before it is paused.
+            internal const val INDEXING_RETRY_AFTER_CAP_MS = 8_000L
+
+            /** Coerce a server Retry-After to the indexing cap (null passes through). */
+            internal fun indexingRetryAfterMs(retryAfterMs: Long?): Long? = retryAfterMs?.coerceAtMost(INDEXING_RETRY_AFTER_CAP_MS)
+
+            // Cumulative rate-limit budget per FORUM per RUN (fresh + backfill
+            // phases combined). NOT reset on success — a 429 storm can't re-arm
+            // itself page after page. Exhausting it stops that forum with its
+            // resume cursor kept.
+            internal const val MAX_RATE_LIMIT_RETRIES_PER_FORUM_RUN = 3
+
+            /**
+             * Pure budget check: true when the cumulative per-forum-per-run
+             * 429/503 counter has exhausted its allowance ([MAX_RATE_LIMIT_RETRIES_PER_FORUM_RUN]
+             * retries are granted; the next rate-limit response stops the forum).
+             */
+            internal fun isRateLimitBudgetExhausted(cumulativeRetries: Int): Boolean =
+                cumulativeRetries > MAX_RATE_LIMIT_RETRIES_PER_FORUM_RUN
 
             // Stagger forum starts so MAX_CONCURRENT_FORUMS crawls don't fire
             // their first page fetch in the same instant (de-sync bursts).
@@ -372,6 +397,16 @@ public class ForumIndexer
                     val freshFailedForums = ConcurrentHashMap.newKeySet<String>()
                     val forumTopicCounts = ConcurrentHashMap<String, Int>()
 
+                    // Per-forum cumulative 429/503 counters for the WHOLE run
+                    // (fresh + backfill combined, never reset on success).
+                    val rateLimitRetriesByForum = ConcurrentHashMap<String, java.util.concurrent.atomic.AtomicInteger>()
+
+                    fun rateLimitCounter(forumId: String) =
+                        rateLimitRetriesByForum.computeIfAbsent(forumId) {
+                            java.util.concurrent.atomic
+                                .AtomicInteger(0)
+                        }
+
                     // Session-expiry self-healing state: one silent re-login per
                     // run; forums that can't resume are PAUSED with cursors kept.
                     reloginAttempted.set(false)
@@ -423,8 +458,11 @@ public class ForumIndexer
                         maxPages: Int,
                         persistCursor: (suspend (nextPage: Int?) -> Unit)?,
                         onCrawlProgress: (suspend (page: Int, topicsInForum: Int) -> Unit)?,
-                    ): ForumCrawlResult? =
-                        try {
+                    ): ForumCrawlResult? {
+                        // Both attempts (original + post-relogin retry) share the
+                        // same cumulative rate-limit budget.
+                        val rateLimitCounter = rateLimitCounter(forumId)
+                        return try {
                             indexForum(
                                 forumId = forumId,
                                 indexVersion = currentIndexVersion,
@@ -432,6 +470,7 @@ public class ForumIndexer
                                 phase = phase,
                                 startPage = startPage,
                                 maxPages = maxPages,
+                                rateLimitRetries = rateLimitCounter,
                                 persistCursor = persistCursor,
                                 onProgress = onCrawlProgress,
                             )
@@ -448,6 +487,7 @@ public class ForumIndexer
                                         phase = phase,
                                         startPage = startPage,
                                         maxPages = maxPages,
+                                        rateLimitRetries = rateLimitCounter,
                                         persistCursor = persistCursor,
                                         onProgress = onCrawlProgress,
                                     )
@@ -460,6 +500,7 @@ public class ForumIndexer
                                 null
                             }
                         }
+                    }
 
                     // Resume cursors from a previous interrupted backfill run
                     val persistedCursors =
@@ -505,6 +546,32 @@ public class ForumIndexer
                         )
                     }
 
+                    /**
+                     * Rate-limit budget exhausted: stop this forum for the rest of
+                     * the run with a "rate limited" status message; the persisted
+                     * resume cursor stays where the crawl stopped, so the next run
+                     * continues from there.
+                     */
+                    fun recordRateLimitStop(
+                        forumId: String,
+                        page: Int,
+                    ) {
+                        val forumName = resolveForumName(forumId)
+                        val msg =
+                            "Rate limited by RuTracker — forum $forumName stopped at page $page " +
+                                "($MAX_RATE_LIMIT_RETRIES_PER_FORUM_RUN rate-limit retries used this run, cursor kept)"
+                        logger.w { msg }
+                        synchronized(failedForumMessages) {
+                            failedForumMessages.add(msg)
+                        }
+                        failedForums.incrementAndGet()
+                        updateForumStatus(
+                            forumId,
+                            ForumState.FAILED,
+                            errorMessage = msg,
+                        )
+                    }
+
                     suspend fun finishForum(forumId: String) {
                         updateForumStatus(
                             forumId,
@@ -544,6 +611,12 @@ public class ForumIndexer
                                                 topicsIndexedAtomic.addAndGet(result.topicsIndexed)
                                                 freshStopPages[forumId] = result.nextUncrawledPage
                                                 if (result.boundaryHit) freshBoundaryForums.add(forumId)
+                                                if (result.rateLimited) {
+                                                    // Budget exhausted — backfill would
+                                                    // immediately stop too; skip it.
+                                                    recordRateLimitStop(forumId, result.nextUncrawledPage)
+                                                    freshFailedForums.add(forumId)
+                                                }
                                             } else {
                                                 // PAUSED for auth — skip backfill like a failure would
                                                 freshFailedForums.add(forumId)
@@ -604,7 +677,11 @@ public class ForumIndexer
                                             if (result != null) {
                                                 forumTopicCounts.merge(forumId, result.topicsIndexed, Int::plus)
                                                 topicsIndexedAtomic.addAndGet(result.topicsIndexed)
-                                                finishForum(forumId)
+                                                if (result.rateLimited) {
+                                                    recordRateLimitStop(forumId, result.nextUncrawledPage)
+                                                } else {
+                                                    finishForum(forumId)
+                                                }
                                             }
                                             // result == null → forum PAUSED for auth (already marked)
                                         } catch (e: Exception) {
@@ -770,6 +847,10 @@ public class ForumIndexer
          * @param phase Crawl phase reported through progress (fresh/backfill)
          * @param startPage First page to fetch (backfill resume point)
          * @param maxPages Page budget for this crawl
+         * @param rateLimitRetries Cumulative per-forum-per-RUN 429/503 counter,
+         *   shared across phases and NOT reset on success — when the budget
+         *   ([MAX_RATE_LIMIT_RETRIES_PER_FORUM_RUN]) is exhausted the forum
+         *   stops with its resume cursor kept
          * @param persistCursor Backfill resume-cursor sink: invoked with the next
          *   page to crawl after every processed page, and with null once the
          *   forum is fully crawled (boundary or listing end)
@@ -783,6 +864,7 @@ public class ForumIndexer
             phase: String? = null,
             startPage: Int = 0,
             maxPages: Int = MAX_PAGES_PER_FORUM,
+            rateLimitRetries: java.util.concurrent.atomic.AtomicInteger,
             persistCursor: (suspend (nextPage: Int?) -> Unit)? = null,
             onProgress: (suspend (page: Int, topicsInForum: Int) -> Unit)? = null,
         ): ForumCrawlResult {
@@ -790,7 +872,7 @@ public class ForumIndexer
             var page: Int = startPage
             var hasMorePages: Boolean = true
             var boundaryReached: Boolean = false
-            var rateLimitRetries: Int = 0
+            var rateLimited: Boolean = false
             val entitiesBuffer = mutableListOf<CachedTopicEntity>() // Buffer for intra-page batching
             var lastPageSignature: String? = null
             var repeatedSignatureCount: Int = 0
@@ -808,28 +890,36 @@ public class ForumIndexer
                 try {
                     val pageStartTime = System.currentTimeMillis()
                     val response =
-                        retryWithBackoff(RetryConfig(jitterRatio = PAGE_FETCH_JITTER_RATIO)) {
+                        retryWithBackoff(
+                            RetryConfig(
+                                maxRetries = PAGE_FETCH_MAX_RETRIES,
+                                maxElapsedTimeMs = PAGE_FETCH_MAX_ELAPSED_MS,
+                                jitterRatio = PAGE_FETCH_JITTER_RATIO,
+                            ),
+                        ) {
                             api.getForumPage(forumId, start = page * TOPICS_PER_PAGE)
                         }
                     val fetchTime = System.currentTimeMillis() - pageStartTime
 
                     if (!response.isSuccessful) {
-                        // Adaptive backoff for rate-limit responses — capped per page
+                        // Adaptive backoff for rate-limit responses — cumulative
+                        // per-forum-per-run budget, never reset on success
                         if (response.code() == 429 || response.code() == 503) {
-                            rateLimitRetries++
-                            if (rateLimitRetries > MAX_RATE_LIMIT_RETRIES_PER_PAGE) {
+                            val retries = rateLimitRetries.incrementAndGet()
+                            if (isRateLimitBudgetExhausted(retries)) {
                                 logger.w {
-                                    "Forum $forumId page $page still rate-limited after " +
-                                        "$MAX_RATE_LIMIT_RETRIES_PER_PAGE retries — stopping forum"
+                                    "Forum $forumId page $page: rate-limit budget exhausted " +
+                                        "($MAX_RATE_LIMIT_RETRIES_PER_FORUM_RUN retries this run) — stopping forum, cursor kept"
                                 }
+                                rateLimited = true
                                 break
                             }
-                            val retryAfter = parseRetryAfterMs(response.headers())
+                            val retryAfter = indexingRetryAfterMs(parseRetryAfterMs(response.headers()))
                             logger.i {
                                 "Rate-limited (${response.code()}), backing off " +
-                                    "(retry $rateLimitRetries/$MAX_RATE_LIMIT_RETRIES_PER_PAGE)..."
+                                    "(retry $retries/$MAX_RATE_LIMIT_RETRIES_PER_FORUM_RUN this run)..."
                             }
-                            adaptiveBackoff(attempt = rateLimitRetries, retryAfterMs = retryAfter)
+                            adaptiveBackoff(attempt = retries, retryAfterMs = retryAfter)
                             continue // Retry same page
                         }
                         logger.w {
@@ -837,7 +927,6 @@ public class ForumIndexer
                         }
                         break
                     }
-                    rateLimitRetries = 0
 
                     val body = response.body() ?: break
                     // Read body bytes ONCE — parser needs them, health check needs them
@@ -1003,6 +1092,7 @@ public class ForumIndexer
                 topicsIndexed = totalTopics,
                 boundaryHit = boundaryReached,
                 nextUncrawledPage = page,
+                rateLimited = rateLimited,
             )
         }
 
@@ -1042,7 +1132,7 @@ public class ForumIndexer
                         logger.w { "Failed to fetch forum $forumId page $page: HTTP ${response.code()}" }
                         // Adaptive backoff for rate-limit responses
                         if (response.code() == 429 || response.code() == 503) {
-                            val retryAfter = parseRetryAfterMs(response.headers())
+                            val retryAfter = indexingRetryAfterMs(parseRetryAfterMs(response.headers()))
                             logger.i { "Rate-limited (${response.code()}), backing off..." }
                             adaptiveBackoff(attempt = page, retryAfterMs = retryAfter)
                             continue // Retry same page
@@ -1263,9 +1353,12 @@ public class SessionExpiredException(
  * @property topicsIndexed Number of new topics persisted
  * @property boundaryHit Whether the depth-window boundary stopped the crawl
  * @property nextUncrawledPage First page not processed (resume point)
+ * @property rateLimited Whether the per-run rate-limit budget stopped the crawl
+ *   (resume cursor kept at [nextUncrawledPage])
  */
 private data class ForumCrawlResult(
     val topicsIndexed: Int,
     val boundaryHit: Boolean,
     val nextUncrawledPage: Int,
+    val rateLimited: Boolean = false,
 )

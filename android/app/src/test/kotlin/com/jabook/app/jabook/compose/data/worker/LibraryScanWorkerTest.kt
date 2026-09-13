@@ -34,6 +34,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -112,12 +113,65 @@ class LibraryScanWorkerTest {
             verify(booksDao).upsertScannedBooksWithChapters(org.mockito.kotlin.any(), org.mockito.kotlin.any())
         }
 
-    private fun successfulScanner(book: ScannedBook): LocalBookScanner =
+    @Test
+    fun `doWork output booksFound reports persisted count`() =
+        runBlocking {
+            whenever(booksDao.getAllBookPaths()).thenReturn(emptyList())
+            whenever(booksDao.getAllBookDirectories()).thenReturn(emptyList())
+            whenever(scanPathDao.getAllPathsList()).thenReturn(emptyList())
+            val worker =
+                buildWorker(
+                    scanner =
+                        successfulScanner(
+                            ScannedBook(
+                                directory = "/library/book1",
+                                title = "Book One",
+                                author = "Author",
+                                chapters =
+                                    listOf(
+                                        ScannedChapter(
+                                            filePath = "/library/book1/01.mp3",
+                                            title = "Chapter 1",
+                                            index = 0,
+                                            duration = 1_000L,
+                                        ),
+                                    ),
+                                totalDuration = 1_000L,
+                                coverArt = null,
+                            ),
+                            ScannedBook(
+                                directory = "/library/book2",
+                                title = "Book Two",
+                                author = "Author",
+                                chapters =
+                                    listOf(
+                                        ScannedChapter(
+                                            filePath = "/library/book2/01.mp3",
+                                            title = "Chapter 1",
+                                            index = 0,
+                                            duration = 1_000L,
+                                        ),
+                                    ),
+                                totalDuration = 1_000L,
+                                coverArt = null,
+                            ),
+                        ),
+                )
+
+            val result = worker.doWork()
+
+            assertTrue(result is ListenableWorker.Result.Success)
+            val outputData = (result as ListenableWorker.Result.Success).outputData
+            assertEquals(2, outputData.getInt("booksFound", -1))
+            assertEquals(0, outputData.getInt("booksDropped", -1))
+        }
+
+    private fun successfulScanner(vararg books: ScannedBook): LocalBookScanner =
         object : LocalBookScanner {
             override val scanProgress: StateFlow<ScanProgress> = MutableStateFlow(ScanProgress.Completed(1, 0L))
 
             override suspend fun scanAudiobooks(knownDirectories: Set<String>): Result<List<ScannedBook>, AppError> =
-                Result.Success(listOf(book))
+                Result.Success(books.toList())
         }
 
     private fun buildWorker(scanner: LocalBookScanner): LibraryScanWorker {

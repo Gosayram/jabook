@@ -277,6 +277,16 @@ public fun LibraryScreen(
         }
     }
 
+    // Scan completed with new books — clear stale search/filter so they are
+    // visible immediately instead of buried under a saved quick filter.
+    LaunchedEffect(scanState) {
+        val completed = scanState as? ScanState.Completed ?: return@LaunchedEffect
+        if (completed.booksFound > 0) {
+            activeQuickFilter = LibraryQuickFilter.ALL
+            searchQuery = ""
+        }
+    }
+
     // Get context for permission check in pull-to-refresh
     val context = LocalContext.current
 

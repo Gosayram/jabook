@@ -500,6 +500,11 @@ public class LibraryViewModel
                                 }
                                 WorkInfo.State.SUCCEEDED -> {
                                     val count = workInfo.outputData.getInt("booksFound", 0)
+                                    if (count > 0) {
+                                        // New books must be visible immediately — a stale
+                                        // search query buries them under the old filter.
+                                        _searchQuery.value = ""
+                                    }
                                     emitSideEffect(
                                         SideEffect.ShowSnackbar(
                                             if (count == 0) {

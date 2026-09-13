@@ -15,12 +15,15 @@
 package com.jabook.app.jabook.compose.feature.library
 
 import android.app.Application
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import androidx.work.workDataOf
 import app.cash.turbine.test
 import com.jabook.app.jabook.audio.domain.usecase.ListeningStatsSummary
 import com.jabook.app.jabook.audio.domain.usecase.ListeningStatsUseCase
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
 import com.jabook.app.jabook.compose.data.local.dao.ScanPathDao
+import com.jabook.app.jabook.compose.data.local.entity.ScanPathEntity
 import com.jabook.app.jabook.compose.data.model.BookSortOrder
 import com.jabook.app.jabook.compose.data.model.DownloadStatus
 import com.jabook.app.jabook.compose.data.model.LibraryViewMode
@@ -55,6 +58,8 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.mockito.kotlin.wheneverBlocking
+import java.util.UUID
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -513,5 +518,44 @@ class LibraryViewModelTest {
                 assertTrue(viewModel.spotlightCompleted.value)
                 cancelAndIgnoreRemainingEvents()
             }
+        }
+
+    // --- Library scan ---
+
+    private fun stubSucceededScan(booksFound: Int) {
+        wheneverBlocking { scanPathDao.getAllPathsList() }.thenReturn(listOf(ScanPathEntity("/library")))
+        val workInfo: WorkInfo = mock()
+        whenever(workInfo.state).thenReturn(WorkInfo.State.SUCCEEDED)
+        whenever(workInfo.outputData).thenReturn(workDataOf("booksFound" to booksFound))
+        whenever(workManager.getWorkInfoByIdFlow(any<UUID>())).thenReturn(flowOf(workInfo))
+    }
+
+    @Test
+    fun `scan completion with new books resets search query`() =
+        runTest(testDispatcher.scheduler) {
+            stubSucceededScan(booksFound = 2)
+            whenever(application.getString(any(), any())).thenReturn("found")
+            viewModel = createViewModel()
+
+            viewModel.onSearchQueryChanged("Alpha")
+            viewModel.startLibraryScan()
+            advanceUntilIdle()
+
+            assertEquals("", viewModel.searchQuery.value)
+            assertEquals(ScanState.Completed(2), viewModel.scanState.value)
+        }
+
+    @Test
+    fun `scan completion with no books keeps search query`() =
+        runTest(testDispatcher.scheduler) {
+            stubSucceededScan(booksFound = 0)
+            whenever(application.getString(any())).thenReturn("none")
+            viewModel = createViewModel()
+
+            viewModel.onSearchQueryChanged("Alpha")
+            viewModel.startLibraryScan()
+            advanceUntilIdle()
+
+            assertEquals("Alpha", viewModel.searchQuery.value)
         }
 }

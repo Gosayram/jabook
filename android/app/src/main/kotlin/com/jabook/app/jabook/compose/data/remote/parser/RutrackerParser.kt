@@ -61,6 +61,92 @@ public class RutrackerParser
              */
             internal const val MAX_HTML_BYTES = 8 * 1024 * 1024
 
+            // Russian month abbreviations used in viewforum last-post dates
+            // ("15-Дек-24 18:03"). Keyed by lowercase 3-letter prefix.
+            private val RU_MONTHS: Map<String, Int> =
+                mapOf(
+                    "янв" to 1,
+                    "фев" to 2,
+                    "мар" to 3,
+                    "апр" to 4,
+                    "май" to 5,
+                    "мая" to 5,
+                    "июн" to 6,
+                    "июл" to 7,
+                    "авг" to 8,
+                    "сен" to 9,
+                    "окт" to 10,
+                    "ноя" to 11,
+                    "дек" to 12,
+                )
+
+            // Anchored matchers for the td.vf-col-last-post text formats.
+            // NBSP is normalized to plain space before matching.
+            private val RU_RELATIVE_LAST_POST_REGEX =
+                Regex("^([Сс]егодня|[Вв]чера)\\s+(\\d{1,2}):(\\d{2})$")
+
+            private val RU_ABSOLUTE_LAST_POST_REGEX =
+                Regex("^(\\d{1,2})-([А-Яа-яЁё]+)-(\\d{2})\\s+(\\d{1,2}):(\\d{2})$")
+
+            /**
+             * Parses a viewforum last-post timestamp into epoch seconds.
+             *
+             * Supported formats (as rendered in td.vf-col-last-post):
+             * - "Сегодня 14:35" — today at the given time
+             * - "Вчера 09:12" — yesterday at the given time
+             * - "15-Дек-24 18:03" — absolute date, two-digit year read as 20yy
+             *   (RuTracker listings never predate 2004)
+             *
+             * [nowMillis] resolves the relative forms (injectable for tests).
+             * Returns null on any mismatch — callers treat null as "freshness
+             * unknown".
+             */
+            internal fun parseRuForumTimestamp(
+                text: String,
+                nowMillis: Long,
+            ): Long? {
+                val normalized = text.replace('\u00A0', ' ').trim()
+                val zone = java.time.ZoneId.systemDefault()
+                val now =
+                    java.time.Instant
+                        .ofEpochMilli(nowMillis)
+                        .atZone(zone)
+
+                RU_RELATIVE_LAST_POST_REGEX.find(normalized)?.let { match ->
+                    val date =
+                        if (match.groupValues[1].equals("Сегодня", ignoreCase = true)) {
+                            now.toLocalDate()
+                        } else {
+                            now.toLocalDate().minusDays(1)
+                        }
+                    val hour = match.groupValues[2].toIntOrNull() ?: return null
+                    val minute = match.groupValues[3].toIntOrNull() ?: return null
+                    if (hour > 23 || minute > 59) return null
+                    return date
+                        .atTime(hour, minute)
+                        .atZone(zone)
+                        .toInstant()
+                        .toEpochMilli() / 1000
+                }
+
+                val match = RU_ABSOLUTE_LAST_POST_REGEX.find(normalized) ?: return null
+                val day = match.groupValues[1].toIntOrNull() ?: return null
+                val month = RU_MONTHS[match.groupValues[2].lowercase().take(3)] ?: return null
+                val year = 2000 + (match.groupValues[3].toIntOrNull() ?: return null)
+                val hour = match.groupValues[4].toIntOrNull() ?: return null
+                val minute = match.groupValues[5].toIntOrNull() ?: return null
+                if (hour > 23 || minute > 59) return null
+                // ponytail: runCatching absorbs DateTimeException for impossible dates (32-Дек)
+                return runCatching {
+                    java.time.LocalDate
+                        .of(year, month, day)
+                        .atTime(hour, minute)
+                        .atZone(zone)
+                        .toInstant()
+                        .toEpochMilli() / 1000
+                }.getOrNull()
+            }
+
             /**
              * Reads a response body with [MAX_HTML_BYTES] cap. Throws IllegalStateException
              * over the cap — all call sites run inside withOperation/try-catch and surface
@@ -1079,8 +1165,14 @@ public class RutrackerParser
                     }
                 }
 
-            // Registration date: the LAST td[data-ts_text] in the row carries the
-            // epoch seconds (earlier ones hold size bytes and seed count).
+            // Registration/freshness date, two DOM layouts:
+            // - tracker.php search rows: the LAST td[data-ts_text] carries epoch
+            //   seconds (earlier ones hold size bytes and seed count).
+            // - viewforum.php rows: NO data-ts_text — fall back to the last-post
+            //   cell (td.vf-col-last-post, first <p> holds the timestamp), the
+            //   listing's activity time. Listings are sorted by last-activity
+            //   desc, so this is exactly the freshness signal the crawl
+            //   date-cutoff needs.
             val registeredAtEpochSec =
                 row
                     .select("td[data-ts_text]")
@@ -1088,6 +1180,10 @@ public class RutrackerParser
                     ?.attr("data-ts_text")
                     ?.trim()
                     ?.toLongOrNull()
+                    ?: row
+                        .selectFirst("td.vf-col-last-post p")
+                        .toStr()
+                        .let { parseRuForumTimestamp(it, System.currentTimeMillis()) }
 
             // Extract cover URL using CoverUrlExtractor for consistent extraction
             // This uses the same logic as topic details page

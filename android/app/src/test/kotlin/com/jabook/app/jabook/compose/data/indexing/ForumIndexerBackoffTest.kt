@@ -19,8 +19,8 @@ import org.junit.Test
 
 /**
  * Unit tests for the rate-limit backoff math (exponential in the real retry
- * attempt, ±30% jitter, 30s cap, verbatim Retry-After) and the per-page
- * rate-limit retry cap.
+ * attempt, ±30% jitter, 30s cap, verbatim Retry-After), the indexing
+ * Retry-After cap, and the per-forum-per-run rate-limit budget.
  */
 class ForumIndexerBackoffTest {
     @Test
@@ -57,7 +57,32 @@ class ForumIndexerBackoffTest {
     }
 
     @Test
-    fun `rate limit retries are capped per page`() {
-        assertEquals(3, ForumIndexer.MAX_RATE_LIMIT_RETRIES_PER_PAGE)
+    fun `indexing retry-after is capped at 8 seconds`() {
+        assertEquals(8_000L, ForumIndexer.INDEXING_RETRY_AFTER_CAP_MS)
+        // Server asks 45s / 30s / 12s — all coerced to 8s
+        assertEquals(8_000L, ForumIndexer.indexingRetryAfterMs(45_000L))
+        assertEquals(8_000L, ForumIndexer.indexingRetryAfterMs(30_000L))
+        assertEquals(8_000L, ForumIndexer.indexingRetryAfterMs(12_000L))
+        // Modest asks pass through unchanged; null (no header) stays null
+        assertEquals(3_000L, ForumIndexer.indexingRetryAfterMs(3_000L))
+        assertEquals(null, ForumIndexer.indexingRetryAfterMs(null))
+    }
+
+    @Test
+    fun `rate limit budget is cumulative per forum per run`() {
+        assertEquals(3, ForumIndexer.MAX_RATE_LIMIT_RETRIES_PER_FORUM_RUN)
+        // 3 rate-limit responses are tolerated (backoff + retry each)...
+        assertEquals(false, ForumIndexer.isRateLimitBudgetExhausted(1))
+        assertEquals(false, ForumIndexer.isRateLimitBudgetExhausted(2))
+        assertEquals(false, ForumIndexer.isRateLimitBudgetExhausted(3))
+        // ...the 4th stops the forum (budget never resets on success)
+        assertEquals(true, ForumIndexer.isRateLimitBudgetExhausted(4))
+        assertEquals(true, ForumIndexer.isRateLimitBudgetExhausted(50))
+    }
+
+    @Test
+    fun `page fetch retry ceiling bounds a hung page`() {
+        assertEquals(1, ForumIndexer.PAGE_FETCH_MAX_RETRIES)
+        assertEquals(20_000L, ForumIndexer.PAGE_FETCH_MAX_ELAPSED_MS)
     }
 }

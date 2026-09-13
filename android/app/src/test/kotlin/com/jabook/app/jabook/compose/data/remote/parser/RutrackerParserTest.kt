@@ -1225,4 +1225,148 @@ class RutrackerParserTest {
             RutrackerParser.readCappedBody(body),
         )
     }
+
+    // ============ viewforum last-post timestamp parsing ============
+
+    private fun expectedEpochSec(
+        date: java.time.LocalDate,
+        hour: Int,
+        minute: Int,
+    ): Long =
+        date
+            .atTime(hour, minute)
+            .atZone(java.time.ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli() / 1000
+
+    @Test
+    fun `parseRuForumTimestamp parses segodnya relative to injected now`() {
+        val now =
+            java.time.LocalDateTime
+                .of(2026, 9, 13, 15, 30)
+                .atZone(java.time.ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli()
+
+        assertEquals(
+            expectedEpochSec(java.time.LocalDate.of(2026, 9, 13), 14, 5),
+            RutrackerParser.parseRuForumTimestamp("Сегодня 14:05", now),
+        )
+        // NBSP between words (RuTracker HTML) is normalized
+        assertEquals(
+            expectedEpochSec(java.time.LocalDate.of(2026, 9, 13), 0, 1),
+            RutrackerParser.parseRuForumTimestamp("Сегодня\u00A000:01", now),
+        )
+    }
+
+    @Test
+    fun `parseRuForumTimestamp parses vyera as yesterday`() {
+        val now =
+            java.time.LocalDateTime
+                .of(2026, 9, 13, 3, 0)
+                .atZone(java.time.ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli()
+
+        assertEquals(
+            expectedEpochSec(java.time.LocalDate.of(2026, 9, 12), 23, 59),
+            RutrackerParser.parseRuForumTimestamp("Вчера 23:59", now),
+        )
+    }
+
+    @Test
+    fun `parseRuForumTimestamp parses absolute dd-MMM-yy with russian months`() {
+        val now = 1_789_000_000_000L // any instant; absolute form ignores it
+
+        assertEquals(
+            expectedEpochSec(java.time.LocalDate.of(2024, 12, 15), 18, 3),
+            RutrackerParser.parseRuForumTimestamp("15-Дек-24 18:03", now),
+        )
+        // Lowercase month, "мая" (genitive) form for May
+        assertEquals(
+            expectedEpochSec(java.time.LocalDate.of(2023, 5, 1), 9, 30),
+            RutrackerParser.parseRuForumTimestamp("01-мая-23 9:30", now),
+        )
+    }
+
+    @Test
+    fun `parseRuForumTimestamp returns null on mismatched or impossible input`() {
+        val now = 0L
+        assertNull(RutrackerParser.parseRuForumTimestamp("", now))
+        assertNull(RutrackerParser.parseRuForumTimestamp("some author name", now))
+        assertNull(RutrackerParser.parseRuForumTimestamp("Сегодня", now))
+        assertNull(RutrackerParser.parseRuForumTimestamp("Сегодня 25:00", now))
+        assertNull(RutrackerParser.parseRuForumTimestamp("15-Хрю-24 18:03", now))
+        assertNull(RutrackerParser.parseRuForumTimestamp("32-Дек-24 18:03", now))
+        assertNull(RutrackerParser.parseRuForumTimestamp("15-Дек-24 18:03:00", now))
+    }
+
+    @Test
+    fun `viewforum row without data-ts_text falls back to vf-col-last-post date`() {
+        val now =
+            java.time.LocalDateTime
+                .of(2026, 9, 13, 12, 0)
+                .atZone(java.time.ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli()
+        val html =
+            """
+            <html>
+            <body>
+                <table>
+                <tr class="hl-tr" data-topic_id="7000001">
+                    <td><a class="torTopic" href="viewtopic.php?t=7000001">Чехов - Рассказы</a></td>
+                    <td><a class="topicAuthor" href="profile.php?u=42">Uploader</a></td>
+                    <td><span class="seed"><b>7</b></span></td>
+                    <td><span class="leech"><b>1</b></span></td>
+                    <td class="vf-col-last-post">
+                        <p>Сегодня 11:45</p>
+                        <p><a href="viewtopic.php?p=999#999">LastPoster</a></p>
+                    </td>
+                </tr>
+                </table>
+            </body>
+            </html>
+            """.trimIndent()
+
+        // Freeze "now" indirectly: the parser reads System.currentTimeMillis(),
+        // so assert the parsed value equals the relative-format expectation for
+        // the real current date (same day the test runs).
+        val results = parser.parseSearchResults(html)
+        assertEquals(1, results.size)
+        val expected =
+            expectedEpochSec(
+                java.time.Instant
+                    .ofEpochMilli(System.currentTimeMillis())
+                    .atZone(java.time.ZoneId.systemDefault())
+                    .toLocalDate(),
+                11,
+                45,
+            )
+        assertEquals(expected, results[0].registeredAtEpochSec)
+    }
+
+    @Test
+    fun `search row with data-ts_text still prefers it over last-post cell`() {
+        val html =
+            """
+            <html>
+            <body>
+                <table>
+                <tr class="hl-tr" data-topic_id="7000002">
+                    <td><a class="torTopic" href="viewtopic.php?t=7000002">Бунин - Темные аллеи</a></td>
+                    <td><a class="topicAuthor" href="profile.php?u=42">Uploader</a></td>
+                    <td data-ts_text="1700000000">1.2 GB</td>
+                    <td data-ts_text="1700000001">15</td>
+                    <td class="vf-col-last-post"><p>Сегодня 11:45</p></td>
+                </tr>
+                </table>
+            </body>
+            </html>
+            """.trimIndent()
+
+        val results = parser.parseSearchResults(html)
+        assertEquals(1, results.size)
+        assertEquals(1_700_000_001L, results[0].registeredAtEpochSec)
+    }
 }

@@ -235,6 +235,7 @@ public class LibraryScanWorker
                             val batches = books.chunked(batchSize)
 
                             var booksSaved = 0
+                            var booksDropped = 0
 
                             batches.forEachIndexed { batchIndex, batch ->
                                 if (isStopped) return@withContext ListenableWorker.Result.failure()
@@ -352,6 +353,7 @@ public class LibraryScanWorker
                                         )
                                     } catch (e: Exception) {
                                         logger.e({ "Error processing book ${book.title}" }, e)
+                                        booksDropped++
                                     }
                                 }
 
@@ -377,9 +379,17 @@ public class LibraryScanWorker
                             }
 
                             setProgress(workDataOf("status" to "completed"))
-                            logger.i { "Library scan success attempt=$attempt booksFound=${books.size}" }
+                            logger.i {
+                                "Library scan success attempt=$attempt booksFound=${books.size} " +
+                                    "booksSaved=$booksSaved booksDropped=$booksDropped"
+                            }
+                            // booksFound reports what was actually persisted, not what the
+                            // scanner saw — per-book errors silently drop books (see above).
                             ListenableWorker.Result.success(
-                                workDataOf("booksFound" to books.size),
+                                workDataOf(
+                                    "booksFound" to booksSaved,
+                                    "booksDropped" to booksDropped,
+                                ),
                             )
                         }
                         is DomainResult.Error -> {
