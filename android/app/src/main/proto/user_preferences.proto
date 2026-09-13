@@ -166,6 +166,9 @@ message UserPreferences {
   // Quick indexing depth window in days (TASK-INDEX-DEPTH): only crawl topics
   // newer than this window. 0 = All (legacy full crawl). Options: 0/1/7/14/30.
   int32 indexing_days_window = 76;
+
+  // Book IDs whose remote cover lookup was already attempted (never retried).
+  repeated string attempted_cover_lookup_book_ids = 77;
 }
 
 message SleepTimerState {

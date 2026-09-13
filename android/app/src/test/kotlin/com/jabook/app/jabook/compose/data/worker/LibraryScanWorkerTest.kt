@@ -49,6 +49,7 @@ class LibraryScanWorkerTest {
     private val booksDao: BooksDao = mock()
     private val chaptersDao: ChaptersDao = mock()
     private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao = mock()
+    private val coverEnrichmentScheduler: CoverEnrichmentScheduler = mock()
     private val loggerFactory: LoggerFactory =
         object : LoggerFactory {
             override fun get(tag: String): Logger = NoopWorkerLogger
@@ -132,6 +133,7 @@ class LibraryScanWorkerTest {
                         booksDao = booksDao,
                         chaptersDao = chaptersDao,
                         scanPathDao = scanPathDao,
+                        coverEnrichmentScheduler = coverEnrichmentScheduler,
                         loggerFactory = loggerFactory,
                     )
                 }

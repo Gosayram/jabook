@@ -56,6 +56,7 @@ public class LibraryScanWorker
         private val booksDao: BooksDao,
         private val chaptersDao: ChaptersDao,
         private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao,
+        private val coverEnrichmentScheduler: CoverEnrichmentScheduler,
         private val loggerFactory: LoggerFactory,
     ) : CoroutineWorker(appContext, params) {
         private val logger = loggerFactory.get("LibraryScanWorker")
@@ -352,6 +353,7 @@ public class LibraryScanWorker
                                         booksDao.upsertScannedBooksWithChapters(bookEntities, chapterEntities)
                                     }
                                     booksSaved += bookEntities.size
+                                    coverEnrichmentScheduler.enqueue()
 
                                     setProgress(
                                         workDataOf(

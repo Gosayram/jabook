@@ -618,6 +618,12 @@ public interface BooksDao {
     )
 
     /**
+     * Books missing a cover (embedded-artwork pseudo URLs are non-null and thus excluded).
+     */
+    @Query("SELECT id, title, author FROM books WHERE cover_url IS NULL OR cover_url = ''")
+    public suspend fun getBooksWithoutCovers(): List<CoverLookupCandidate>
+
+    /**
      * Updates cover local path.
      */
     @Query("UPDATE books SET cover_path = :path WHERE id = :bookId")
@@ -762,4 +768,13 @@ public interface BooksDao {
 public data class BookPathInfo(
     val id: String,
     @androidx.room.ColumnInfo(name = "local_path") val localPath: String?,
+)
+
+/**
+ * Projection for remote cover lookup: only the fields the lookup needs.
+ */
+public data class CoverLookupCandidate(
+    val id: String,
+    val title: String,
+    @androidx.room.ColumnInfo(name = "author") val author: String,
 )

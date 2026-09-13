@@ -233,6 +233,15 @@ public object NetworkModule {
             .writeTimeout(NetworkRuntimePolicy.API_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .build()
 
+    @Provides
+    @Singleton
+    public fun provideRemoteCoverProvider(
+        @Named("coverDownload") okHttpClient: OkHttpClient,
+        loggerFactory: com.jabook.app.jabook.compose.core.logger.LoggerFactory,
+    ): com.jabook.app.jabook.compose.data.remote.cover.RemoteCoverProvider =
+        com.jabook.app.jabook.compose.data.remote.cover
+            .RemoteCoverProvider(okHttpClient, loggerFactory)
+
     private const val HTTP_CACHE_SIZE_BYTES: Long = 10L * 1024L * 1024L
 
     /**

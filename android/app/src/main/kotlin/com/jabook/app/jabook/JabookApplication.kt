@@ -57,6 +57,10 @@ public class JabookApplication :
     @Inject
     public lateinit var syncManager: SyncManager
 
+    /** Silent cover lookup for books missing covers. */
+    @Inject
+    public lateinit var coverEnrichmentScheduler: com.jabook.app.jabook.compose.data.worker.CoverEnrichmentScheduler
+
     /** Cookie-free client for cover downloads — Coil must not send session cookies to cover hosts. */
     @Inject
     @javax.inject.Named("coverDownload")
@@ -165,6 +169,10 @@ public class JabookApplication :
 
         // Schedule periodic indexing via WorkManager (daily incremental, Wi-Fi only)
         schedulePeriodicIndexing()
+
+        // One-shot silent cover enrichment for books still missing covers
+        runCatching { coverEnrichmentScheduler.enqueue() }
+            .onFailure { LogUtils.e("JabookApplication", "Failed to schedule cover enrichment", it) }
 
         // Service starts lazily on first Play via MediaController connection.
         // Eager warmup removed: Android 15+ bans media-FGS from auto-start,

@@ -28,6 +28,7 @@ import com.jabook.app.jabook.compose.data.preferences.UserPreferencesSerializer
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.io.IOException
 import javax.inject.Inject
@@ -116,6 +117,23 @@ public class ProtoBackedUserPreferencesRepository
 
         override suspend fun setLanguage(languageCode: String) {
             update { this.languageCode = languageCode }
+        }
+
+        override suspend fun getAttemptedCoverLookupIds(): Set<String> =
+            try {
+                dataStore.data
+                    .first()
+                    .attemptedCoverLookupBookIdsList
+                    .toSet()
+            } catch (e: Exception) {
+                e.rethrowCancellation()
+                LogUtils.e("ProtoPrefs", "Failed to read cover lookup ids", e)
+                emptySet()
+            }
+
+        override suspend fun markCoverLookupAttempted(ids: Collection<String>) {
+            if (ids.isEmpty()) return
+            update { addAllAttemptedCoverLookupBookIds(ids.distinct()) }
         }
 
         private suspend fun update(transform: UserPreferences.Builder.() -> Unit): Boolean =

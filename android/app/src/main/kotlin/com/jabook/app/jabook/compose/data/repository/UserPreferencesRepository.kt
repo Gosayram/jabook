@@ -95,4 +95,14 @@ public interface UserPreferencesRepository {
      * Update language setting.
      */
     public suspend fun setLanguage(languageCode: String)
+
+    /**
+     * Book IDs whose remote cover lookup was already attempted.
+     */
+    public suspend fun getAttemptedCoverLookupIds(): Set<String>
+
+    /**
+     * Persist book IDs as cover-lookup-attempted so they are never retried.
+     */
+    public suspend fun markCoverLookupAttempted(ids: Collection<String>)
 }
