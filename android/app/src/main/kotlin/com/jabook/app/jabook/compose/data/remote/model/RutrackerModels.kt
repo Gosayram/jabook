@@ -45,6 +45,12 @@ public data class SearchResult(
     val coverUrl: String? = null,
     /** Uploader nickname (optional) */
     val uploader: String? = null,
+    /**
+     * Topic registration timestamp in epoch seconds, from the listing row's
+     * last `td[data-ts_text]` cell. Null when the site omits the attribute —
+     * consumers must treat null as "unknown/fresh", never as epoch 0.
+     */
+    val registeredAtEpochSec: Long? = null,
 )
 
 /**

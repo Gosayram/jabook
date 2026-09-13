@@ -1301,6 +1301,7 @@ public fun SettingsScreen(
             // Forum selection for indexing — explicit checkbox list ("check the
             // forums we follow"). Same persistence: selected_forum_ids comma
             // string, blank = all forums (proto field 74).
+            val forumNameLabels by viewModel.forumNameLabels.collectAsStateWithLifecycle()
             val allForumIds =
                 com.jabook.app.jabook.compose.data.remote.api.RutrackerApi.AUDIOBOOKS_FORUM_IDS
                     .split(",")
@@ -1351,7 +1352,9 @@ public fun SettingsScreen(
                         )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
-                    // Checkbox rows — checked set derived from the stored string
+                    // Checkbox rows — checked set derived from the stored string.
+                    // Labels come from the ForumCatalog cache (real names);
+                    // "Forum {id}" string is the fallback while the cache is cold.
                     val checkedSet = ForumSelection.checkedIds(selectedForums, allForumIds)
                     allForumIds.forEach { forumId ->
                         val checked = forumId in checkedSet
@@ -1373,7 +1376,7 @@ public fun SettingsScreen(
                         ) {
                             Checkbox(checked = checked, onCheckedChange = null)
                             Text(
-                                text = stringResource(R.string.forumId, forumId),
+                                text = forumNameLabels[forumId] ?: stringResource(R.string.forumId, forumId),
                                 style = MaterialTheme.typography.bodyLarge,
                             )
                         }

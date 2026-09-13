@@ -59,6 +59,7 @@ public fun SearchResult.toDomain(): RutrackerSearchResult =
         torrentUrl = torrentUrl.trim(),
         coverUrl = coverUrl?.takeIf { it.isNotBlank() },
         uploader = uploader?.takeIf { it.isNotBlank() }?.trim(),
+        registeredAtEpochSec = registeredAtEpochSec,
     )
 
 /**

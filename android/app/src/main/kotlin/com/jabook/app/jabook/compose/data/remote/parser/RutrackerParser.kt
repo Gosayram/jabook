@@ -1079,6 +1079,16 @@ public class RutrackerParser
                     }
                 }
 
+            // Registration date: the LAST td[data-ts_text] in the row carries the
+            // epoch seconds (earlier ones hold size bytes and seed count).
+            val registeredAtEpochSec =
+                row
+                    .select("td[data-ts_text]")
+                    .lastOrNull()
+                    ?.attr("data-ts_text")
+                    ?.trim()
+                    ?.toLongOrNull()
+
             // Extract cover URL using CoverUrlExtractor for consistent extraction
             // This uses the same logic as topic details page
             // Note: selectFirst() already searches recursively, but we add explicit search
@@ -1162,6 +1172,7 @@ public class RutrackerParser
                 torrentUrl = torrentUrl,
                 coverUrl = coverUrl,
                 uploader = uploaderName,
+                registeredAtEpochSec = registeredAtEpochSec,
             )
         }
 

@@ -265,7 +265,24 @@ private fun TopicDetailsContent(
     val itemSpacing = AdaptiveUtils.getItemSpacingOrDefault(windowSizeClass)
 
     var showDownloadMenu by remember { mutableStateOf(false) }
+    val listState = rememberLazyListState()
+
+    // Auto-load more comments when the outer list is scrolled to the bottom.
+    // Comments are flattened into this list (a nested LazyColumn inside an item would
+    // be measured with infinite max height and crash — see ExpandableComments).
+    LaunchedEffect(listState, commentsExpanded, isLoadingMoreComments, hasMorePages) {
+        snapshotFlow { listState.canScrollForward to listState.isScrollInProgress }
+            .distinctUntilChanged()
+            .filter { (canScrollForward, isScrolling) -> !canScrollForward && !isScrolling }
+            .collect {
+                if (commentsExpanded && hasMorePages && !isLoadingMoreComments) {
+                    viewModel.loadMoreComments()
+                }
+            }
+    }
+
     LazyColumn(
+        state = listState,
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = contentPadding, vertical = itemSpacing),
         verticalArrangement = Arrangement.spacedBy(itemSpacing),
@@ -514,13 +531,46 @@ private fun TopicDetailsContent(
                     onRefresh = onRefresh,
                     currentPage = details.currentPage,
                     totalPages = details.totalPages,
-                    hasMorePages = hasMorePages,
-                    isLoadingMore = isLoadingMoreComments,
-                    onLoadMore = { viewModel.loadMoreComments() },
                     onNavigateToTopic = onNavigateToTopic,
                     commentsExpanded = commentsExpanded,
                     onCommentsExpandedChange = onCommentsExpandedChange,
                 )
+            }
+        }
+
+        // Expanded comments rendered as items of this (outer) list. Nesting a LazyColumn
+        // inside the section item above crashes: the inner list is measured with infinite
+        // max height (weight bounds width, not height on wide layouts).
+        if (commentsExpanded) {
+            itemsIndexed(
+                items = details.comments,
+                key = { _, comment -> comment.id },
+                contentType = { _, _ -> "comment" },
+            ) { _, comment ->
+                CommentItem(
+                    comment = comment,
+                    onNavigateToTopic = onNavigateToTopic,
+                )
+            }
+
+            // Loading indicator at bottom
+            if (isLoadingMoreComments || hasMorePages) {
+                item(contentType = { "commentsFooter" }) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 16.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (isLoadingMoreComments) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.height(24.dp).width(24.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        }
+                    }
+                }
             }
         }
 
@@ -634,6 +684,11 @@ private fun TopicDetailsContent(
 /**
  * Description and Comments section with adaptive layout.
  * Shows side by side on larger screens, stacked on smaller screens.
+ *
+ * Comments themselves are NOT hosted here — they are flattened into the outer
+ * LazyList in [TopicDetailsContent] (a nested scrollable inside an item is measured
+ * with infinite max height and crashes). This composable only hosts the header,
+ * expand/collapse toggle and the description.
  */
 @Composable
 @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
@@ -645,9 +700,6 @@ private fun DescriptionAndCommentsSection(
     onRefresh: () -> Unit,
     currentPage: Int = 1,
     totalPages: Int = 1,
-    hasMorePages: Boolean = false,
-    isLoadingMore: Boolean = false,
-    onLoadMore: (() -> Unit)? = null,
     onNavigateToTopic: (String) -> Unit = {},
     commentsExpanded: Boolean,
     onCommentsExpandedChange: (Boolean) -> Unit,
@@ -672,12 +724,8 @@ private fun DescriptionAndCommentsSection(
                     comments = comments,
                     isRefreshing = isRefreshing,
                     onRefresh = onRefresh,
-                    onNavigateToTopic = onNavigateToTopic,
                     currentPage = currentPage,
                     totalPages = totalPages,
-                    hasMorePages = hasMorePages,
-                    isLoadingMore = isLoadingMore,
-                    onLoadMore = onLoadMore,
                     expanded = commentsExpanded,
                     onExpandedChange = onCommentsExpandedChange,
                 )
@@ -706,12 +754,8 @@ private fun DescriptionAndCommentsSection(
                     comments = comments,
                     isRefreshing = isRefreshing,
                     onRefresh = onRefresh,
-                    onNavigateToTopic = onNavigateToTopic,
                     currentPage = currentPage,
                     totalPages = totalPages,
-                    hasMorePages = hasMorePages,
-                    isLoadingMore = isLoadingMore,
-                    onLoadMore = onLoadMore,
                     expanded = commentsExpanded,
                     onExpandedChange = onCommentsExpandedChange,
                 )
@@ -802,19 +846,19 @@ private fun ExpandableDescription(
 }
 
 /**
- * Expandable comments section with infinite scroll.
+ * Expandable comments section header.
+ *
+ * Only hosts the comments count, page indicator, refresh spinner and the
+ * expand/collapse toggle. The comment items themselves are flattened into the
+ * outer LazyList in [TopicDetailsContent] — see the note in the body below.
  */
 @Composable
 private fun ExpandableComments(
     comments: List<com.jabook.app.jabook.compose.domain.model.RutrackerComment>,
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
-    onNavigateToTopic: (String) -> Unit,
     currentPage: Int = 1,
     totalPages: Int = 1,
-    hasMorePages: Boolean = false,
-    isLoadingMore: Boolean = false,
-    onLoadMore: (() -> Unit)? = null,
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
@@ -827,21 +871,6 @@ private fun ExpandableComments(
             hasTriggeredInitialRefresh = true
             onRefresh()
         }
-    }
-
-    // LazyListState for tracking scroll position
-    val listState = rememberLazyListState()
-
-    // Auto-load more when scrolled near bottom
-    LaunchedEffect(listState, isLoadingMore, currentPage, totalPages) {
-        snapshotFlow { listState.canScrollForward to listState.isScrollInProgress }
-            .distinctUntilChanged()
-            .filter { (canScrollForward, isScrolling) -> !canScrollForward && !isScrolling }
-            .collect {
-                if (!isLoadingMore && hasMorePages) {
-                    onLoadMore?.invoke()
-                }
-            }
     }
 
     Column(modifier = modifier) {
@@ -887,47 +916,12 @@ private fun ExpandableComments(
             }
         }
 
-        if (expanded) {
-            Spacer(Modifier.height(8.dp))
-            // Use LazyColumn for better performance with many comments
-            LazyColumn(
-                state = listState,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                // Comments (newest to oldest)
-                itemsIndexed(
-                    items = comments,
-                    key = { _, comment -> comment.id },
-                    contentType = { _, _ -> "comment" },
-                ) { _, comment ->
-                    CommentItem(
-                        comment = comment,
-                        onNavigateToTopic = onNavigateToTopic,
-                    )
-                }
-
-                // Loading indicator at bottom
-                if (isLoadingMore || hasMorePages) {
-                    item(contentType = { "footer" }) {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 16.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            if (isLoadingMore) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.height(24.dp).width(24.dp),
-                                    strokeWidth = 2.dp,
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        // No scrollable content here by design: expanded comments are rendered as items
+        // of the outer LazyColumn in TopicDetailsContent. A nested LazyColumn inside an
+        // item of another LazyColumn is measured with infinite max height and throws
+        // IllegalStateException ("Vertically scrollable component was measured with an
+        // infinity maximum height constraint") — also under Row weight, which bounds
+        // width but not height.
     }
 }
 

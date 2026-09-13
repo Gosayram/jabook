@@ -94,6 +94,7 @@ public class SettingsViewModel
         private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao,
         private val userEqPresetRepository: UserEqPresetRepository,
         private val torrentManager: TorrentManager,
+        private val forumCatalog: com.jabook.app.jabook.compose.data.indexing.ForumCatalog,
         private val loggerFactory: LoggerFactory,
         private val getLibraryUseCase: GetLibraryUseCase,
         private val listeningStatsUseCase: ListeningStatsUseCase,
@@ -566,6 +567,30 @@ public class SettingsViewModel
 
         private val _torrentStorageSize = MutableStateFlow<Long>(0L)
         public val torrentStorageSize: StateFlow<Long> = _torrentStorageSize.asStateFlow()
+
+        /**
+         * Forum display labels (forum ID → real name, optionally prefixed with
+         * its parent category) for the indexing forum selector. Empty until
+         * [ForumCatalog.refresh] has succeeded at least once — UI falls back to
+         * "Forum {id}" strings while empty.
+         */
+        public val forumNameLabels: StateFlow<Map<String, String>> =
+            forumCatalog
+                .observeAll()
+                .map { forums ->
+                    forums.associate { forum ->
+                        forum.forumId to
+                            if (forum.categoryName.isBlank()) {
+                                forum.name
+                            } else {
+                                "${forum.categoryName} — ${forum.name}"
+                            }
+                    }
+                }.stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = emptyMap(),
+                )
 
         public fun loadTorrentStorageSize() {
             viewModelScope.launch {

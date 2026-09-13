@@ -53,6 +53,7 @@ public class SyncWorker
         private val torrentDownloadRepository: com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository,
         private val booksDao: com.jabook.app.jabook.compose.data.local.dao.BooksDao,
         private val rutrackerRepository: com.jabook.app.jabook.compose.data.repository.RutrackerRepository,
+        private val forumCatalog: com.jabook.app.jabook.compose.data.indexing.ForumCatalog,
         private val settingsRepository: SettingsRepository,
         private val networkMonitor: NetworkMonitor,
         @param:javax.inject.Named("coverDownload") private val coverDownloadClient: OkHttpClient,
@@ -80,6 +81,10 @@ public class SyncWorker
 
                 // Clean up old data
                 cleanupOldData()
+
+                // Refresh the forum display-name cache (best effort — never
+                // fails the sync; the table keeps its last good contents).
+                runCatching { forumCatalog.refresh() }
 
                 logger.i { "Sync completed successfully attempt=$attempt" }
                 Result.success()

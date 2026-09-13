@@ -494,7 +494,8 @@ internal class PlayerConfigurator(
             }
         }
         unregisterAudioOffloadListener(customExoPlayer)
-        loudnessNormalizers.remove(customExoPlayer)
+        // ConcurrentHashMap.remove(null) throws NPE — customExoPlayer is null on first configure.
+        customExoPlayer?.let { loudnessNormalizers.remove(it) }
         customExoPlayer?.release()
         customExoPlayer = null
     }

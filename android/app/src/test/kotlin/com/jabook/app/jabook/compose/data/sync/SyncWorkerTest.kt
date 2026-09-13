@@ -22,6 +22,7 @@ import androidx.work.WorkerParameters
 import androidx.work.testing.TestListenableWorkerBuilder
 import com.jabook.app.jabook.compose.core.logger.Logger
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.compose.data.indexing.ForumCatalog
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
 import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
 import com.jabook.app.jabook.compose.data.network.NetworkMonitor
@@ -56,6 +57,7 @@ class SyncWorkerTest {
     private val torrentDownloadRepository: TorrentDownloadRepository = mock()
     private val booksDao: BooksDao = mock()
     private val rutrackerRepository: RutrackerRepository = mock()
+    private val forumCatalog: ForumCatalog = mock()
     private val settingsRepository: SettingsRepository = mock()
     private val networkMonitor: NetworkMonitor = mock()
     private val okHttpClient: OkHttpClient = mock()
@@ -211,6 +213,7 @@ class SyncWorkerTest {
                         torrentDownloadRepository = torrentDownloadRepository,
                         booksDao = booksDao,
                         rutrackerRepository = rutrackerRepository,
+                        forumCatalog = forumCatalog,
                         settingsRepository = settingsRepository,
                         networkMonitor = networkMonitor,
                         coverDownloadClient = okHttpClient,

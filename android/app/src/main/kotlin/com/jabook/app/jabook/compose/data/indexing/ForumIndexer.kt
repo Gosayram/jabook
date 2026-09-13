@@ -26,6 +26,7 @@ import com.jabook.app.jabook.compose.data.local.entity.toCachedTopicEntity
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.mapper.toDomain
+import com.jabook.app.jabook.compose.data.remote.model.SearchResult
 import com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import com.jabook.app.jabook.utils.parseRetryAfterMs
@@ -82,6 +83,7 @@ public class ForumIndexer
         private val parser: RutrackerParser,
         private val offlineSearchDao: OfflineSearchDao,
         private val mirrorManager: MirrorManager,
+        private val forumCatalog: ForumCatalog,
         private val loggerFactory: LoggerFactory,
         @param:ApplicationContext private val context: Context,
     ) {
@@ -199,6 +201,22 @@ public class ForumIndexer
 
             private const val MIN_VALID_TOPICS_ABSOLUTE = 10
             private const val MIN_VALID_RATIO = 0.5
+
+            /**
+             * Pure cutoff predicate for the date-driven depth window: true when
+             * EVERY topic on the page was registered before [cutoffMs]. A topic
+             * with unknown date (null) counts as fresh → page is never "older".
+             * Listings are date-ordered desc, so a true result means every
+             * deeper page is also outside the window.
+             */
+            internal fun isPageOlderThan(
+                cutoffMs: Long,
+                topics: List<SearchResult>,
+            ): Boolean =
+                topics.isNotEmpty() &&
+                    topics.all { topic ->
+                        (topic.registeredAtEpochSec?.times(1000) ?: Long.MAX_VALUE) < cutoffMs
+                    }
         }
 
         /**
@@ -239,10 +257,19 @@ public class ForumIndexer
                     val currentIndexVersion = getCurrentIndexVersion() + 1
                     val forumIdList = forumIds.split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
-                    // Initialize forum name mapping
+                    // Initialize forum name mapping from the local catalog
+                    // (real names); refresh opportunistically when the table is
+                    // cold. "Forum $id" stays only as last-resort fallback.
                     forumNames.clear()
+                    runCatching {
+                        if (forumCatalog.namesById().isEmpty()) forumCatalog.refresh()
+                    }
+                    val catalogNames =
+                        runCatching { forumCatalog.namesById() }
+                            .onFailure { logger.w { "Forum catalog unavailable: ${it.message}" } }
+                            .getOrDefault(emptyMap())
                     for (id in forumIdList) {
-                        forumNames[id] = "Forum $id"
+                        forumNames[id] = catalogNames[id] ?: "Forum $id"
                     }
 
                     val coversToPreload = mutableListOf<String>()
@@ -577,25 +604,38 @@ public class ForumIndexer
                             logger.w { "Forum $forumId page $page: filtered out $invalidCount invalid topics" }
                         }
 
-                        // Depth window: with quick indexing enabled, stop once a whole
-                        // page is already known — the date-sorted listing has no fresh
-                        // topics at or below this boundary. Pages stay sequential so
-                        // this boundary is trustworthy.
+                        // Depth window: with quick indexing enabled, stop once the
+                        // listing's date-sorted boundary is passed. Two equivalent
+                        // boundary signals (either suffices, date check is cheaper
+                        // and works on a cold DB):
+                        // 1. Date: from page 1 on, a page whose topics are ALL
+                        //    older than the window — deeper pages are older still.
+                        // 2. Known: a page whose topics are all already indexed.
                         var boundaryReached = false
                         var newTopics = validTopics
                         if (daysWindow > 0 && validTopics.isNotEmpty()) {
-                            val existingIds =
-                                offlineSearchDao
-                                    .getExistingTopicIds(validTopics.map { it.topicId })
-                                    .toSet()
-                            newTopics = validTopics.filter { it.topicId !in existingIds }
-                            if (newTopics.isEmpty()) {
+                            val cutoffMs = System.currentTimeMillis() - daysWindow * 86_400_000L
+                            if (page >= 1 && isPageOlderThan(cutoffMs, validTopics)) {
                                 logger.i {
-                                    "Forum $forumId page $page: all ${validTopics.size} topics already " +
-                                        "indexed — depth window boundary reached, stopping crawl"
+                                    "Forum $forumId page $page: all ${validTopics.size} topics older than " +
+                                        "$daysWindow-day window — date boundary reached, stopping crawl"
                                 }
                                 boundaryReached = true
                                 hasMorePages = false
+                            } else {
+                                val existingIds =
+                                    offlineSearchDao
+                                        .getExistingTopicIds(validTopics.map { it.topicId })
+                                        .toSet()
+                                newTopics = validTopics.filter { it.topicId !in existingIds }
+                                if (newTopics.isEmpty()) {
+                                    logger.i {
+                                        "Forum $forumId page $page: all ${validTopics.size} topics already " +
+                                            "indexed — depth window boundary reached, stopping crawl"
+                                    }
+                                    boundaryReached = true
+                                    hasMorePages = false
+                                }
                             }
                         }
 

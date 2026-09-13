@@ -22,6 +22,7 @@ import com.jabook.app.jabook.compose.data.local.dao.ChaptersDao
 import com.jabook.app.jabook.compose.data.local.dao.DownloadHistoryDao
 import com.jabook.app.jabook.compose.data.local.dao.DownloadQueueDao
 import com.jabook.app.jabook.compose.data.local.dao.FavoriteDao
+import com.jabook.app.jabook.compose.data.local.dao.ForumsDao
 import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
 import com.jabook.app.jabook.compose.data.local.dao.ScanPathDao
 import com.jabook.app.jabook.compose.data.local.dao.SearchHistoryDao
@@ -33,6 +34,7 @@ import com.jabook.app.jabook.compose.data.local.entity.ChapterEntity
 import com.jabook.app.jabook.compose.data.local.entity.DownloadHistoryEntity
 import com.jabook.app.jabook.compose.data.local.entity.DownloadQueueEntity
 import com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity
+import com.jabook.app.jabook.compose.data.local.entity.ForumEntity
 import com.jabook.app.jabook.compose.data.local.entity.ScanPathEntity
 import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
 import com.jabook.app.jabook.compose.data.local.entity.SearchQueryEntity
@@ -45,7 +47,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentResumeEntity
  * Current Jabook database schema version. Single source of truth for [Database]'s `version`
  * and crash-diagnostics reporting. Bump together with a new [MIGRATION] and a changelog line.
  */
-public const val JABOOK_DB_VERSION: Int = 36
+public const val JABOOK_DB_VERSION: Int = 37
 
 /**
  * The Room database for this app.
@@ -86,6 +88,7 @@ public const val JABOOK_DB_VERSION: Int = 36
  * Database version 34: Moved torrent resume data BLOB into a separate torrent_resume table so list reads never pull BLOBs.
  * Database version 35: Added normalized_query column with unique index to search_history for deduplication.
  * Database version 36: Rebuilt search_history to heal the broken v35 shape (DEFAULT + wrong index name).
+ * Database version 37: Added forums table for RuTracker forum display-name cache.
  */
 @Database(
     entities = [
@@ -96,6 +99,7 @@ public const val JABOOK_DB_VERSION: Int = 36
         DownloadQueueEntity::class,
         DownloadHistoryEntity::class,
         FavoriteEntity::class,
+        ForumEntity::class,
         ScanPathEntity::class,
         TorrentDownloadEntity::class,
         TorrentResumeEntity::class,
@@ -120,6 +124,8 @@ public abstract class JabookDatabase : RoomDatabase() {
     public abstract fun downloadHistoryDao(): DownloadHistoryDao
 
     public abstract fun favoriteDao(): FavoriteDao
+
+    public abstract fun forumsDao(): ForumsDao
 
     public abstract fun scanPathDao(): ScanPathDao
 

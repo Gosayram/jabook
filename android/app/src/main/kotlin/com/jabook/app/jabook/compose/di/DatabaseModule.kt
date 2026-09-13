@@ -50,6 +50,7 @@ import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_32_33
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_33_34
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_34_35
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_35_36
+import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_36_37
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_6_7
 import com.jabook.app.jabook.compose.data.local.migration.createBooksFts5Index
 import com.jabook.app.jabook.compose.data.local.migration.createTopicsFts5Index
@@ -397,6 +398,7 @@ public object DatabaseModule {
             MIGRATION_33_34,
             MIGRATION_34_35,
             MIGRATION_35_36,
+            MIGRATION_36_37,
         )
 
     @Provides
@@ -502,6 +504,10 @@ public object DatabaseModule {
     @Provides
     @Singleton
     public fun provideFavoriteDao(database: JabookDatabase): FavoriteDao = database.favoriteDao()
+
+    @Provides
+    @Singleton
+    public fun provideForumsDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.ForumsDao = database.forumsDao()
 
     @Provides
     @Singleton
