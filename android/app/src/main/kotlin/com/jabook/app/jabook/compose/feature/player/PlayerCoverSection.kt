@@ -30,6 +30,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
@@ -145,14 +146,16 @@ internal fun PlayerCoverSection(
                     },
         )
     } else {
-        AsyncImage(
-            model = imageRequest,
-            contentDescription =
-                stringResource(
-                    R.string.playerCoverAccessibilityDescription,
-                    state.book.title,
-                    state.book.author,
-                ),
+        val coverInitials =
+            remember(state.book.title) {
+                state.book.title
+                    .trim()
+                    .split(Regex("\\s+"))
+                    .take(2)
+                    .mapNotNull { it.firstOrNull()?.uppercaseChar() }
+                    .joinToString("")
+            }
+        Box(
             modifier =
                 modifier
                     .fillMaxWidth(coverWidth)
@@ -161,7 +164,6 @@ internal fun PlayerCoverSection(
                         scaleX = if (state.isPlaying) coverScale else 1f
                         scaleY = if (state.isPlaying) coverScale else 1f
                     }.clip(RoundedCornerShape(24.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
                     .semantics {
                         if (canToggleLyrics) {
                             role = Role.Button
@@ -172,7 +174,40 @@ internal fun PlayerCoverSection(
                         onDoubleClick = onStatsClick,
                         onClickLabel = toggleLyricsLabel,
                     ),
-            contentScale = ContentScale.Crop,
-        )
+        ) {
+            // Placeholder behind the image: visible while the cover loads or when the
+            // book has none — a plain dark square reads as a broken screen otherwise.
+            Box(
+                modifier =
+                    Modifier
+                        .matchParentSize()
+                        .background(
+                            androidx.compose.ui.graphics.Brush.linearGradient(
+                                listOf(
+                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f),
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                                ),
+                            ),
+                        ),
+                contentAlignment = androidx.compose.ui.Alignment.Center,
+            ) {
+                androidx.compose.material3.Text(
+                    text = coverInitials,
+                    style = MaterialTheme.typography.displayLarge,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                )
+            }
+            AsyncImage(
+                model = imageRequest,
+                contentDescription =
+                    stringResource(
+                        R.string.playerCoverAccessibilityDescription,
+                        state.book.title,
+                        state.book.author,
+                    ),
+                modifier = Modifier.matchParentSize(),
+                contentScale = ContentScale.Crop,
+            )
+        }
     }
 }
