@@ -24,88 +24,111 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.ResponseBody
+import java.io.ByteArrayOutputStream
 import java.net.URLEncoder
 
 /**
  * Silent remote cover lookup against public APIs (OpenLibrary, then Google Books).
  *
- * Exactly one HTTP GET per source, no HEAD probes. Network failures never throw —
- * callers get null and the book is simply left without a cover.
+ * Two metadata GETs max per lookup; candidates from both sources are scored by
+ * [CoverMatchPolicy], ranked, and the top ones are downloaded and validated by
+ * [CoverImageValidator] (at most [MAX_IMAGE_DOWNLOADS] image GETs). Network
+ * failures never throw — callers get null and the book stays without a cover.
  */
 public class RemoteCoverProvider(
     private val client: OkHttpClient,
     loggerFactory: LoggerFactory,
     olBaseUrl: String = OPENLIBRARY_BASE,
     googleBaseUrl: String = GOOGLE_BOOKS_BASE,
+    olCoverBaseUrl: String = OPENLIBRARY_COVER_BASE,
 ) {
     private val logger = loggerFactory.get(TAG)
     private val json = Json { ignoreUnknownKeys = true }
     private val openLibraryUrl = olBaseUrl.trimEnd('/') + "/search.json"
     private val googleBooksUrl = googleBaseUrl.trimEnd('/') + "/books/v1/volumes"
+    private val openLibraryCoverUrl = olCoverBaseUrl.trimEnd('/')
 
     /**
      * Look up a cover URL for the given title/author.
      *
-     * @return direct image URL, or null when nothing matched accurately.
+     * @return direct image URL (validated at byte level), or null when nothing matched accurately.
      */
     public suspend fun lookup(
         title: String,
         author: String,
     ): String? =
         withContext(Dispatchers.IO) {
-            lookupOpenLibrary(title, author) ?: lookupGoogleBooks(title, author)
+            val candidates =
+                buildList {
+                    addAll(collectOpenLibrary(title, author))
+                    addAll(collectGoogleBooks(title, author))
+                }.sortedByDescending { it.second }
+
+            for ((index, candidate) in candidates.withIndex()) {
+                if (index >= MAX_IMAGE_DOWNLOADS) break
+                val bytes = fetchImageBytes(candidate.first) ?: continue
+                if (CoverImageValidator.isPlausibleCover(bytes)) return@withContext candidate.first
+            }
+            logger.d { "No plausible cover for \"$title\"" }
+            null
         }
 
-    private fun lookupOpenLibrary(
+    /** @return (image url, match score) pairs, highest evidence last — callers sort. */
+    private fun collectOpenLibrary(
         title: String,
         author: String,
-    ): String? {
+    ): List<Pair<String, Float>> {
         val query = "title:${escape(title)} author:${escape(author)}"
         val url =
             "$openLibraryUrl?q=${URLEncoder.encode(query, "UTF-8")}" +
                 "&fields=cover_i,title,author_name&limit=3"
-        val root = fetchJson(url) ?: return null
-        val docs = root.jsonObject["docs"]?.jsonArray ?: return null
+        val root = fetchJson(url) ?: return emptyList()
+        val docs = root.jsonObject["docs"]?.jsonArray ?: return emptyList()
+        val candidates = mutableListOf<Pair<String, Float>>()
         for (doc in docs) {
             val obj = doc.jsonObject
             val coverId = obj["cover_i"]?.jsonPrimitive?.longOrNull ?: continue
             val candidateTitle = obj["title"]?.jsonPrimitive?.content
             val candidateAuthors =
                 obj["author_name"]?.jsonArray?.map { it.jsonPrimitive.content } ?: emptyList()
-            if (CoverMatchPolicy.isAcceptable(candidateTitle, candidateAuthors, title, author)) {
-                return "$OPENLIBRARY_COVER_BASE/b/id/$coverId-L.jpg"
-            }
+            val match =
+                CoverMatchPolicy.score(candidateTitle, candidateAuthors, title, author)
+            if (match > 0f) candidates.add("$openLibraryCoverUrl/b/id/$coverId-L.jpg" to match)
         }
-        logger.d { "OpenLibrary: no acceptable cover for \"$title\"" }
-        return null
+        return candidates
     }
 
-    private fun lookupGoogleBooks(
+    private fun collectGoogleBooks(
         title: String,
         author: String,
-    ): String? {
+    ): List<Pair<String, Float>> {
         val query = "intitle:${escape(title)} inauthor:${escape(author)}"
         val url =
             "$googleBooksUrl?q=${URLEncoder.encode(query, "UTF-8")}" +
                 "&maxResults=5&printType=books"
-        val root = fetchJson(url) ?: return null
-        val items = root.jsonObject["items"]?.jsonArray ?: return null
+        val root = fetchJson(url) ?: return emptyList()
+        val items = root.jsonObject["items"]?.jsonArray ?: return emptyList()
+        val candidates = mutableListOf<Pair<String, Float>>()
         for (item in items) {
             val volumeInfo = item.jsonObject["volumeInfo"]?.jsonObject ?: continue
             val candidateTitle = volumeInfo["title"]?.jsonPrimitive?.content
             val candidateAuthors =
                 volumeInfo["authors"]?.jsonArray?.map { it.jsonPrimitive.content } ?: emptyList()
-            if (!CoverMatchPolicy.isAcceptable(candidateTitle, candidateAuthors, title, author)) continue
+            val match =
+                CoverMatchPolicy.score(candidateTitle, candidateAuthors, title, author)
+            if (match <= 0f) continue
             val thumbnail =
                 volumeInfo["imageLinks"]
                     ?.jsonObject
                     ?.get("thumbnail")
                     ?.jsonPrimitive
                     ?.content
-            if (!thumbnail.isNullOrBlank()) return thumbnail.replace("http://", "https://")
+            if (!thumbnail.isNullOrBlank()) {
+                candidates.add(thumbnail.replace("http://", "https://") to match)
+            }
         }
-        logger.d { "Google Books: no acceptable cover for \"$title\"" }
-        return null
+        return candidates
     }
 
     private fun fetchJson(url: String): kotlinx.serialization.json.JsonElement? =
@@ -123,6 +146,45 @@ public class RemoteCoverProvider(
             null
         }
 
+    private fun fetchImageBytes(url: String): ByteArray? =
+        try {
+            client
+                .newCall(Request.Builder().url(url).build())
+                .execute()
+                .use { response ->
+                    if (!response.isSuccessful) return null
+                    readCappedBody(response.body)
+                }
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            logger.w({ "Cover image download failed: $url" }, e)
+            null
+        }
+
+    /**
+     * Reads a response body with [MAX_IMAGE_BYTES] cap, mirroring
+     * RutrackerParser.readCappedBody: the guard holds DURING the copy so an
+     * unbounded body cannot materialize before the check runs.
+     */
+    private fun readCappedBody(body: ResponseBody): ByteArray {
+        val contentLength = body.contentLength()
+        check(contentLength <= MAX_IMAGE_BYTES) { "Image too large: $contentLength bytes" }
+        return body.use { bounded ->
+            val input = bounded.byteStream()
+            val output = ByteArrayOutputStream(if (contentLength > 0) contentLength.toInt() else 16 * 1024)
+            val chunk = ByteArray(16 * 1024)
+            var total = 0
+            while (true) {
+                val read = input.read(chunk)
+                if (read < 0) break
+                total += read
+                check(total <= MAX_IMAGE_BYTES) { "Image too large: $total bytes" }
+                output.write(chunk, 0, read)
+            }
+            output.toByteArray()
+        }
+    }
+
     private fun escape(raw: String): String = raw.trim().replace(':', ' ')
 
     private companion object {
@@ -130,5 +192,7 @@ public class RemoteCoverProvider(
         const val OPENLIBRARY_BASE = "https://openlibrary.org"
         const val OPENLIBRARY_COVER_BASE = "https://covers.openlibrary.org"
         const val GOOGLE_BOOKS_BASE = "https://www.googleapis.com"
+        const val MAX_IMAGE_DOWNLOADS = 3
+        const val MAX_IMAGE_BYTES = 2 * 1024 * 1024
     }
 }

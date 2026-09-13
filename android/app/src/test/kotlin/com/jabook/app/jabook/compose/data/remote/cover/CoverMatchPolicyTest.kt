@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.remote.cover
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -129,5 +130,82 @@ class CoverMatchPolicyTest {
                 queryAuthor = "Кинг",
             ),
         )
+    }
+
+    @Test
+    fun `score identical title and author is near one`() {
+        val score =
+            CoverMatchPolicy.score(
+                candidateTitle = "Война и мир",
+                candidateAuthors = listOf("Лев Толстой"),
+                queryTitle = "Война и мир",
+                queryAuthor = "Лев Толстой",
+            )
+        assertEquals(1.0f, score, 0.01f)
+    }
+
+    @Test
+    fun `score wrong author surname rejects outright`() {
+        assertEquals(
+            0f,
+            CoverMatchPolicy.score(
+                candidateTitle = "Война и мир",
+                candidateAuthors = listOf("Достоевский Федор"),
+                queryTitle = "Война и мир",
+                queryAuthor = "Лев Толстой",
+            ),
+            0.0001f,
+        )
+    }
+
+    @Test
+    fun `score partial title containment with partial surname is mid range`() {
+        val score =
+            CoverMatchPolicy.score(
+                candidateTitle = "Война и мир (том 1)",
+                candidateAuthors = listOf("Толстой Лев Николаевич"),
+                queryTitle = "Война и мир",
+                queryAuthor = "Лев Толстой",
+            )
+        // title 11/17 = 0.647, surname partial 0.5 -> 0.5*0.647 + 0.5*0.5
+        assertEquals(0.573f, score, 0.02f)
+    }
+
+    @Test
+    fun `score falls back to title weight when candidate has no authors`() {
+        val score =
+            CoverMatchPolicy.score(
+                candidateTitle = "Война и мир",
+                candidateAuthors = emptyList(),
+                queryTitle = "Война и мир",
+                queryAuthor = "Лев Толстой",
+            )
+        assertEquals(0.5f, score, 0.01f)
+    }
+
+    @Test
+    fun `threshold boundary accepts confident fallback and rejects weak one`() {
+        // 17/23 = 0.739 title-only -> 0.37 > 0.35: acceptable
+        val strong =
+            CoverMatchPolicy.score(
+                candidateTitle = "Мастер и Маргарита роман",
+                candidateAuthors = emptyList(),
+                queryTitle = "Мастер и Маргарита",
+                queryAuthor = "Булгаков",
+            )
+        assertEquals(0.37f, strong, 0.01f)
+        assertTrue(strong > 0.35f)
+        assertTrue(CoverMatchPolicy.isAcceptable("Мастер и Маргарита роман", emptyList(), "Мастер и Маргарита", "Булгаков"))
+
+        // 11/17 = 0.647 title-only -> 0.323 < 0.35: rejected
+        val weak =
+            CoverMatchPolicy.score(
+                candidateTitle = "Война и мир том 1",
+                candidateAuthors = emptyList(),
+                queryTitle = "Война и мир",
+                queryAuthor = "Лев Толстой",
+            )
+        assertTrue(weak < 0.35f)
+        assertFalse(CoverMatchPolicy.isAcceptable("Война и мир том 1", emptyList(), "Война и мир", "Лев Толстой"))
     }
 }
