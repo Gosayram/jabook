@@ -50,7 +50,9 @@ public class HybridBookScanner
         private val _scanProgress = MutableStateFlow<ScanProgress>(ScanProgress.Idle)
         override val scanProgress: StateFlow<ScanProgress> = _scanProgress.asStateFlow()
 
-        override suspend fun scanAudiobooks(): Result<List<ScannedBook>, com.jabook.app.jabook.compose.domain.model.AppError> =
+        override suspend fun scanAudiobooks(
+            knownDirectories: Set<String>,
+        ): Result<List<ScannedBook>, com.jabook.app.jabook.compose.domain.model.AppError> =
             PerfTrace.section(name = "HybridBookScanner.scanAudiobooks") {
                 // CRITICAL FIX: Validate and clean up non-existent folders before scanning
                 // Remove folders that were deleted from filesystem
@@ -119,10 +121,14 @@ public class HybridBookScanner
                     try {
                         val result =
                             PerfTrace.section(name = "HybridBookScanner.activeScan") {
-                                activeScanner.scanAudiobooks()
+                                activeScanner.scanAudiobooks(knownDirectories)
                             }
                         val bookCount = (result as? Result.Success)?.data?.size ?: 0
-                        _scanProgress.value = ScanProgress.Completed(bookCount, 0L, skippedPaths)
+                        // Inaccessible dirs found by the direct scanner (permission loss)
+                        // count as skipped paths so partial failures are user-visible.
+                        val inaccessibleDirs =
+                            if (activeScanner === directScanner) directScanner.lastInaccessibleDirCount else 0
+                        _scanProgress.value = ScanProgress.Completed(bookCount, 0L, skippedPaths + inaccessibleDirs)
                         result
                     } finally {
                         progressJob.cancel()

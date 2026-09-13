@@ -67,7 +67,7 @@ class LibraryScanWorkerTest {
                             private val progress = MutableStateFlow<ScanProgress>(ScanProgress.Discovery(0))
                             override val scanProgress: StateFlow<ScanProgress> = progress
 
-                            override suspend fun scanAudiobooks(): Result<List<ScannedBook>, AppError> =
+                            override suspend fun scanAudiobooks(knownDirectories: Set<String>): Result<List<ScannedBook>, AppError> =
                                 throw CancellationException("cancelled by test")
                         },
                 )
@@ -114,7 +114,8 @@ class LibraryScanWorkerTest {
         object : LocalBookScanner {
             override val scanProgress: StateFlow<ScanProgress> = MutableStateFlow(ScanProgress.Completed(1, 0L))
 
-            override suspend fun scanAudiobooks(): Result<List<ScannedBook>, AppError> = Result.Success(listOf(book))
+            override suspend fun scanAudiobooks(knownDirectories: Set<String>): Result<List<ScannedBook>, AppError> =
+                Result.Success(listOf(book))
         }
 
     private fun buildWorker(scanner: LocalBookScanner): LibraryScanWorker {

@@ -15,8 +15,6 @@
 package com.jabook.app.jabook.compose.data.network
 
 import com.jabook.app.jabook.compose.core.logger.NoOpLoggerFactory
-import com.jabook.app.jabook.compose.domain.repository.AuthRepository
-import kotlinx.coroutines.CancellationException
 import okhttp3.Interceptor
 import okhttp3.Protocol
 import okhttp3.Request
@@ -27,42 +25,39 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.verifyNoMoreInteractions
 import org.mockito.kotlin.whenever
-import javax.inject.Provider
 
 class AuthInterceptorTest {
-    @Test(expected = CancellationException::class)
-    fun `cancellation while loading credentials is propagated`() {
-        val request = Request.Builder().url("https://mirror.example/forum/viewtopic.php?t=1").build()
-        val chain = mock<Interceptor.Chain>()
-        val authRepository = mock<AuthRepository>()
-        whenever(chain.request()).thenReturn(request)
-        whenever(chain.proceed(request)).thenReturn(response(request, 401))
-        kotlinx.coroutines.runBlocking {
-            whenever(authRepository.getStoredCredentials()).thenThrow(CancellationException("cancelled"))
-        }
-        val interceptor = AuthInterceptor(Provider { authRepository }, NoOpLoggerFactory)
-
-        interceptor.intercept(chain)
-    }
-
     @Test
-    fun `expired response without stored credentials is returned without a duplicate request`() {
+    fun `expired response is returned without re-login attempt or duplicate request`() {
         val request = Request.Builder().url("https://mirror.example/forum/viewtopic.php?t=1").build()
         val expiredResponse = response(request, 401)
         val chain = mock<Interceptor.Chain>()
-        val authRepository = mock<AuthRepository>()
-        val repositoryProvider = Provider { authRepository }
         whenever(chain.request()).thenReturn(request)
         whenever(chain.proceed(request)).thenReturn(expiredResponse)
-        kotlinx.coroutines.runBlocking { whenever(authRepository.getStoredCredentials()).thenReturn(null) }
-        val interceptor = AuthInterceptor(repositoryProvider, NoOpLoggerFactory)
+        val interceptor = AuthInterceptor(NoOpLoggerFactory)
 
         val result = interceptor.intercept(chain)
 
         assertSame(expiredResponse, result)
         verify(chain).request()
         verify(chain).proceed(request)
-        kotlinx.coroutines.runBlocking { verify(authRepository).getStoredCredentials() }
+        verifyNoMoreInteractions(chain)
+    }
+
+    @Test
+    fun `login endpoint bypasses session-expiry detection`() {
+        val request = Request.Builder().url("https://mirror.example/forum/login.php").build()
+        val loginResponse = response(request, 403)
+        val chain = mock<Interceptor.Chain>()
+        whenever(chain.request()).thenReturn(request)
+        whenever(chain.proceed(request)).thenReturn(loginResponse)
+        val interceptor = AuthInterceptor(NoOpLoggerFactory)
+
+        val result = interceptor.intercept(chain)
+
+        assertSame(loginResponse, result)
+        verify(chain).request()
+        verify(chain).proceed(request)
         verifyNoMoreInteractions(chain)
     }
 

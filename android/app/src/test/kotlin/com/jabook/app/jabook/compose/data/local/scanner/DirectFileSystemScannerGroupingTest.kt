@@ -142,7 +142,7 @@ class DirectFileSystemScannerGroupingTest {
     fun `every audiobook extension in the fixed list is accepted by the scanner`() =
         runTest {
             val extensions =
-                listOf("mp3", "m4b", "m4a", "flac", "ogg", "opus", "wav", "wma", "aac", "webm", "mkv")
+                listOf("mp3", "m4b", "m4a", "mka", "flac", "ogg", "oga", "opus", "wav", "wma", "aac", "aax", "aaxc", "ape", "webm", "mkv")
             val root = Files.createTempDirectory("jabook-scan-extensions")
             try {
                 writeAudio(

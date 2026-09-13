@@ -70,7 +70,17 @@ public class DirectFileSystemScanner
          */
         private var lastScanFailedDirs: Set<String> = emptySet()
 
-        override suspend fun scanAudiobooks(): Result<List<ScannedBook>, com.jabook.app.jabook.compose.domain.model.AppError> =
+        /**
+         * Directories that could not be listed during the most recent scan
+         * (permission loss, I/O error). Surfaced via [HybridBookScanner] as
+         * skipped paths so partial access loss is user-visible.
+         */
+        public var lastInaccessibleDirCount: Int = 0
+            private set
+
+        override suspend fun scanAudiobooks(
+            knownDirectories: Set<String>,
+        ): Result<List<ScannedBook>, com.jabook.app.jabook.compose.domain.model.AppError> =
             withContext(Dispatchers.IO) {
                 try {
                     // SELF-HEALING: skip rows that can never produce books (legacy
@@ -100,11 +110,12 @@ public class DirectFileSystemScanner
                     // PHASE 1: FAST SCAN - No metadata parsing
                     logger.i { "Phase 1: Fast scan (no metadata)" }
                     val fastFiles = mutableListOf<FastFileInfo>()
+                    val inaccessibleDirs = mutableSetOf<String>()
                     for (path in customPaths) {
                         ensureActive() // Check for cancellation
                         val directory = File(path)
                         if (directory.exists() && directory.isDirectory) {
-                            scanDirectoryFast(directory, fastFiles)
+                            scanDirectoryFast(directory, fastFiles, inaccessibleDirs)
                             _scanProgress.value = ScanProgress.Discovery(fastFiles.size)
                         }
                     }
@@ -139,7 +150,8 @@ public class DirectFileSystemScanner
                                     lastModified = it.lastModified,
                                 )
                             }
-                        val filterResult = IncrementalScanPolicy.filterChangedFiles(scanInfos, lastTimestamp)
+                        val filterResult =
+                            IncrementalScanPolicy.filterChangedFiles(scanInfos, lastTimestamp, knownDirectories)
                         if (filterResult.isFullScan) {
                             filteredFiles.addAll(filesForPath)
                         } else {
@@ -299,6 +311,10 @@ public class DirectFileSystemScanner
                     }
 
                     // Refresh for the next incremental scan; dirs that now succeed drop out.
+                    // Inaccessible dirs count as failures: no timestamp bump (retry next scan)
+                    // and they are reported as skipped paths to the UI.
+                    failedDirs.addAll(inaccessibleDirs)
+                    lastInaccessibleDirCount = inaccessibleDirs.size
                     lastScanFailedDirs = failedDirs
 
                     logger.i { "Scan complete: ${scannedBooks.size} books successfully created" }
@@ -344,10 +360,15 @@ public class DirectFileSystemScanner
          *
          * Depth-capped with a visited set of canonical paths to survive FUSE/symlink
          * loops without stack overflow. Skips hidden directories (".Trash" etc).
+         *
+         * Directories whose [File.listFiles] returns null (permission denied, I/O
+         * error) are recorded in [inaccessibleDirs] instead of being silently
+         * treated as empty.
          */
         private fun scanDirectoryFast(
             directory: File,
             result: MutableList<FastFileInfo>,
+            inaccessibleDirs: MutableSet<String>,
             depth: Int = 0,
             visited: MutableSet<String> = mutableSetOf(),
         ) {
@@ -360,29 +381,43 @@ public class DirectFileSystemScanner
                 }
             if (!visited.add(canonicalPath)) return
 
-            try {
-                directory.listFiles()?.forEach { file ->
-                    when {
-                        file.isDirectory -> {
-                            if (!file.name.startsWith(".")) {
-                                scanDirectoryFast(file, result, depth + 1, visited)
-                            }
-                        }
-                        file.isFile && file.isAudioFile() -> {
-                            result.add(
-                                FastFileInfo(
-                                    filePath = file.absolutePath,
-                                    displayName = file.name,
-                                    directory = file.parent ?: "",
-                                    size = file.length(),
-                                    lastModified = file.lastModified(),
-                                ),
-                            )
+            val children =
+                try {
+                    directory.listFiles()
+                } catch (e: SecurityException) {
+                    null
+                }
+            if (children == null) {
+                inaccessibleDirs.add(directory.absolutePath)
+                logger.e { "Cannot list directory (permission denied?): ${directory.path}" }
+                return
+            }
+
+            // Watchdog liveness: emit discovery progress every N files so huge
+            // directories don't look like a 3-minute hang. Cheap counter only.
+            var processedInDir = 0
+            for (file in children) {
+                if (++processedInDir % PROGRESS_EMIT_INTERVAL == 0) {
+                    _scanProgress.value = ScanProgress.Discovery(result.size)
+                }
+                when {
+                    file.isDirectory -> {
+                        if (!file.name.startsWith(".")) {
+                            scanDirectoryFast(file, result, inaccessibleDirs, depth + 1, visited)
                         }
                     }
+                    file.isFile && file.isAudioFile() -> {
+                        result.add(
+                            FastFileInfo(
+                                filePath = file.absolutePath,
+                                displayName = file.name,
+                                directory = file.parent ?: "",
+                                size = file.length(),
+                                lastModified = file.lastModified(),
+                            ),
+                        )
+                    }
                 }
-            } catch (e: SecurityException) {
-                logger.e({ "Cannot access directory: ${directory.path}" }, e)
             }
         }
 
@@ -462,11 +497,15 @@ public class DirectFileSystemScanner
                     "mp3",
                     "m4a",
                     "m4b",
+                    "mka",
                     "ogg",
                     "opus",
                     "flac",
                     "wav",
                     "aac",
+                    "aax",
+                    "aaxc",
+                    "ape",
                     "wma",
                     "oga",
                     // ponytail: synced with MimeTypeValidationPolicy.SUPPORTED_EXTENSIONS.
@@ -479,5 +518,8 @@ public class DirectFileSystemScanner
 
             /** Max recursion depth for the fast scan; guards against pathological trees. */
             private const val MAX_SCAN_DEPTH = 20
+
+            /** Emit discovery progress every N processed files (watchdog liveness). */
+            private const val PROGRESS_EMIT_INTERVAL = 250
         }
     }

@@ -63,6 +63,11 @@ public object IncrementalScanPolicy {
      * @param allFiles All audio files found during the fast discovery phase.
      * @param lastScanTimestampMs The timestamp of the last successful scan for this path,
      *   or `null` if no previous scan exists (triggers full scan).
+     * @param knownDirectories Directories that already exist as books in the database.
+     *   When non-empty, files in a directory NOT in this set are treated as changed
+     *   regardless of mtime — torrent-unpacked or copied folders keep old mtimes and
+     *   must not be skipped forever. Empty set = caller gave no knowledge = old
+     *   mtime-only behavior is preserved.
      * @param graceWindowMs Grace window in milliseconds to account for filesystem
      *   timestamp granularity. Files modified within this window before the scan
      *   timestamp are still included. Defaults to [DEFAULT_GRACE_WINDOW_MS].
@@ -71,6 +76,7 @@ public object IncrementalScanPolicy {
     public fun filterChangedFiles(
         allFiles: List<FileScanInfo>,
         lastScanTimestampMs: Long?,
+        knownDirectories: Set<String> = emptySet(),
         graceWindowMs: Long = DEFAULT_GRACE_WINDOW_MS,
     ): FilterResult {
         // No previous scan timestamp -> full scan (all files included)
@@ -89,10 +95,12 @@ public object IncrementalScanPolicy {
         var skipped = 0
 
         for (file in allFiles) {
-            if (file.lastModified >= effectiveCutoff) {
-                changed.add(file)
-            } else {
+            // Empty knownDirectories = no knowledge from caller -> pure mtime behavior
+            val directoryKnown = knownDirectories.isEmpty() || file.directory in knownDirectories
+            if (directoryKnown && file.lastModified < effectiveCutoff) {
                 skipped++
+            } else {
+                changed.add(file)
             }
         }
 

@@ -59,12 +59,13 @@ public object ScanPathValidator {
         }
 
     /**
-     * True when a directory name looks like a disc/part folder ("CD1", "Disc 2",
-     * "Part_3") — such folders are merged into their parent book instead of
-     * becoming separate books.
+     * True when a directory name is essentially just a disc marker ("CD1",
+     * "Disc 2 of 3", "Part_3") — such folders are merged into their parent book
+     * instead of becoming separate books. Names that merely START with a marker
+     * ("Part 1 - The Fellowship") are distinct books and must NOT merge.
      */
     public fun isDiscDirectory(directoryName: String): Boolean = DISC_DIR_REGEX.matches(directoryName.trim())
 
-    // ponytail: word+digit disc names only; extend if real-world layouts need more.
-    private val DISC_DIR_REGEX = Regex("""(?i)^(cd|disc|dvd|part|pt|side)[\s._-]*\d+.*""")
+    // ponytail: bare marker+digit names only; extend if real-world layouts need more.
+    private val DISC_DIR_REGEX = Regex("""(?i)^(cd|disc|dvd|part|pt|side)[\s._-]*\d+([\s._-]*(of|/)\s*\d+)?$""")
 }

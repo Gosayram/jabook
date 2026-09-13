@@ -100,7 +100,11 @@ public interface LocalBookScanner {
     /**
      * Scan local storage for audiobooks.
      *
+     * @param knownDirectories Directories already present as books in the database.
+     *   Scanners may use this to force-scan directories that look unchanged by
+     *   mtime but were never scanned before (e.g. torrent-unpacked folders).
+     *   Empty set = scan everything.
      * @return Result containing list of scanned books or error
      */
-    public suspend fun scanAudiobooks(): Result<List<ScannedBook>, AppError>
+    public suspend fun scanAudiobooks(knownDirectories: Set<String> = emptySet()): Result<List<ScannedBook>, AppError>
 }

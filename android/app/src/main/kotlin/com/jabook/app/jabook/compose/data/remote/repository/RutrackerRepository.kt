@@ -695,27 +695,6 @@ public class RutrackerRepository
             }
 
         /**
-         * Check if user is authenticated.
-         *
-         * @return true if authenticated
-         */
-        public suspend fun isAuthenticated(): Boolean =
-            withContext(Dispatchers.IO) {
-                try {
-                    val response = api.getProfile()
-                    response.body()?.close()
-                    response.isSuccessful
-                } catch (e: Exception) {
-                    logger.w(
-                        { "Auth check failed" },
-                        e,
-                    )
-                    // Return false for any error - let caller handle specific error types if needed
-                    false
-                }
-            }
-
-        /**
          * Get search cache statistics.
          */
         public fun getCacheStatistics(): RutrackerSearchCache.CacheStatistics = searchCache.getStatistics()

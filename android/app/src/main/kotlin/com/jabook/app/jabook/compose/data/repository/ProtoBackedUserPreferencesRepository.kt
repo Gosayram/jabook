@@ -136,6 +136,20 @@ public class ProtoBackedUserPreferencesRepository
             update { addAllAttemptedCoverLookupBookIds(ids.distinct()) }
         }
 
+        override suspend fun getAuthUsername(): String =
+            try {
+                dataStore.data.first().authUsername
+            } catch (e: Exception) {
+                e.rethrowCancellation()
+                LogUtils.e("ProtoPrefs", "Failed to read auth username", e)
+                ""
+            }
+
+        override suspend fun setAuthUsername(username: String) {
+            if (username.isBlank()) return
+            update { setAuthUsername(username) }
+        }
+
         private suspend fun update(transform: UserPreferences.Builder.() -> Unit): Boolean =
             try {
                 dataStore.updateData { preferences -> preferences.toBuilder().apply(transform).build() }

@@ -188,6 +188,101 @@ public class IncrementalScanPolicyTest {
 
     // endregion
 
+    // region knownDirectories (old-mtime protection)
+
+    @Test
+    public fun `unknown directory with old mtimes is scanned despite unchanged files`() {
+        val scanTime = 10_000L
+
+        // Torrent-unpacked folder: files predate the last scan but the directory
+        // is not a known book yet — must be treated as changed.
+        val files =
+            listOf(
+                makeFileScanInfo("01.mp3", directory = "/books/newbook", lastModified = 1_000L),
+                makeFileScanInfo("02.mp3", directory = "/books/newbook", lastModified = 2_000L),
+            )
+
+        val result =
+            IncrementalScanPolicy.filterChangedFiles(
+                files,
+                lastScanTimestampMs = scanTime,
+                knownDirectories = setOf("/books/otherbook"),
+                graceWindowMs = 0L,
+            )
+
+        assertFalse(result.isFullScan)
+        assertEquals(2, result.filesToScan.size)
+        assertEquals(0, result.skippedCount)
+    }
+
+    @Test
+    public fun `known directory with no changes is skipped`() {
+        val scanTime = 10_000L
+
+        val files =
+            listOf(
+                makeFileScanInfo("01.mp3", directory = "/books/knownbook", lastModified = 1_000L),
+                makeFileScanInfo("02.mp3", directory = "/books/knownbook", lastModified = 2_000L),
+            )
+
+        val result =
+            IncrementalScanPolicy.filterChangedFiles(
+                files,
+                lastScanTimestampMs = scanTime,
+                knownDirectories = setOf("/books/knownbook"),
+                graceWindowMs = 0L,
+            )
+
+        assertFalse(result.isFullScan)
+        assertEquals(0, result.filesToScan.size)
+        assertEquals(2, result.skippedCount)
+    }
+
+    @Test
+    public fun `empty knownDirectories preserves mtime-only behavior`() {
+        val scanTime = 10_000L
+
+        val files =
+            listOf(
+                makeFileScanInfo("01.mp3", directory = "/books/a", lastModified = 1_000L),
+                makeFileScanInfo("02.mp3", directory = "/books/b", lastModified = 12_000L),
+            )
+
+        val result =
+            IncrementalScanPolicy.filterChangedFiles(
+                files,
+                lastScanTimestampMs = scanTime,
+                graceWindowMs = 0L,
+            )
+
+        assertEquals(1, result.filesToScan.size)
+        assertEquals("02.mp3", result.filesToScan.single().displayName)
+        assertEquals(1, result.skippedCount)
+    }
+
+    @Test
+    public fun `known directory with fresh modification is still scanned`() {
+        val scanTime = 10_000L
+
+        val files =
+            listOf(
+                makeFileScanInfo("01.mp3", directory = "/books/knownbook", lastModified = 12_000L),
+            )
+
+        val result =
+            IncrementalScanPolicy.filterChangedFiles(
+                files,
+                lastScanTimestampMs = scanTime,
+                knownDirectories = setOf("/books/knownbook"),
+                graceWindowMs = 0L,
+            )
+
+        assertEquals(1, result.filesToScan.size)
+        assertEquals(0, result.skippedCount)
+    }
+
+    // endregion
+
     // region Mixed scenarios
 
     @Test

@@ -108,11 +108,19 @@ public class LibraryScanWorker
                     }
                     setProgress(workDataOf("status" to applicationContext.getString(R.string.scan_status_starting)))
 
+                    // Dirs already known as books: the scanner force-scans anything NOT in
+                    // this set, so torrent-unpacked/copied folders with old mtimes are
+                    // never silently skipped by the incremental filter.
+                    val knownDirectories =
+                        PerfTrace.section(name = "LibraryScanWorker.loadKnownBookDirectories") {
+                            booksDao.getAllBookDirectories().toSet()
+                        }
+
                     // Watchdog: Cancel scan if no progress for 3 minutes
                     val scannerJob =
                         async {
                             PerfTrace.section(name = "LibraryScanWorker.scanAudiobooks") {
-                                bookScanner.scanAudiobooks()
+                                bookScanner.scanAudiobooks(knownDirectories)
                             }
                         }
 

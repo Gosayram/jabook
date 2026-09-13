@@ -58,9 +58,16 @@ public class RutrackerAuthService
             private const val TAG = "RutrackerAuthService"
             private val CP1251 = Charset.forName("windows-1251")
             private val MEDIA_TYPE_FORM = "application/x-www-form-urlencoded".toMediaType()
-            private const val MAX_RETRIES = 3
             private const val INITIAL_BACKOFF_MS = 1000L
             private const val REQUEST_TIMEOUT_MS = 15000L
+
+            // Login must feel fast: 2 attempts total, backoff capped at 5s
+            // (server Retry-After beyond that is clamped — see delayOverride in login()).
+            private const val LOGIN_MAX_ATTEMPTS = 2
+            private const val LOGIN_MAX_BACKOFF_MS = 5_000L
+
+            private const val LOGGED_IN_USERNAME_SELECTOR = "#logged-in-username"
+            private const val LOGIN_FORM_MARKER = "name=\"login_username\""
         }
 
         private var _lastAuthError: String? = null
@@ -105,9 +112,9 @@ public class RutrackerAuthService
                         retryWithBackoff(
                             config =
                                 RetryConfig(
-                                    maxRetries = MAX_RETRIES - 1,
+                                    maxRetries = LOGIN_MAX_ATTEMPTS - 1,
                                     initialDelayMs = INITIAL_BACKOFF_MS,
-                                    maxDelayMs = 60_000L,
+                                    maxDelayMs = LOGIN_MAX_BACKOFF_MS,
                                     backoffMultiplier = 2.0,
                                     shouldRetry = { throwable ->
                                         throwable is java.io.IOException ||
@@ -295,291 +302,100 @@ public class RutrackerAuthService
         }
 
         /**
-         * Validate authentication using multi-tier approach:
-         * 1. Profile page (most reliable)
-         * 2. Search page (fallback)
-         * 3. Index page (final fallback)
+         * Auth state parsed from a single GET index.php.
          *
-         * @param operationId Optional operation ID for logging correlation
-         * @return true if authenticated, false otherwise
+         * @property loggedIn true when the page shows the logged-in user element
+         * @property username parsed nickname, or null when absent
          */
-        public suspend fun validateAuth(operationId: String? = null): Boolean {
-            val validationId =
-                operationId?.let { "${it}_validation" }
-                    ?: logger.startOperation("validateAuth")
-            val startTime = System.currentTimeMillis()
-
-            return withContext(Dispatchers.IO) {
-                try {
-                    logger.log(validationId, "Authentication validation started")
-
-                    // Apply timeout to prevent hanging on provider blocks
-                    kotlinx.coroutines.withTimeout(REQUEST_TIMEOUT_MS) {
-                        // Test 1: Profile page (most reliable indicator)
-                        val profileResult = validateProfilePage(validationId)
-                        if (profileResult) {
-                            val duration = System.currentTimeMillis() - startTime
-                            logger.logSuccess(validationId, "Auth validated via profile", duration)
-                            return@withTimeout true
-                        }
-
-                        // Test 2: Search page (fallback)
-                        val searchResult = validateSearchPage(validationId)
-                        if (searchResult) {
-                            val duration = System.currentTimeMillis() - startTime
-                            logger.logSuccess(validationId, "Auth validated via search", duration)
-                            return@withTimeout true
-                        }
-
-                        // Test 3: Index page (final fallback)
-                        val indexResult = validateIndexPage(validationId)
-                        val duration = System.currentTimeMillis() - startTime
-
-                        if (indexResult) {
-                            logger.logSuccess(validationId, "Auth validated via index", duration)
-                        } else {
-                            logger.logWarning(validationId, "Auth validation failed - all tests failed")
-                            logger.logWithDuration(validationId, "Auth validation failed", duration)
-                        }
-
-                        return@withTimeout indexResult
-                    }
-                } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                    val duration = System.currentTimeMillis() - startTime
-                    logger.logError(validationId, "Validation timeout - provider may be blocking", e)
-                    logger.logWithDuration(validationId, "Validation timeout", duration)
-                    return@withContext false
-                } catch (e: Exception) {
-                    val duration = System.currentTimeMillis() - startTime
-                    logger.logError(validationId, "Validation exception", e)
-                    logger.logWithDuration(validationId, "Validation exception", duration)
-                    return@withContext false
-                } finally {
-                    if (operationId == null) {
-                        logger.endOperation(validationId, success = true)
-                    }
-                }
-            }
-        }
+        public data class IndexAuthState(
+            val loggedIn: Boolean,
+            val username: String?,
+        )
 
         /**
-         * Check basic connectivity to RuTracker.
-         * Used for diagnostics.
+         * Single-request auth check: fetches index.php and reports whether the
+         * logged-in-username element is present (plus the nickname itself).
+         * Throws on network failure so callers can distinguish "not logged in"
+         * from "could not check".
          */
-        public suspend fun checkConnectivity(operationId: String? = null): Boolean {
-            val checkId = operationId?.let { "${it}_conn" } ?: logger.startOperation("checkConnectivity")
-            return try {
-                logger.log(checkId, "Checking connectivity...")
-                val response = api.getIndex()
-                if (response.isSuccessful) {
-                    logger.logSuccess(checkId, "Connectivity check passed (HTTP ${response.code()})")
-                    true
-                } else {
-                    logger.logWarning(checkId, "Connectivity check failed (HTTP ${response.code()})")
-                    false
+        public suspend fun fetchIndexAuthState(): IndexAuthState =
+            withContext(Dispatchers.IO) {
+                val response =
+                    kotlinx.coroutines.withTimeout(REQUEST_TIMEOUT_MS) {
+                        api.getIndex()
+                    }
+                if (!response.isSuccessful) {
+                    logger.d { "Index auth check: HTTP ${response.code()}" }
+                    return@withContext IndexAuthState(loggedIn = false, username = null)
                 }
+                val rawBody = response.body()?.bytes() ?: ByteArray(0)
+                if (rawBody.isEmpty()) return@withContext IndexAuthState(loggedIn = false, username = null)
+                val document = org.jsoup.Jsoup.parse(String(rawBody, CP1251))
+
+                val username =
+                    document
+                        .select(LOGGED_IN_USERNAME_SELECTOR)
+                        .firstOrNull()
+                        ?.text()
+                        ?.trim()
+                        ?.takeIf { it.isNotEmpty() }
+                if (username != null) {
+                    return@withContext IndexAuthState(loggedIn = true, username = username)
+                }
+
+                val showsLoginForm = document.select("input[$LOGIN_FORM_MARKER]").isNotEmpty()
+                logger.d { "Index auth check: loggedIn=false, showsLoginForm=$showsLoginForm" }
+                IndexAuthState(loggedIn = false, username = null)
+            }
+
+        /**
+         * Validate authentication with a single GET index.php.
+         *
+         * @param operationId Optional operation ID for logging correlation
+         * @return true if authenticated, false otherwise (including on any error)
+         */
+        public suspend fun validateAuth(operationId: String? = null): Boolean {
+            val validationId = operationId?.let { "${it}_validation" } ?: logger.startOperation("validateAuth")
+            val startTime = System.currentTimeMillis()
+
+            return try {
+                logger.log(validationId, "Authentication validation started")
+                val state = fetchIndexAuthState()
+                val duration = System.currentTimeMillis() - startTime
+                if (state.loggedIn) {
+                    logger.logSuccess(validationId, "Auth validated via index", duration)
+                } else {
+                    logger.logWarning(validationId, "Auth validation failed - not logged in")
+                    logger.logWithDuration(validationId, "Auth validation failed", duration)
+                }
+                state.loggedIn
+            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                val duration = System.currentTimeMillis() - startTime
+                logger.logError(validationId, "Validation timeout - provider may be blocking", e)
+                logger.logWithDuration(validationId, "Validation timeout", duration)
+                false
             } catch (e: Exception) {
-                logger.logError(checkId, "Connectivity check failed with exception", e)
+                val duration = System.currentTimeMillis() - startTime
+                logger.logError(validationId, "Validation exception", e)
+                logger.logWithDuration(validationId, "Validation exception", duration)
                 false
             } finally {
                 if (operationId == null) {
-                    logger.endOperation(checkId, success = true)
+                    logger.endOperation(validationId, success = true)
                 }
-            }
-        }
-
-        /**
-         * Test 1: Validate via profile page access.
-         * Most reliable indicator of authentication status.
-         */
-        private suspend fun validateProfilePage(operationId: String): Boolean {
-            return try {
-                val response =
-                    kotlinx.coroutines.withTimeout(REQUEST_TIMEOUT_MS) {
-                        api.getProfile()
-                    }
-
-                if (!response.isSuccessful) {
-                    logger.log(operationId, "Profile check: HTTP ${response.code()}", LogLevel.DEBUG)
-                    return false
-                }
-
-                val rawBody =
-                    response.body()?.bytes() ?: run {
-                        logger.log(operationId, "Profile check: empty body", LogLevel.DEBUG)
-                        return false
-                    }
-                val bodyString = String(rawBody, CP1251).lowercase()
-                val finalUrl =
-                    response
-                        .raw()
-                        .request.url
-                        .toString()
-
-                // Check for redirect to login
-                if (finalUrl.contains("login.php")) {
-                    logger.log(operationId, "Profile check: redirected to login", LogLevel.DEBUG)
-                    return false
-                }
-
-                // Check for login form presence (not authenticated)
-                if (bodyString.contains("name=\"login_username\"")) {
-                    logger.log(operationId, "Profile check: login form present", LogLevel.DEBUG)
-                    return false
-                }
-
-                // Check for profile elements (authenticated user)
-                val hasLogout =
-                    bodyString.contains("login.php?logout=1") ||
-                        bodyString.contains("mode=logout")
-                val hasProfile =
-                    bodyString.contains("личный кабинет") ||
-                        bodyString.contains("profile") ||
-                        bodyString.contains("личные данные")
-
-                val isAuthenticated = hasLogout || hasProfile
-                logger.log(operationId, "Profile check: logout=$hasLogout, profile=$hasProfile", LogLevel.DEBUG)
-
-                isAuthenticated
-            } catch (e: Exception) {
-                logger.logError(operationId, "Profile check exception", e)
-                false
-            }
-        }
-
-        /**
-         * Test 2: Validate via search page access.
-         * Fallback if profile page check is inconclusive.
-         */
-        private suspend fun validateSearchPage(operationId: String): Boolean {
-            return try {
-                // Perform a simple search to test authentication
-                // searchTopics only accepts query and forumIds (optional)
-                val response =
-                    kotlinx.coroutines.withTimeout(REQUEST_TIMEOUT_MS) {
-                        api.searchTopics(
-                            query = "test",
-                            forumIds = "33", // Audiobooks forum
-                        )
-                    }
-
-                if (!response.isSuccessful) {
-                    logger.log(operationId, "Search check: HTTP ${response.code()}", LogLevel.DEBUG)
-                    return false
-                }
-
-                // searchTopics now returns Response<ResponseBody>
-                val rawBytes = response.body()?.bytes()
-                val bodyString =
-                    if (rawBytes != null) {
-                        String(rawBytes, charset("windows-1251")).lowercase()
-                    } else {
-                        logger.log(operationId, "Search check: empty body", LogLevel.DEBUG)
-                        return false
-                    }
-                val finalUrl =
-                    response
-                        .raw()
-                        .request.url
-                        .toString()
-
-                // Check for redirect to login
-                if (finalUrl.contains("login.php")) {
-                    logger.log(operationId, "Search check: redirected to login", LogLevel.DEBUG)
-                    return false
-                }
-
-                // Check for auth required messages
-                val requiresAuth =
-                    bodyString.contains("profile.php?mode=register") ||
-                        bodyString.contains("авторизация") ||
-                        bodyString.contains("войдите в систему")
-
-                if (requiresAuth) {
-                    logger.log(operationId, "Search check: auth required message found", LogLevel.DEBUG)
-                    return false
-                }
-
-                // Check for search page elements (authenticated)
-                val hasSearchElements =
-                    bodyString.contains("поиск") ||
-                        bodyString.contains("search") ||
-                        bodyString.contains("форум") ||
-                        bodyString.length > 1000 // Search page usually >1KB
-
-                logger.log(
-                    operationId,
-                    "Search check: hasElements=$hasSearchElements, size=${bodyString.length}",
-                    LogLevel.DEBUG,
-                )
-
-                hasSearchElements
-            } catch (e: Exception) {
-                logger.logError(operationId, "Search check exception", e)
-                false
             }
         }
 
         /**
          * Fetch the real username from the forum page HTML.
-         * Parses the logged-in-username element from the index page.
+         * Reuses the single index.php fetch from [fetchIndexAuthState].
          *
          * @return extracted username, or null if not found / request fails
          */
-        public suspend fun fetchUsername(): String? {
-            return try {
-                val response =
-                    kotlinx.coroutines.withTimeout(5000L) {
-                        api.getIndex()
-                    }
-                if (!response.isSuccessful) return null
-
-                val rawBody = response.body()?.bytes() ?: return null
-                if (rawBody.isEmpty()) return null
-                val bodyString = String(rawBody, CP1251)
-
-                org.jsoup.Jsoup
-                    .parse(bodyString)
-                    .select("#logged-in-username")
-                    .firstOrNull()
-                    ?.text()
-                    ?.trim()
-                    ?.takeIf { it.isNotEmpty() }
+        public suspend fun fetchUsername(): String? =
+            try {
+                fetchIndexAuthState().username
             } catch (_: Exception) {
                 null
-            }
-        }
-
-        /**
-         * Test 3: Validate via index page access.
-         * Final fallback - checks if forum index is accessible.
-         */
-        private suspend fun validateIndexPage(operationId: String): Boolean =
-            try {
-                // Test 3: Index page (final fallback) using api.getIndex()
-                val response =
-                    kotlinx.coroutines.withTimeout(REQUEST_TIMEOUT_MS) {
-                        api.getIndex()
-                    }
-                if (response.isSuccessful) {
-                    val bodyString = response.body()?.string()?.lowercase() ?: ""
-                    // Index page title contains "Форум" on every mirror
-                    val isValidIndex = bodyString.contains("форум")
-                    logger.log(
-                        operationId,
-                        "Index check: HTTP ${response.code()}, validContent=$isValidIndex",
-                        LogLevel.DEBUG,
-                    )
-                    isValidIndex
-                } else {
-                    logger.logWarning(operationId, "Index check failed: HTTP ${response.code()}")
-                    false
-                }
-            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                logger.logError(operationId, "Index check timeout", e)
-                false
-            } catch (e: Exception) {
-                logger.logError(operationId, "Index check exception", e)
-                false
             }
     }

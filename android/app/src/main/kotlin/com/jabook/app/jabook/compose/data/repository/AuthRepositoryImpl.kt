@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.repository
 
+import com.jabook.app.jabook.compose.core.di.AppDispatchers
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.auth.CookiePersistenceManager
 import com.jabook.app.jabook.compose.data.auth.RutrackerAuthService
@@ -33,6 +34,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import javax.inject.Inject
@@ -50,8 +52,18 @@ public class AuthRepositoryImpl
         private val cookieJar: PersistentCookieJar,
         private val mirrorManager: MirrorManager,
         private val cookiePersistence: CookiePersistenceManager,
+        private val preferencesRepository: UserPreferencesRepository,
+        private val dispatchers: AppDispatchers,
         private val loggerFactory: LoggerFactory,
     ) : AuthRepository {
+        private companion object {
+            /** How long user-initiated login waits for an in-flight startup check. */
+            private const val LOGIN_MUTEX_TIMEOUT_MS = 10_000L
+
+            /** Legacy placeholder nickname — never persisted, never emitted. */
+            private const val FALLBACK_USERNAME = "User"
+        }
+
         private val logger = loggerFactory.get("AuthRepository")
         private val _authStatus = MutableStateFlow<AuthStatus>(AuthStatus.Unauthenticated)
         override val authStatus: StateFlow<AuthStatus> = _authStatus.asStateFlow()
@@ -59,7 +71,7 @@ public class AuthRepositoryImpl
         private val scope =
             kotlinx.coroutines.CoroutineScope(
                 kotlinx.coroutines.SupervisorJob() +
-                    kotlinx.coroutines.Dispatchers.IO +
+                    dispatchers.io +
                     kotlinx.coroutines.CoroutineExceptionHandler { _, e ->
                         LogUtils.e("AuthRepository", "Coroutine exception", e)
                     },
@@ -82,30 +94,83 @@ public class AuthRepositoryImpl
             }
         }
 
+        /**
+         * A name we are willing to show or persist. The literal "User" is a
+         * legacy placeholder and must never reach storage or status again.
+         */
+        private fun isRealName(name: String?): Boolean = !name.isNullOrBlank() && name != FALLBACK_USERNAME
+
+        /**
+         * Persist a nickname when it is real ("", blank and "User" are never stored).
+         * @return the name when persisted, null otherwise
+         */
+        private suspend fun persistAuthUsername(name: String?): String? {
+            if (!isRealName(name)) return null
+            // ponytail: pre-existing detekt UnsafeCallOnNullableType; same behavior as name!!
+            val value = name ?: return null
+            runCatching { preferencesRepository.setAuthUsername(value) }
+                .onFailure { logger.e({ "Failed to persist auth username" }, it) }
+            return name
+        }
+
+        /**
+         * Single background index.php check shared by all post-Authenticated paths:
+         * confirms the session (and persists the server-reported nickname) or
+         * demotes to NotAuthenticated when the page shows a login form.
+         * Network errors keep the current status.
+         */
+        private fun verifySessionInBackground() {
+            scope.launch {
+                val state =
+                    try {
+                        authService.fetchIndexAuthState()
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        logger.d({ "Background session check failed, keeping current status" }, e)
+                        return@launch
+                    }
+                if (state.loggedIn) {
+                    val name = persistAuthUsername(state.username)
+                    if (name != null && _authStatus.value is AuthStatus.Authenticated) {
+                        _authStatus.value = AuthStatus.Authenticated(name)
+                    }
+                } else {
+                    logger.w { "Background session check: page shows no logged-in user, demoting status" }
+                    _authStatus.value = AuthStatus.Unauthenticated
+                }
+            }
+        }
+
         private suspend fun checkAuthStatus() {
             val cookies = cookieJar.loadForRequest(rutrackerUrl)
             val hasSession = cookies.any { it.name == "bb_session" }
 
             if (hasSession) {
-                // Validate with server (strict check) with timeout handling
-                val isValid =
+                // Single-request server check (index.php)
+                val state =
                     try {
-                        authService.validateAuth()
+                        authService.fetchIndexAuthState()
                     } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
                         logger.e({ "Auth validation timeout - provider may be blocking" }, e)
-                        false
+                        null
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
                         logger.e({ "Auth validation error" }, e)
-                        false
+                        null
                     }
 
-                if (isValid) {
+                if (state?.loggedIn == true) {
                     val stored = secureStorage.getCredentials()
                     // WebView login deliberately never exposes or stores the entered password.
                     // A server-validated session is sufficient to be authenticated.
-                    _authStatus.value = AuthStatus.Authenticated(stored?.username?.takeIf { it.isNotBlank() } ?: "User")
+                    val knownName =
+                        persistAuthUsername(state.username)
+                            ?: stored?.username?.takeIf { isRealName(it) }
+                            ?: preferencesRepository.getAuthUsername().takeIf { isRealName(it) }
+                            ?: ""
+                    _authStatus.value = AuthStatus.Authenticated(knownName)
                 } else {
                     // Cookies present but invalid (expired or guest mode)
                     logger.d { "Session expired or invalid, attempting re-login if credentials exist" }
@@ -148,9 +213,15 @@ public class AuthRepositoryImpl
 
         override suspend fun login(credentials: UserCredentials): Result<Boolean> {
             useTrustedAuthenticationMirror()
-            // Check if login is already in progress
-            if (!loginMutex.tryLock()) {
-                logger.w { "Login already in progress, ignoring duplicate request" }
+            // Wait briefly for any in-flight startup auth check instead of failing
+            // instantly (a user tapping login during init must not get a spurious error).
+            val acquired =
+                withTimeoutOrNull(LOGIN_MUTEX_TIMEOUT_MS) {
+                    loginMutex.lock()
+                    true
+                }
+            if (acquired != true) {
+                logger.w { "Login mutex still held after ${LOGIN_MUTEX_TIMEOUT_MS}ms, aborting" }
                 return Result.failure(IllegalStateException("Login already in progress"))
             }
 
@@ -161,45 +232,23 @@ public class AuthRepositoryImpl
 
                     when (val result = authService.login(credentials)) {
                         is RutrackerAuthService.AuthResult.Success -> {
-                            // Validate authentication to ensure it actually worked
-                            val isValid =
-                                try {
-                                    authService.validateAuth(operationId)
-                                } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                                    logger.e({ "[$operationId] Validation timeout - provider may be blocking" }, e)
-                                    _authStatus.value =
-                                        AuthStatus.Error(
-                                            "Таймаут при проверке авторизации. Возможно, провайдер блокирует соединение.",
-                                        )
-                                    return Result.failure(Exception("Authentication validation timeout"))
-                                } catch (e: CancellationException) {
-                                    throw e
-                                } catch (e: Exception) {
-                                    logger.e({ "[$operationId] Validation error" }, e)
-                                    false
-                                }
-
-                            if (isValid) {
-                                // Persist cookies to all layers (Database, WebView, SecureStorage)
-                                try {
-                                    cookiePersistence.persistCookiesMultiStage(rutrackerUrl.toString())
-                                    logger.d { "[$operationId] Cookies persisted to all layers" }
-                                } catch (e: CancellationException) {
-                                    throw e
-                                } catch (e: Exception) {
-                                    logger.e({ "[$operationId] Cookie persistence failed" }, e)
-                                }
-
-                                _authStatus.value = AuthStatus.Authenticated(credentials.username)
-                                logger.i { "[$operationId] Login successful and validated" }
-                                Result.success(true)
-                            } else {
-                                // Login appeared to succeed but validation failed
-                                logger.w { "[$operationId] Login succeeded but validation failed" }
-                                _authStatus.value =
-                                    AuthStatus.Error("Проверка авторизации не прошла. Попробуйте еще раз.")
-                                Result.failure(Exception("Authentication validation failed"))
+                            // Login POST parsed as success — transition immediately.
+                            // Session is confirmed in the background (single index.php
+                            // fetch) so the UI never waits on extra round-trips.
+                            try {
+                                cookiePersistence.persistCookiesMultiStage(rutrackerUrl.toString())
+                                logger.d { "[$operationId] Cookies persisted to all layers" }
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                logger.e({ "[$operationId] Cookie persistence failed" }, e)
                             }
+
+                            persistAuthUsername(credentials.username)
+                            _authStatus.value = AuthStatus.Authenticated(credentials.username)
+                            logger.i { "[$operationId] Login successful" }
+                            verifySessionInBackground()
+                            Result.success(true)
                         }
                         is RutrackerAuthService.AuthResult.Error -> {
                             logger.w { "[$operationId] Login failed: ${result.message}" }
@@ -244,28 +293,21 @@ public class AuthRepositoryImpl
 
                     when (val result = authService.login(credentials, captchaCode, captchaData)) {
                         is RutrackerAuthService.AuthResult.Success -> {
-                            // Validate authentication to ensure it actually worked
-                            val isValid = authService.validateAuth(operationId)
-
-                            if (isValid) {
-                                // Persist cookies to all layers
-                                try {
-                                    cookiePersistence.persistCookiesMultiStage(rutrackerUrl.toString())
-                                    logger.d { "[$operationId] Cookies persisted to all layers" }
-                                } catch (e: CancellationException) {
-                                    throw e
-                                } catch (e: Exception) {
-                                    logger.e({ "[$operationId] Cookie persistence failed" }, e)
-                                }
-
-                                _authStatus.value = AuthStatus.Authenticated(credentials.username)
-                                logger.i { "[$operationId] Captcha login successful and validated" }
-                                Result.success(true)
-                            } else {
-                                logger.w { "[$operationId] Captcha login succeeded but validation failed" }
-                                _authStatus.value = AuthStatus.Error("Login validation failed")
-                                Result.failure(Exception("Authentication validation failed"))
+                            // Transition immediately; background check confirms the session.
+                            try {
+                                cookiePersistence.persistCookiesMultiStage(rutrackerUrl.toString())
+                                logger.d { "[$operationId] Cookies persisted to all layers" }
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                logger.e({ "[$operationId] Cookie persistence failed" }, e)
                             }
+
+                            persistAuthUsername(credentials.username)
+                            _authStatus.value = AuthStatus.Authenticated(credentials.username)
+                            logger.i { "[$operationId] Captcha login successful" }
+                            verifySessionInBackground()
+                            Result.success(true)
                         }
                         is RutrackerAuthService.AuthResult.Error -> {
                             logger.w { "[$operationId] Captcha login failed: ${result.message}" }
@@ -311,7 +353,7 @@ public class AuthRepositoryImpl
 
         override suspend fun saveCredentials(credentials: UserCredentials) {
             secureStorage.saveCredentials(credentials)
-            // If we just saved credentials and are authenticated, likely we need to update status username if it was "User"
+            persistAuthUsername(credentials.username)
             if (_authStatus.value is AuthStatus.Authenticated) {
                 _authStatus.value = AuthStatus.Authenticated(credentials.username)
             }
@@ -336,24 +378,16 @@ public class AuthRepositoryImpl
             val cookies = cookieJar.loadForRequest(rutrackerUrl)
             val hasSession = cookies.any { it.name == "bb_session" }
             if (hasSession) {
+                // Authenticate immediately with the best-known nickname (stored
+                // credentials / persisted preference). The real forum nickname is
+                // fetched in the background so WebView login completes instantly.
                 val stored = secureStorage.getCredentials()
-                var username = stored?.username?.takeIf { it.isNotBlank() } ?: "User"
-
-                // Fetch real username from forum page (best-effort)
-                val fetched =
-                    try {
-                        authService.fetchUsername()
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        logger.d { "Username fetch failed during cookie sync: ${e.message}" }
-                        null
-                    }
-                if (fetched != null) {
-                    username = fetched
-                }
-
-                _authStatus.value = AuthStatus.Authenticated(username)
+                val knownName =
+                    persistAuthUsername(stored?.username)
+                        ?: preferencesRepository.getAuthUsername().takeIf { isRealName(it) }
+                        ?: ""
+                _authStatus.value = AuthStatus.Authenticated(knownName)
+                verifySessionInBackground()
             }
         }
 

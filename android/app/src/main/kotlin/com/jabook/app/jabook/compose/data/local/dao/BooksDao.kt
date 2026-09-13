@@ -587,6 +587,14 @@ public interface BooksDao {
     public suspend fun getAllBookPaths(): List<BookPathInfo>
 
     /**
+     * All non-null book directories (local_path) as a lightweight projection.
+     * Passed into the scanner so incremental scans force-scan directories that
+     * are not yet known books (their old mtimes would otherwise skip them forever).
+     */
+    @Query("SELECT local_path FROM books WHERE local_path IS NOT NULL")
+    public suspend fun getAllBookDirectories(): List<String>
+
+    /**
      * Deletes a book by ID.
      * Chapters will be cascade deleted due to foreign key constraint.
      */

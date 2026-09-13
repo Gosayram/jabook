@@ -105,4 +105,14 @@ public interface UserPreferencesRepository {
      * Persist book IDs as cover-lookup-attempted so they are never retried.
      */
     public suspend fun markCoverLookupAttempted(ids: Collection<String>)
+
+    /**
+     * RuTracker nickname of the authenticated user (blank = unknown).
+     */
+    public suspend fun getAuthUsername(): String
+
+    /**
+     * Persist the RuTracker nickname. Blank values are ignored.
+     */
+    public suspend fun setAuthUsername(username: String)
 }

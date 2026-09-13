@@ -169,6 +169,9 @@ message UserPreferences {
 
   // Book IDs whose remote cover lookup was already attempted (never retried).
   repeated string attempted_cover_lookup_book_ids = 77;
+
+  // RuTracker nickname of the authenticated user (blank = unknown).
+  string auth_username = 78;
 }
 
 message SleepTimerState {

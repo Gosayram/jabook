@@ -145,33 +145,44 @@ class RutrackerAuthServiceTest {
         }
 
     @Test
-    fun `validateAuth returns false when all validation probes show session expired`() =
+    fun `validateAuth returns false when index page shows a login form`() =
         runTest {
-            enqueueHtmlFixture("login_session_expired.html")
-            enqueueHtmlFixture("login_session_expired.html")
             enqueueHtmlFixture("login_session_expired.html")
 
             val result = authService.validateAuth()
 
             assertFalse(result)
-            val profileRequest = mockWebServer.takeRequest(1, TimeUnit.SECONDS)
-            val searchRequest = mockWebServer.takeRequest(1, TimeUnit.SECONDS)
             val indexRequest = mockWebServer.takeRequest(1, TimeUnit.SECONDS)
-            assertNotNull(profileRequest)
-            assertNotNull(searchRequest)
             assertNotNull(indexRequest)
-            assertEquals("/forum/profile.php?mode=viewprofile", profileRequest?.path)
-            assertTrue(searchRequest?.path?.startsWith("/forum/tracker.php?nm=test&f=33") == true)
             assertEquals("/forum/index.php", indexRequest?.path)
+            assertEquals(1, mockWebServer.requestCount)
+        }
+
+    @Test
+    fun `fetchIndexAuthState returns logged in and username when element present`() =
+        runTest {
+            enqueueHtmlFixture("index_logged_in.html")
+
+            val state = authService.fetchIndexAuthState()
+
+            assertTrue(state.loggedIn)
+            assertEquals("atlet99", state.username)
+        }
+
+    @Test
+    fun `fetchIndexAuthState returns not logged in when login form present`() =
+        runTest {
+            enqueueHtmlFixture("login_session_expired.html")
+
+            val state = authService.fetchIndexAuthState()
+
+            assertFalse(state.loggedIn)
+            assertNull(state.username)
         }
 
     @Test
     fun `login retries transient network failures and succeeds on final attempt`() =
         runTest {
-            mockWebServer.enqueue(
-                MockResponse()
-                    .setSocketPolicy(SocketPolicy.DISCONNECT_AT_START),
-            )
             mockWebServer.enqueue(
                 MockResponse()
                     .setSocketPolicy(SocketPolicy.DISCONNECT_AT_START),
@@ -185,13 +196,14 @@ class RutrackerAuthServiceTest {
 
             assertEquals(RutrackerAuthService.AuthResult.Success, result)
             assertNull(authService.lastAuthError)
-            assertEquals(3, mockWebServer.requestCount)
+            // Login allows at most 2 attempts (1 retry).
+            assertEquals(2, mockWebServer.requestCount)
         }
 
     @Test
     fun `login returns no connection error after exhausting retry attempts`() =
         runTest {
-            repeat(3) {
+            repeat(2) {
                 mockWebServer.enqueue(
                     MockResponse()
                         .setSocketPolicy(SocketPolicy.DISCONNECT_AT_START),
@@ -208,7 +220,7 @@ class RutrackerAuthServiceTest {
                 result,
             )
             assertEquals(RuTrackerError.NoConnection.message, authService.lastAuthError)
-            assertEquals(3, mockWebServer.requestCount)
+            assertEquals(2, mockWebServer.requestCount)
         }
 
     @Test

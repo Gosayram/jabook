@@ -50,14 +50,20 @@ class ScanPathValidatorTest {
     fun `disc-like directory names are detected for multi-disc merge`() {
         assertTrue(ScanPathValidator.isDiscDirectory("CD1"))
         assertTrue(ScanPathValidator.isDiscDirectory("cd 2"))
+        assertTrue(ScanPathValidator.isDiscDirectory("cd1"))
         assertTrue(ScanPathValidator.isDiscDirectory("Disc_3"))
-        assertTrue(ScanPathValidator.isDiscDirectory("Part 4 - The Return"))
         assertTrue(ScanPathValidator.isDiscDirectory("dvd-05"))
         assertTrue(ScanPathValidator.isDiscDirectory("Side 1"))
+        assertTrue(ScanPathValidator.isDiscDirectory("Part 2 of 3"))
+        assertTrue(ScanPathValidator.isDiscDirectory("Disc 2/3"))
 
         assertFalse(ScanPathValidator.isDiscDirectory("Book4"))
         assertFalse(ScanPathValidator.isDiscDirectory("CD"))
+        assertFalse(ScanPathValidator.isDiscDirectory("SideA"))
         assertFalse(ScanPathValidator.isDiscDirectory("Partners"))
         assertFalse(ScanPathValidator.isDiscDirectory("2001 A Space Odyssey"))
+        // A named part folder is a distinct book, not a disc of the parent book
+        assertFalse(ScanPathValidator.isDiscDirectory("Part 1 - The Fellowship"))
+        assertFalse(ScanPathValidator.isDiscDirectory("Part 4 - The Return"))
     }
 }
