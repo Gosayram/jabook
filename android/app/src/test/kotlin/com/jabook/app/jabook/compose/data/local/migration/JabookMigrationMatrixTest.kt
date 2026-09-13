@@ -33,15 +33,17 @@ import java.io.File
 
 /**
  * Exhaustive pairwise migration matrix (spotube-style): for every exported
- * schema version N (30..34), build a real DB at vN, run all migrations up to
- * v35, and validate the result against the exported 35.json schema.
+ * schema version N (30..35), build a real DB at vN, run all migrations up to
+ * v36, and validate the result against the exported 36.json schema.
  *
  * Coverage is bounded by exported schemas: android/app/schemas/ only contains
- * JabookDatabase 30-35.json. Add 29.json (and older) to extend the matrix.
+ * JabookDatabase 30-36.json. Add 29.json (and older) to extend the matrix.
  *
- * The v34→v35 hop additionally runs the data-integrity invariants (dedup of
- * duplicate normalized search queries, preservation of distinct rows) from
- * Migration34To35Test — folded into the matrix instead of duplicated.
+ * The v34→v35 and v35→v36 hops additionally run the data-integrity invariants
+ * (dedup of duplicate normalized search queries, preservation of distinct
+ * rows) from Migration34To35Test — folded into the matrix instead of
+ * duplicated. The v35→v36 hop also runs against a BROKEN v35 shape
+ * (`normalized_query DEFAULT ''` + wrong index name) to prove the heal.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -53,22 +55,84 @@ class JabookMigrationMatrixTest {
             32 to MIGRATION_32_33,
             33 to MIGRATION_33_34,
             34 to MIGRATION_34_35,
+            35 to MIGRATION_35_36,
         )
 
     @Test
-    fun `migrate from v30 to v35`() = matrix(30)
+    fun `migrate from v30 to v36`() = matrix(30)
 
     @Test
-    fun `migrate from v31 to v35`() = matrix(31)
+    fun `migrate from v31 to v36`() = matrix(31)
 
     @Test
-    fun `migrate from v32 to v35`() = matrix(32)
+    fun `migrate from v32 to v36`() = matrix(32)
 
     @Test
-    fun `migrate from v33 to v35`() = matrix(33)
+    fun `migrate from v33 to v36`() = matrix(33)
 
     @Test
-    fun `migrate from v34 to v35 preserves and dedupes search history`() = matrix(34, seedSearchHistory = true)
+    fun `migrate from v34 to v36 preserves and dedupes search history`() = matrix(34, seedSearchHistory = true)
+
+    @Test
+    fun `migrate from v35 to v36 keeps healthy rows`() {
+        // A healthy v35 already has the unique index, so only distinct
+        // normalized keys can be seeded here.
+        val db = createSchemaAt(35)
+        try {
+            insertHistory(db, "Foo", 1_000L)
+            insertHistory(db, "bar", 5_000L)
+            insertHistory(db, "A\tB\nC", 6_000L)
+            MIGRATION_35_36.migrate(db)
+            db.version = 36
+            validateAgainst(db, version = 36)
+            assertEquals(3, count(db, "SELECT COUNT(*) FROM search_history"))
+            assertEquals(
+                0,
+                count(db, "SELECT COUNT(*) FROM search_history WHERE normalized_query = '' OR normalized_query IS NULL"),
+            )
+        } finally {
+            db.close()
+        }
+    }
+
+    @Test
+    fun `migrate from broken v35 to v36 heals schema and dedupes`() {
+        val db = createSchemaAt(35)
+        try {
+            reshapeToBrokenV35(db)
+            seedSearchHistory(db)
+            // The broken v35 backfilled every row with the DEFAULT '' key.
+            db.execSQL("UPDATE search_history SET normalized_query = ''")
+            MIGRATION_35_36.migrate(db)
+            db.version = 36
+            validateAgainst(db, version = 36)
+            // The legacy wrong-named index must not survive the rebuild.
+            assertFalse(indexExists(db, "idx_search_history_normalized_query"))
+            assertSearchHistoryInvariants(db)
+        } finally {
+            db.close()
+        }
+    }
+
+    /**
+     * Recreates search_history exactly as the pre-fix v35 migration left it:
+     * `normalized_query` with `DEFAULT ''` and an index named
+     * `idx_search_history_normalized_query` instead of Room's expected name.
+     */
+    private fun reshapeToBrokenV35(db: SupportSQLiteDatabase) {
+        db.execSQL("DROP INDEX IF EXISTS `index_search_history_normalized_query`")
+        db.execSQL("ALTER TABLE `search_history` RENAME TO `search_history_old`")
+        db.execSQL(
+            "CREATE TABLE `search_history` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`query` TEXT NOT NULL, " +
+                "`normalized_query` TEXT NOT NULL DEFAULT '', " +
+                "`timestamp` INTEGER NOT NULL, " +
+                "`result_count` INTEGER NOT NULL)",
+        )
+        db.execSQL("DROP TABLE `search_history_old`")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `idx_search_history_normalized_query` ON `search_history` (`normalized_query`)")
+    }
 
     private fun matrix(
         startVersion: Int,
@@ -81,8 +145,8 @@ class JabookMigrationMatrixTest {
                 .filter { (from, _) -> from >= startVersion }
                 .sortedBy { (from, _) -> from }
                 .forEach { (_, migration) -> migration.migrate(db) }
-            db.version = 35
-            validateAgainst(db, version = 35)
+            db.version = 36
+            validateAgainst(db, version = 36)
             if (seedSearchHistory) assertSearchHistoryInvariants(db)
         } finally {
             db.close()
@@ -194,6 +258,13 @@ class JabookMigrationMatrixTest {
                 put("timestamp", timestamp)
                 put("result_count", 0)
             }
+        // v34 and older have no normalized_query column yet; mirror the runtime
+        // normalization only where the column exists (v35+, NOT NULL, no DEFAULT).
+        val hasNormalizedColumn =
+            columnExists(db, "search_history", "normalized_query")
+        if (hasNormalizedColumn) {
+            values.put("normalized_query", query.trim().replace(Regex("\\s+"), " ").lowercase())
+        }
         return db.insert("search_history", SQLiteDatabase.CONFLICT_FAIL, values)
     }
 

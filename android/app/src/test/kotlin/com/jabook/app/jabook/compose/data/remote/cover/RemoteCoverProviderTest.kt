@@ -72,6 +72,7 @@ class RemoteCoverProviderTest {
                 olBaseUrl = base,
                 googleBaseUrl = base,
                 olCoverBaseUrl = base,
+                authorTodayBaseUrl = server.url("/search").toString(),
             )
     }
 
@@ -83,6 +84,7 @@ class RemoteCoverProviderTest {
     @Test
     fun `openlibrary hit returns covers url`() =
         runBlocking {
+            server.enqueue(atEmpty())
             server.enqueue(jsonBody("""{"docs":[{"cover_i":12345,"title":"Война и мир","author_name":["Лев Толстой"]}]}"""))
             server.enqueue(jsonBody("""{"items":[]}"""))
             server.enqueue(portraitImage())
@@ -91,16 +93,17 @@ class RemoteCoverProviderTest {
                 server.url("/b/id/12345-L.jpg").toString(),
                 provider.lookup("Война и мир", "Лев Толстой"),
             )
-            assertEquals(3, server.requestCount)
+            assertEquals(4, server.requestCount)
             assertEquals(
-                listOf("/search.json", "/books/v1/volumes", "/b/id/12345-L.jpg"),
-                recordedPaths(3),
+                listOf("/search", "/search.json", "/books/v1/volumes", "/b/id/12345-L.jpg"),
+                recordedPaths(4),
             )
         }
 
     @Test
     fun `openlibrary miss falls back to google and upgrades http thumbnail to https`() =
         runBlocking {
+            server.enqueue(atEmpty())
             server.enqueue(jsonBody("""{"docs":[{"title":"Другая книга","author_name":["Ктото Другой"]}]}"""))
             val thumbnailUrl = server.url("/content?id=x").toString()
             server.enqueue(
@@ -115,12 +118,13 @@ class RemoteCoverProviderTest {
                 thumbnailUrl.replace("http://", "https://"),
                 provider.lookup("Мастер и Маргарита", "Булгаков"),
             )
-            assertEquals(3, server.requestCount)
+            assertEquals(4, server.requestCount)
         }
 
     @Test
     fun `both sources miss returns null`() =
         runBlocking {
+            server.enqueue(atEmpty())
             server.enqueue(jsonBody("""{"docs":[]}"""))
             server.enqueue(jsonBody("""{"items":[]}"""))
 
@@ -132,6 +136,7 @@ class RemoteCoverProviderTest {
         runBlocking {
             server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AT_START))
             server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AT_START))
+            server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AT_START))
 
             assertNull(provider.lookup("Война и мир", "Лев Толстой"))
         }
@@ -139,6 +144,7 @@ class RemoteCoverProviderTest {
     @Test
     fun `http error responses are treated as a miss`() =
         runBlocking {
+            server.enqueue(MockResponse().setResponseCode(500))
             server.enqueue(MockResponse().setResponseCode(500))
             server.enqueue(MockResponse().setResponseCode(404))
 
@@ -148,6 +154,7 @@ class RemoteCoverProviderTest {
     @Test
     fun `inaccurate candidate is skipped in favour of the next one`() =
         runBlocking {
+            server.enqueue(atEmpty())
             server.enqueue(
                 jsonBody(
                     """{"docs":[""" +
@@ -163,14 +170,15 @@ class RemoteCoverProviderTest {
                 provider.lookup("Война и мир", "Лев Толстой"),
             )
             assertEquals(
-                listOf("/search.json", "/books/v1/volumes", "/b/id/2-L.jpg"),
-                recordedPaths(3),
+                listOf("/search", "/search.json", "/books/v1/volumes", "/b/id/2-L.jpg"),
+                recordedPaths(4),
             )
         }
 
     @Test
     fun `higher scored candidate image is fetched first`() =
         runBlocking {
+            server.enqueue(atEmpty())
             server.enqueue(
                 jsonBody(
                     """{"docs":[""" +
@@ -187,15 +195,16 @@ class RemoteCoverProviderTest {
             )
             // Exact match (score 1.0) outranks the partial one: only its image is fetched.
             assertEquals(
-                listOf("/search.json", "/books/v1/volumes", "/b/id/2-L.jpg"),
-                recordedPaths(3),
+                listOf("/search", "/search.json", "/books/v1/volumes", "/b/id/2-L.jpg"),
+                recordedPaths(4),
             )
-            assertEquals(3, server.requestCount)
+            assertEquals(4, server.requestCount)
         }
 
     @Test
     fun `tiny placeholder image falls through to the next candidate`() =
         runBlocking {
+            server.enqueue(atEmpty())
             server.enqueue(
                 jsonBody(
                     """{"docs":[""" +
@@ -221,14 +230,15 @@ class RemoteCoverProviderTest {
                 provider.lookup("Война и мир", "Лев Толстой"),
             )
             assertEquals(
-                listOf("/search.json", "/books/v1/volumes", "/b/id/1-L.jpg", "/b/id/2-L.jpg"),
-                recordedPaths(4),
+                listOf("/search", "/search.json", "/books/v1/volumes", "/b/id/1-L.jpg", "/b/id/2-L.jpg"),
+                recordedPaths(5),
             )
         }
 
     @Test
     fun `image download budget is capped at three`() =
         runBlocking {
+            server.enqueue(atEmpty())
             val docs = (1..4).joinToString(",") { """{"cover_i":$it,"title":"Война и мир","author_name":["Лев Толстой"]}""" }
             server.enqueue(jsonBody("""{"docs":[$docs]}"""))
             server.enqueue(jsonBody("""{"items":[]}"""))
@@ -237,12 +247,85 @@ class RemoteCoverProviderTest {
             }
 
             assertNull(provider.lookup("Война и мир", "Лев Толстой"))
-            // 2 metadata GETs + 3 image GETs; the 4th candidate is never fetched.
-            assertEquals(5, server.requestCount)
+            // 3 metadata GETs + 3 image GETs; the 4th candidate is never fetched.
+            assertEquals(6, server.requestCount)
             assertEquals(
-                listOf("/search.json", "/books/v1/volumes", "/b/id/1-L.jpg", "/b/id/2-L.jpg", "/b/id/3-L.jpg"),
-                recordedPaths(5),
+                listOf(
+                    "/search",
+                    "/search.json",
+                    "/books/v1/volumes",
+                    "/b/id/1-L.jpg",
+                    "/b/id/2-L.jpg",
+                    "/b/id/3-L.jpg",
+                ),
+                recordedPaths(6),
             )
+        }
+
+    @Test
+    fun `author today candidate outranks google when scored higher`() =
+        runBlocking {
+            val coverUrl = server.url("/cm/cover.jpg?width=153&height=200&rmode=max").toString()
+            server.enqueue(atPage(atCard(coverUrl, "Война и мир", "Лев Толстой")))
+            server.enqueue(jsonBody("""{"docs":[]}"""))
+            // Google's partial match (tom-marker title) scores below the exact AT hit.
+            server.enqueue(
+                jsonBody(
+                    """{"items":[{"volumeInfo":{"title":"Война и мир (том 1)","authors":["Толстой"],""" +
+                        """"imageLinks":{"thumbnail":"${server.url("/g/thumb.jpg")}"}}}]}""",
+                ),
+            )
+            server.enqueue(portraitImage())
+
+            assertEquals(coverUrl, provider.lookup("Война и мир", "Лев Толстой"))
+            assertEquals(
+                listOf("/search", "/search.json", "/books/v1/volumes", "/cm/cover.jpg"),
+                recordedPaths(4),
+            )
+        }
+
+    @Test
+    fun `malformed author today page falls through to openlibrary`() =
+        runBlocking {
+            server.enqueue(htmlBody("<div><p>broken markup & <img>"))
+            server.enqueue(jsonBody("""{"docs":[{"cover_i":12345,"title":"Война и мир","author_name":["Лев Толстой"]}]}"""))
+            server.enqueue(jsonBody("""{"items":[]}"""))
+            server.enqueue(portraitImage())
+
+            assertEquals(
+                server.url("/b/id/12345-L.jpg").toString(),
+                provider.lookup("Война и мир", "Лев Толстой"),
+            )
+        }
+
+    @Test
+    fun `author today candidate with junk title is rejected by policy`() =
+        runBlocking {
+            server.enqueue(atPage(atCard(server.url("/cm/other.jpg").toString(), "Совершенно другое произведение", "Ктото СовсемДругой")))
+            server.enqueue(jsonBody("""{"docs":[]}"""))
+            server.enqueue(jsonBody("""{"items":[]}"""))
+
+            assertNull(provider.lookup("Война и мир", "Лев Толстой"))
+            assertEquals(
+                listOf("/search", "/search.json", "/books/v1/volumes"),
+                recordedPaths(3),
+            )
+        }
+
+    @Test
+    fun `author today network error falls through silently`() =
+        runBlocking {
+            server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AT_START))
+            server.enqueue(jsonBody("""{"docs":[{"cover_i":12345,"title":"Война и мир","author_name":["Лев Толстой"]}]}"""))
+            server.enqueue(jsonBody("""{"items":[]}"""))
+            server.enqueue(portraitImage())
+
+            assertEquals(
+                server.url("/b/id/12345-L.jpg").toString(),
+                provider.lookup("Война и мир", "Лев Толстой"),
+            )
+            // 1 failed AT search + OL search + Google search + image.
+            assertEquals(4, server.requestCount)
         }
 
     /** Drains [count] recorded requests in order, query strings stripped. */
@@ -256,6 +339,24 @@ class RemoteCoverProviderTest {
         }
 
     private fun jsonBody(body: String): MockResponse = MockResponse().setHeader("Content-Type", "application/json").setBody(body)
+
+    private fun htmlBody(body: String): MockResponse = MockResponse().setHeader("Content-Type", "text/html").setBody(body)
+
+    /** Author.Today result card snippet mirroring the live page shape (img + work anchor + author). */
+    private fun atCard(
+        coverUrl: String,
+        title: String,
+        author: String,
+    ): String =
+        """<div class="search-result">""" +
+            """<a href="/work/12345"><img data-src="$coverUrl"></a>""" +
+            """<h4><a href="/work/12345">$title</a></h4>""" +
+            """<div class="book-author">$author</div>""" +
+            """</div>"""
+
+    private fun atPage(vararg cards: String): MockResponse = htmlBody("<html><body>${cards.joinToString("")}</body></html>")
+
+    private fun atEmpty(): MockResponse = atPage()
 
     private fun portraitImage(): MockResponse =
         MockResponse().setHeader("Content-Type", "image/jpeg").setBody(okio.Buffer().write(portraitJpeg()))
@@ -281,7 +382,7 @@ class RemoteCoverProviderTest {
         return output.toByteArray()
     }
 
-    private object NoopLoggerFactory : com.jabook.app.jabook.compose.core.logger.LoggerFactory {
+    internal object NoopLoggerFactory : com.jabook.app.jabook.compose.core.logger.LoggerFactory {
         override fun get(tag: String): com.jabook.app.jabook.compose.core.logger.Logger = NoopLogger
 
         override fun get(clazz: kotlin.reflect.KClass<*>): com.jabook.app.jabook.compose.core.logger.Logger = NoopLogger

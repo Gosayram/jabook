@@ -45,7 +45,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentResumeEntity
  * Current Jabook database schema version. Single source of truth for [Database]'s `version`
  * and crash-diagnostics reporting. Bump together with a new [MIGRATION] and a changelog line.
  */
-public const val JABOOK_DB_VERSION: Int = 35
+public const val JABOOK_DB_VERSION: Int = 36
 
 /**
  * The Room database for this app.
@@ -85,6 +85,7 @@ public const val JABOOK_DB_VERSION: Int = 35
  * Database version 33: Scoped books_fts UPDATE trigger to title/author/description so playback-progress saves stop rewriting the FTS row.
  * Database version 34: Moved torrent resume data BLOB into a separate torrent_resume table so list reads never pull BLOBs.
  * Database version 35: Added normalized_query column with unique index to search_history for deduplication.
+ * Database version 36: Rebuilt search_history to heal the broken v35 shape (DEFAULT + wrong index name).
  */
 @Database(
     entities = [

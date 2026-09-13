@@ -29,12 +29,14 @@ import java.io.ByteArrayOutputStream
 import java.net.URLEncoder
 
 /**
- * Silent remote cover lookup against public APIs (OpenLibrary, then Google Books).
+ * Silent remote cover lookup against public sources (Author.Today, then
+ * OpenLibrary, then Google Books).
  *
- * Two metadata GETs max per lookup; candidates from both sources are scored by
- * [CoverMatchPolicy], ranked, and the top ones are downloaded and validated by
- * [CoverImageValidator] (at most [MAX_IMAGE_DOWNLOADS] image GETs). Network
- * failures never throw — callers get null and the book stays without a cover.
+ * Three metadata GETs max per lookup (one search page per source); candidates
+ * from all sources are scored by [CoverMatchPolicy], ranked, and the top ones
+ * are downloaded and validated by [CoverImageValidator] (at most
+ * [MAX_IMAGE_DOWNLOADS] image GETs). Network failures never throw — callers
+ * get null and the book stays without a cover.
  */
 public class RemoteCoverProvider(
     private val client: OkHttpClient,
@@ -42,12 +44,15 @@ public class RemoteCoverProvider(
     olBaseUrl: String = OPENLIBRARY_BASE,
     googleBaseUrl: String = GOOGLE_BOOKS_BASE,
     olCoverBaseUrl: String = OPENLIBRARY_COVER_BASE,
+    authorTodayBaseUrl: String = AuthorTodayCoverSource.SEARCH_URL_BASE,
 ) {
     private val logger = loggerFactory.get(TAG)
     private val json = Json { ignoreUnknownKeys = true }
     private val openLibraryUrl = olBaseUrl.trimEnd('/') + "/search.json"
     private val googleBooksUrl = googleBaseUrl.trimEnd('/') + "/books/v1/volumes"
     private val openLibraryCoverUrl = olCoverBaseUrl.trimEnd('/')
+    private val authorToday =
+        AuthorTodayCoverSource(client, loggerFactory, searchUrlBase = authorTodayBaseUrl)
 
     /**
      * Look up a cover URL for the given title/author.
@@ -61,6 +66,7 @@ public class RemoteCoverProvider(
         withContext(Dispatchers.IO) {
             val candidates =
                 buildList {
+                    addAll(collectAuthorToday(title, author))
                     addAll(collectOpenLibrary(title, author))
                     addAll(collectGoogleBooks(title, author))
                 }.sortedByDescending { it.second }
@@ -73,6 +79,24 @@ public class RemoteCoverProvider(
             logger.d { "No plausible cover for \"$title\"" }
             null
         }
+
+    /** @return (image url, match score) pairs, highest evidence last — callers sort. */
+    private fun collectAuthorToday(
+        title: String,
+        author: String,
+    ): List<Pair<String, Float>> =
+        authorToday
+            .findCandidates(title, author)
+            .mapNotNull { candidate ->
+                val score =
+                    CoverMatchPolicy.score(
+                        candidate.resultTitle,
+                        listOfNotNull(candidate.resultAuthor.takeIf(String::isNotBlank)),
+                        title,
+                        author,
+                    )
+                if (score > 0f) candidate.url to score else null
+            }
 
     /** @return (image url, match score) pairs, highest evidence last — callers sort. */
     private fun collectOpenLibrary(
