@@ -2950,6 +2950,8 @@
     <string name="indexingStatusInProgress">Indexing</string>
     <string name="indexingStatusFailed">Failed</string>
     <string name="indexingStatusPending">Pending</string>
+    <string name="indexingPhaseFresh">Fresh releases…</string>
+    <string name="indexingPhaseBackfill">Backfilling history in background…</string>
     <string name="hideAction">Hide</string>
     <string name="cannotShareLogsActivityRequired">Cannot share logs: activity context required</string>
     <string name="torrentBufferingTitle">Buffering...</string>

@@ -26,6 +26,7 @@ import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.remote.RuTrackerError
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.worker.IndexingWorkScheduler
+import com.jabook.app.jabook.compose.data.worker.IndexingWorker
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
 import com.jabook.app.jabook.compose.domain.usecase.auth.WithAuthorisedCheckUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -136,7 +137,6 @@ public class IndexingViewModel
                         withAuthorisedCheckUseCase(operationId = "indexing") {
                             forumIndexer.indexForums(
                                 forumIds = forumIds,
-                                preloadCovers = true,
                                 daysWindow = daysWindow,
                             ) { progress ->
                                 _indexingProgress.value = progress
@@ -356,7 +356,8 @@ public class IndexingViewModel
         private fun WorkInfo.toIndexingProgress(): IndexingProgress =
             IndexingProgress.InProgress(
                 IndexProgress(
-                    currentForumName = progress.getString("progress_message").orEmpty(),
+                    currentForumName = progress.getString(IndexingWorker.KEY_PROGRESS_MESSAGE).orEmpty(),
+                    phase = progress.getString(IndexingWorker.KEY_PROGRESS_PHASE),
                 ),
             )
     }

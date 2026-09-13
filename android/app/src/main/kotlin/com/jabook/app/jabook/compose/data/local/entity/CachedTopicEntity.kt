@@ -73,6 +73,13 @@ public data class CachedTopicEntity(
     val coverUrl: String? = null,
     @ColumnInfo(name = "timestamp")
     val timestamp: Long = System.currentTimeMillis(),
+    /**
+     * Topic release/registration date in epoch millis, parsed from the tracker
+     * listing at index time. Null for rows indexed before v38 — readers fall
+     * back to [timestamp] via COALESCE.
+     */
+    @ColumnInfo(name = "topic_date")
+    val topicDate: Long? = null,
     @ColumnInfo(name = "last_updated")
     val lastUpdated: Long = System.currentTimeMillis(), // When this record was last updated
     @ColumnInfo(name = "index_version")
@@ -88,8 +95,13 @@ public data class CachedTopicEntity(
  * fully offline "found → started download" without visiting the site.
  *
  * @param indexVersion Schema version of this indexed record
+ * @param registeredAtEpochSec Topic registration date in epoch seconds (from
+ *   the listing row); stored as millis in [CachedTopicEntity.topicDate]
  */
-public fun SearchResult.toCachedTopicEntity(indexVersion: Int = 1): CachedTopicEntity {
+public fun SearchResult.toCachedTopicEntity(
+    indexVersion: Int = 1,
+    registeredAtEpochSec: Long? = null,
+): CachedTopicEntity {
     val now = System.currentTimeMillis()
     return CachedTopicEntity(
         topicId = topicId,
@@ -103,6 +115,7 @@ public fun SearchResult.toCachedTopicEntity(indexVersion: Int = 1): CachedTopicE
         torrentUrl = null,
         coverUrl = null,
         timestamp = now,
+        topicDate = registeredAtEpochSec?.times(1000),
         lastUpdated = now,
         indexVersion = indexVersion,
     )

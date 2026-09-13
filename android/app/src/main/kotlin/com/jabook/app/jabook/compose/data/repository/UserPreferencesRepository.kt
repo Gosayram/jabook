@@ -115,4 +115,22 @@ public interface UserPreferencesRepository {
      * Persist the RuTracker nickname. Blank values are ignored.
      */
     public suspend fun setAuthUsername(username: String)
+
+    /**
+     * Resumable backfill cursors: forumId → next page to crawl.
+     */
+    public suspend fun getIndexingPageCursors(): Map<String, Int>
+
+    /**
+     * Record that [forumId] should resume backfill at [page].
+     */
+    public suspend fun updateIndexingPageCursor(
+        forumId: String,
+        page: Int,
+    )
+
+    /**
+     * Drop the cursor for [forumId] (backfill for that forum is done).
+     */
+    public suspend fun clearIndexingPageCursor(forumId: String)
 }

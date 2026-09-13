@@ -99,6 +99,8 @@ public data class ForumStatus(
  * @param topicsFound Total topics found so far across all forums
  * @param errors List of error messages from failed forums
  * @param forumStatuses Per-forum status list
+ * @param phase Current crawl phase ([PHASE_FRESH], [PHASE_BACKFILL]) or null
+ *   when not applicable (legacy full crawl).
  */
 public data class IndexProgress(
     val currentForumName: String = "",
@@ -108,7 +110,16 @@ public data class IndexProgress(
     val topicsFound: Int = 0,
     val errors: List<String> = emptyList(),
     val forumStatuses: List<ForumStatus> = emptyList(),
+    val phase: String? = null,
 ) {
+    public companion object {
+        /** Fresh-first phase: newest pages crawled first for all forums. */
+        public const val PHASE_FRESH: String = "fresh"
+
+        /** Backfill phase: older history crawled after the fresh pass. */
+        public const val PHASE_BACKFILL: String = "backfill"
+    }
+
     public val hasDetailedProgress: Boolean
         get() = totalForums > 0
 

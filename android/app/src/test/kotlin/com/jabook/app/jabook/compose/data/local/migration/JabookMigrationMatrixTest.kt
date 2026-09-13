@@ -33,17 +33,19 @@ import java.io.File
 
 /**
  * Exhaustive pairwise migration matrix (spotube-style): for every exported
- * schema version N (30..35), build a real DB at vN, run all migrations up to
- * v36, and validate the result against the exported 36.json schema.
+ * schema version N (30..37), build a real DB at vN, run all migrations up to
+ * v38, and validate the result against the exported 38.json schema.
  *
  * Coverage is bounded by exported schemas: android/app/schemas/ only contains
- * JabookDatabase 30-36.json. Add 29.json (and older) to extend the matrix.
+ * JabookDatabase 30-38.json. Add 29.json (and older) to extend the matrix.
  *
  * The v34→v35 and v35→v36 hops additionally run the data-integrity invariants
  * (dedup of duplicate normalized search queries, preservation of distinct
  * rows) from Migration34To35Test — folded into the matrix instead of
  * duplicated. The v35→v36 hop also runs against a BROKEN v35 shape
  * (`normalized_query DEFAULT ''` + wrong index name) to prove the heal.
+ * The v37→v38 hop seeds legacy cached_topics rows and proves `topic_date`
+ * stays NULL (no backfill — backfilling would fake release dates).
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -56,22 +58,24 @@ class JabookMigrationMatrixTest {
             33 to MIGRATION_33_34,
             34 to MIGRATION_34_35,
             35 to MIGRATION_35_36,
+            36 to MIGRATION_36_37,
+            37 to MIGRATION_37_38,
         )
 
     @Test
-    fun `migrate from v30 to v36`() = matrix(30)
+    fun `migrate from v30 to v38`() = matrix(30)
 
     @Test
-    fun `migrate from v31 to v36`() = matrix(31)
+    fun `migrate from v31 to v38`() = matrix(31)
 
     @Test
-    fun `migrate from v32 to v36`() = matrix(32)
+    fun `migrate from v32 to v38`() = matrix(32)
 
     @Test
-    fun `migrate from v33 to v36`() = matrix(33)
+    fun `migrate from v33 to v38`() = matrix(33)
 
     @Test
-    fun `migrate from v34 to v36 preserves and dedupes search history`() = matrix(34, seedSearchHistory = true)
+    fun `migrate from v34 to v38 preserves and dedupes search history`() = matrix(34, seedSearchHistory = true)
 
     @Test
     fun `migrate from v35 to v36 keeps healthy rows`() {
@@ -134,6 +138,63 @@ class JabookMigrationMatrixTest {
         db.execSQL("CREATE INDEX IF NOT EXISTS `idx_search_history_normalized_query` ON `search_history` (`normalized_query`)")
     }
 
+    @Test
+    fun `migrate from v37 to v38 adds nullable topic_date and leaves legacy rows untouched`() {
+        val db = createSchemaAt(37)
+        try {
+            seedCachedTopic(db, topicId = "100", timestamp = 5_000L)
+            seedCachedTopic(db, topicId = "200", timestamp = 6_000L)
+            MIGRATION_37_38.migrate(db)
+            db.version = 38
+            validateAgainst(db, version = 38)
+
+            // Column exists and is nullable (no NOT NULL constraint).
+            val notNullFlag =
+                db.query("PRAGMA table_info(cached_topics)").use { cursor ->
+                    var notNull = -1
+                    while (cursor.moveToNext()) {
+                        if (cursor.getString(1) == "topic_date") notNull = cursor.getInt(3)
+                    }
+                    notNull
+                }
+            assertEquals(0, notNullFlag)
+
+            // No backfill: legacy rows must keep topic_date NULL...
+            assertEquals(
+                0,
+                count(db, "SELECT COUNT(*) FROM cached_topics WHERE topic_date IS NOT NULL"),
+            )
+            // ...with all pre-existing data intact.
+            assertEquals(
+                2,
+                count(db, "SELECT COUNT(*) FROM cached_topics WHERE topic_id IN ('100', '200')"),
+            )
+        } finally {
+            db.close()
+        }
+    }
+
+    private fun seedCachedTopic(
+        db: SupportSQLiteDatabase,
+        topicId: String,
+        timestamp: Long,
+    ) {
+        val values =
+            ContentValues().apply {
+                put("topic_id", topicId)
+                put("title", "title $topicId")
+                put("author", "author")
+                put("category", "Аудиокниги")
+                put("size", "1 MB")
+                put("seeders", 1)
+                put("leechers", 0)
+                put("timestamp", timestamp)
+                put("last_updated", timestamp)
+                put("index_version", 1)
+            }
+        db.insert("cached_topics", SQLiteDatabase.CONFLICT_FAIL, values)
+    }
+
     private fun matrix(
         startVersion: Int,
         seedSearchHistory: Boolean = false,
@@ -145,8 +206,8 @@ class JabookMigrationMatrixTest {
                 .filter { (from, _) -> from >= startVersion }
                 .sortedBy { (from, _) -> from }
                 .forEach { (_, migration) -> migration.migrate(db) }
-            db.version = 36
-            validateAgainst(db, version = 36)
+            db.version = 38
+            validateAgainst(db, version = 38)
             if (seedSearchHistory) assertSearchHistoryInvariants(db)
         } finally {
             db.close()

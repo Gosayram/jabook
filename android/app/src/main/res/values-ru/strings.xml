@@ -2985,6 +2985,8 @@
     <string name="indexingStatusInProgress">Индексация</string>
     <string name="indexingStatusFailed">Ошибка</string>
     <string name="indexingStatusPending">Ожидание</string>
+    <string name="indexingPhaseFresh">Свежие релизы…</string>
+    <string name="indexingPhaseBackfill">Догрузка истории в фоне…</string>
     <string name="hideAction">Скрыть</string>
     <string name="cannotShareLogsActivityRequired">Не удалось поделиться логами: требуется Activity-контекст</string>
     <string name="torrentBufferingTitle">Буферизация...</string>

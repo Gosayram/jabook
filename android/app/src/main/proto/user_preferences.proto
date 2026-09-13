@@ -172,6 +172,9 @@ message UserPreferences {
 
   // RuTracker nickname of the authenticated user (blank = unknown).
   string auth_username = 78;
+
+  // JSON map forumId → next page to crawl for resumable backfill indexing.
+  string indexing_page_cursors_json = 79;
 }
 
 message SleepTimerState {

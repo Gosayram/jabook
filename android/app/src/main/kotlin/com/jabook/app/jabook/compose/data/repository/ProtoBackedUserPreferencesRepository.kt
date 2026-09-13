@@ -150,6 +150,34 @@ public class ProtoBackedUserPreferencesRepository
             update { setAuthUsername(username) }
         }
 
+        override suspend fun getIndexingPageCursors(): Map<String, Int> =
+            try {
+                IndexingPageCursorsJson.decode(dataStore.data.first().indexingPageCursorsJson)
+            } catch (e: Exception) {
+                e.rethrowCancellation()
+                LogUtils.e("ProtoPrefs", "Failed to read indexing page cursors", e)
+                emptyMap()
+            }
+
+        override suspend fun updateIndexingPageCursor(
+            forumId: String,
+            page: Int,
+        ) {
+            update {
+                val cursors = IndexingPageCursorsJson.decode(indexingPageCursorsJson).toMutableMap()
+                cursors[forumId] = page
+                indexingPageCursorsJson = IndexingPageCursorsJson.encode(cursors)
+            }
+        }
+
+        override suspend fun clearIndexingPageCursor(forumId: String) {
+            update {
+                val cursors = IndexingPageCursorsJson.decode(indexingPageCursorsJson).toMutableMap()
+                cursors.remove(forumId)
+                indexingPageCursorsJson = IndexingPageCursorsJson.encode(cursors)
+            }
+        }
+
         private suspend fun update(transform: UserPreferences.Builder.() -> Unit): Boolean =
             try {
                 dataStore.updateData { preferences -> preferences.toBuilder().apply(transform).build() }

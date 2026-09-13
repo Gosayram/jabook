@@ -47,7 +47,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentResumeEntity
  * Current Jabook database schema version. Single source of truth for [Database]'s `version`
  * and crash-diagnostics reporting. Bump together with a new [MIGRATION] and a changelog line.
  */
-public const val JABOOK_DB_VERSION: Int = 37
+public const val JABOOK_DB_VERSION: Int = 38
 
 /**
  * The Room database for this app.
@@ -89,6 +89,7 @@ public const val JABOOK_DB_VERSION: Int = 37
  * Database version 35: Added normalized_query column with unique index to search_history for deduplication.
  * Database version 36: Rebuilt search_history to heal the broken v35 shape (DEFAULT + wrong index name).
  * Database version 37: Added forums table for RuTracker forum display-name cache.
+ * Database version 38: Added topic_date column to cached_topics for release-date ordering of recent topics.
  */
 @Database(
     entities = [

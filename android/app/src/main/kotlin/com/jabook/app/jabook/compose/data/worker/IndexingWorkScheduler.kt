@@ -44,10 +44,7 @@ public class IndexingWorkScheduler
             forumIds: String? = null,
             daysWindow: Int? = null,
         ) {
-            val inputDataBuilder =
-                Data
-                    .Builder()
-                    .putBoolean(IndexingWorker.KEY_PRELOAD_COVERS, true)
+            val inputDataBuilder = Data.Builder()
             // ponytail: blank = all forums (worker falls back), skip key entirely
             if (!forumIds.isNullOrBlank()) {
                 inputDataBuilder.putString(IndexingWorker.KEY_FORUM_IDS, forumIds)

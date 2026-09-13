@@ -55,6 +55,7 @@ import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.data.indexing.ForumState
 import com.jabook.app.jabook.compose.data.indexing.ForumStatus
+import com.jabook.app.jabook.compose.data.indexing.IndexProgress
 import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
 
 /**
@@ -112,7 +113,21 @@ public fun IndexingProgressDialog(
                     }
 
                     is IndexingProgress.InProgress -> {
+                        val phaseLabel =
+                            when (progress.detail.phase) {
+                                IndexProgress.PHASE_FRESH -> stringResource(R.string.indexingPhaseFresh)
+                                IndexProgress.PHASE_BACKFILL -> stringResource(R.string.indexingPhaseBackfill)
+                                else -> null
+                            }
                         if (progress.detail.hasDetailedProgress) {
+                            if (phaseLabel != null) {
+                                Text(
+                                    text = phaseLabel,
+                                    textAlign = TextAlign.Center,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
                             LinearProgressIndicator(
                                 progress = { progress.detail.percentComplete },
                                 modifier = Modifier.fillMaxWidth(),
@@ -161,7 +176,9 @@ public fun IndexingProgressDialog(
                         } else {
                             CircularProgressIndicator()
                             Text(
-                                text = progress.detail.currentForumName.ifBlank { stringResource(R.string.indexingPreparing) },
+                                text =
+                                    phaseLabel
+                                        ?: progress.detail.currentForumName.ifBlank { stringResource(R.string.indexingPreparing) },
                                 textAlign = TextAlign.Center,
                                 style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },

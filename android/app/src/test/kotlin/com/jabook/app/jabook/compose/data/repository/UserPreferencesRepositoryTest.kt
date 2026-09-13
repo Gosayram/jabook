@@ -142,4 +142,22 @@ class UserPreferencesRepositoryTest {
             assertTrue(data.normalizeChapterTitles)
             file.delete()
         }
+
+    @Test
+    fun `indexing page cursors update and clear per forum`() =
+        runTest {
+            val (repo, file) = createRepository()
+            assertEquals(emptyMap<String, Int>(), repo.getIndexingPageCursors())
+
+            repo.updateIndexingPageCursor("574", 12)
+            repo.updateIndexingPageCursor("1036", 3)
+            assertEquals(mapOf("574" to 12, "1036" to 3), repo.getIndexingPageCursors())
+
+            repo.updateIndexingPageCursor("574", 25)
+            assertEquals(mapOf("574" to 25, "1036" to 3), repo.getIndexingPageCursors())
+
+            repo.clearIndexingPageCursor("574")
+            assertEquals(mapOf("1036" to 3), repo.getIndexingPageCursors())
+            file.delete()
+        }
 }

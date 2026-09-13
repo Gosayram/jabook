@@ -20,7 +20,7 @@ import androidx.work.OneTimeWorkRequest
 import androidx.work.Operation
 import androidx.work.WorkManager
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -56,7 +56,8 @@ class IndexingWorkSchedulerTest {
         )
         val workSpec = requestCaptor.firstValue.workSpec
         assertEquals(NetworkType.CONNECTED, workSpec.constraints.requiredNetworkType)
-        assertTrue(workSpec.input.getBoolean(IndexingWorker.KEY_PRELOAD_COVERS, false))
+        // Cover preloading was removed — the legacy key must no longer be sent.
+        assertFalse(workSpec.input.getBoolean(IndexingWorker.KEY_PRELOAD_COVERS, false))
         assertEquals(-1, workSpec.input.getInt(IndexingWorker.KEY_INDEXING_DAYS_WINDOW, -1))
     }
 

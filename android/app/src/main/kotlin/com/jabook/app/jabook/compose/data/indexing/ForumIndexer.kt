@@ -14,10 +14,6 @@
 
 package com.jabook.app.jabook.compose.data.indexing
 
-import android.content.Context
-import coil3.SingletonImageLoader
-import coil3.request.CachePolicy
-import coil3.request.ImageRequest
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.local.dao.IndexMetadata
 import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
@@ -28,13 +24,10 @@ import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.mapper.toDomain
 import com.jabook.app.jabook.compose.data.remote.model.SearchResult
 import com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser
-import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
+import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
 import com.jabook.app.jabook.utils.parseRetryAfterMs
 import com.jabook.app.jabook.utils.retryWithBackoff
-import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -47,6 +40,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -57,9 +51,9 @@ import javax.inject.Singleton
  * fast offline search without network requests.
  *
  * Features:
- * - Full indexing: Indexes all topics from all audiobook forums
+ * - Two-phase fresh-first crawl: newest pages of every forum first, then
+ *   history backfill (resumable via persisted page cursors)
  * - Incremental updates: Only updates topics that are old or missing (daily by default)
- * - Cover preloading: Preloads cover images to Coil cache for instant display
  * - Version tracking: Tracks index version for incremental updates
  * - Smart caching: Uses database indices for fast search queries
  *
@@ -84,16 +78,10 @@ public class ForumIndexer
         private val offlineSearchDao: OfflineSearchDao,
         private val mirrorManager: MirrorManager,
         private val forumCatalog: ForumCatalog,
+        private val userPreferencesRepository: UserPreferencesRepository,
         private val loggerFactory: LoggerFactory,
-        @param:ApplicationContext private val context: Context,
     ) {
         private val logger = loggerFactory.get("ForumIndexer")
-
-        // Background scope for non-blocking operations (cover preloading)
-        private val backgroundScope =
-            CoroutineScope(
-                SupervisorJob() + Dispatchers.IO + loggingCoroutineExceptionHandler("ForumIndexer"),
-            )
 
         // Prevent concurrent indexForums() calls from ViewModel + WorkManager
         private val indexingMutex = Mutex()
@@ -159,16 +147,26 @@ public class ForumIndexer
             private const val TOPICS_PER_PAGE = 50
             private const val BASE_DELAY_MS = 300L
             private const val JITTER_RANGE_MS = 150L // ±150ms random jitter
-            private const val MAX_PAGES_PER_FORUM = 100_000
+            internal const val MAX_PAGES_PER_FORUM = 100_000
 
             private const val INCREMENTAL_UPDATE_INTERVAL_HOURS = 24L
             private const val MAX_AGE_FOR_UPDATE_MS = INCREMENTAL_UPDATE_INTERVAL_HOURS * 60 * 60 * 1000
 
-            private const val PRELOAD_COVERS_BATCH_SIZE = 10
-            private const val PRELOAD_COVERS_DELAY_MS = 100L
-
             private const val MAX_CONCURRENT_FORUMS = 3
             private const val BATCH_SIZE_FOR_DB = 100
+
+            // Fresh-first phase: newest pages crawled for every forum before any
+            // history backfill, so page-0 topics become searchable within seconds.
+            private const val FRESH_MAX_PAGES = 2
+
+            // Backfill page budget per forum per run when a depth window is set;
+            // explicit "All" (daysWindow == 0) stays a full crawl.
+            private const val BACKFILL_PAGES_PER_RUN = 10
+
+            /**
+             * Per-run page budget for the backfill phase.
+             */
+            internal fun backfillPageBudget(daysWindow: Int): Int = if (daysWindow > 0) BACKFILL_PAGES_PER_RUN else MAX_PAGES_PER_FORUM
 
             private const val INITIAL_BACKOFF_MS = 1000L
             private const val MAX_BACKOFF_MS = 30_000L
@@ -220,7 +218,7 @@ public class ForumIndexer
         }
 
         /**
-         * Index all audiobook forums (full index) with optimized parallel processing.
+         * Index all audiobook forums with a two-phase fresh-first crawl.
          *
          * Forums run in parallel, bounded by [MAX_CONCURRENT_FORUMS] (semaphore — a
          * finished forum immediately frees its slot for the next one instead of
@@ -228,19 +226,26 @@ public class ForumIndexer
          * stay sequential because RuTracker listings are sorted by recent activity,
          * so the [daysWindow] early-exit relies on page order.
          *
+         * Phase 1 (fresh, [IndexProgress.PHASE_FRESH]): every forum crawls from
+         * page 0, capped at [FRESH_MAX_PAGES] pages or the date/known-topics
+         * boundary — newest topics become searchable within seconds.
+         *
+         * Phase 2 (backfill, [IndexProgress.PHASE_BACKFILL]): every forum continues
+         * from its persisted page cursor (or where fresh stopped) until the
+         * [daysWindow] cutoff or the per-run page budget ([backfillPageBudget]).
+         * Forums whose fresh pass already hit the boundary are skipped.
+         *
          * @param forumIds Comma-separated list of forum IDs to index
-         * @param preloadCovers Whether to preload cover images to Coil cache (default: true)
          * @param daysWindow Depth window in days (quick indexing). 0 = legacy full
          *   crawl. When > 0, a forum's crawl stops at the first page whose topics
          *   are all already indexed — the listing's date-sorted boundary. Zero new
          *   topics across all forums is then a success ("nothing newer than window"),
-         *   not an error.
+         *   not an error. Explicit 0 (All) keeps the full-crawl backfill budget.
          * @param onProgress Callback with IndexingProgress updates
          * @return Total number of topics indexed
          */
         public suspend fun indexForums(
             forumIds: String,
-            preloadCovers: Boolean = true,
             daysWindow: Int = 0,
             onProgress: (suspend (IndexingProgress) -> Unit)? = null,
         ): Int {
@@ -271,8 +276,6 @@ public class ForumIndexer
                     for (id in forumIdList) {
                         forumNames[id] = catalogNames[id] ?: "Forum $id"
                     }
-
-                    val coversToPreload = mutableListOf<String>()
 
                     // Initialize per-forum statuses
                     val initialStatuses =
@@ -314,62 +317,151 @@ public class ForumIndexer
                             .AtomicInteger(0)
                     val failedForumMessages = mutableListOf<String>()
 
-                    // Forums in parallel, bounded; pages within a forum stay sequential.
+                    // Cross-phase per-forum state
+                    val freshStopPages = ConcurrentHashMap<String, Int>()
+                    val freshBoundaryForums = ConcurrentHashMap.newKeySet<String>()
+                    val freshFailedForums = ConcurrentHashMap.newKeySet<String>()
+                    val forumTopicCounts = ConcurrentHashMap<String, Int>()
+
+                    // Resume cursors from a previous interrupted backfill run
+                    val persistedCursors =
+                        runCatching { userPreferencesRepository.getIndexingPageCursors() }
+                            .onFailure { logger.w { "Could not read indexing page cursors: ${it.message}" } }
+                            .getOrDefault(emptyMap())
+
+                    suspend fun emitProgress(
+                        phase: String?,
+                        forumId: String,
+                        page: Int,
+                        topicsInForum: Int,
+                    ) {
+                        _indexProgress.value =
+                            IndexProgress(
+                                currentForumName = resolveForumName(forumId),
+                                currentForumPage = page,
+                                totalForumsCompleted = countCompletedForums(),
+                                totalForums = forumIdList.size,
+                                topicsFound = topicsIndexedAtomic.get(),
+                                errors = synchronized(failedForumMessages) { failedForumMessages.toList() },
+                                forumStatuses = _forumStatuses.value,
+                                phase = phase,
+                            )
+                        onProgress?.invoke(IndexingProgress.InProgress(_indexProgress.value))
+                    }
+
+                    fun recordForumFailure(
+                        forumId: String,
+                        page: Int,
+                        e: Exception,
+                    ) {
+                        val errorMsg = buildErrorMessage(forumId, page, e)
+                        logger.e({ "Failed to index forum $forumId" }, e)
+                        synchronized(failedForumMessages) {
+                            failedForumMessages.add(errorMsg)
+                        }
+                        failedForums.incrementAndGet()
+                        updateForumStatus(
+                            forumId,
+                            ForumState.FAILED,
+                            errorMessage = errorMsg,
+                        )
+                    }
+
+                    suspend fun finishForum(forumId: String) {
+                        updateForumStatus(
+                            forumId,
+                            ForumState.INDEXED,
+                            topicsCount = forumTopicCounts.getOrDefault(forumId, 0),
+                            lastUpdated = System.currentTimeMillis(),
+                        )
+                    }
+
+                    // ---- Phase 1: FRESH — newest pages of every forum first ----
                     coroutineScope {
                         val forumSlots = Semaphore(MAX_CONCURRENT_FORUMS)
                         forumIdList
                             .map { forumId ->
                                 async(Dispatchers.IO) {
                                     forumSlots.withPermit {
-                                        // Mark forum as IN_PROGRESS
                                         updateForumStatus(forumId, ForumState.IN_PROGRESS)
-
                                         try {
-                                            val (indexed, _) =
-                                                indexForum(forumId, currentIndexVersion, daysWindow) { page, topicsInForum ->
-                                                    // Update per-forum page progress
+                                            val result =
+                                                indexForum(
+                                                    forumId = forumId,
+                                                    indexVersion = currentIndexVersion,
+                                                    daysWindow = daysWindow,
+                                                    phase = IndexProgress.PHASE_FRESH,
+                                                    startPage = 0,
+                                                    maxPages = FRESH_MAX_PAGES,
+                                                    persistCursor = null, // fresh never uses cursors
+                                                ) { page, topicsInForum ->
                                                     updateForumStatusPage(forumId, page)
-
                                                     if (page == 0 || page % 2 == 0 || topicsInForum < 50) {
-                                                        val currentTotal = topicsIndexedAtomic.get()
-                                                        // Update the aggregate progress StateFlow
-                                                        val completedCount = countCompletedForums()
-                                                        _indexProgress.value =
-                                                            IndexProgress(
-                                                                currentForumName = resolveForumName(forumId),
-                                                                currentForumPage = page,
-                                                                totalForumsCompleted = completedCount,
-                                                                totalForums = forumIdList.size,
-                                                                topicsFound = currentTotal,
-                                                                errors = synchronized(failedForumMessages) { failedForumMessages.toList() },
-                                                                forumStatuses = _forumStatuses.value,
-                                                            )
-                                                        onProgress?.invoke(
-                                                            IndexingProgress.InProgress(_indexProgress.value),
-                                                        )
+                                                        emitProgress(IndexProgress.PHASE_FRESH, forumId, page, topicsInForum)
                                                     }
                                                 }
-                                            topicsIndexedAtomic.addAndGet(indexed)
-                                            updateForumStatus(
-                                                forumId,
-                                                ForumState.INDEXED,
-                                                topicsCount = indexed,
-                                                lastUpdated = System.currentTimeMillis(),
-                                            )
+                                            forumTopicCounts.merge(forumId, result.topicsIndexed, Int::plus)
+                                            topicsIndexedAtomic.addAndGet(result.topicsIndexed)
+                                            freshStopPages[forumId] = result.nextUncrawledPage
+                                            if (result.boundaryHit) freshBoundaryForums.add(forumId)
                                         } catch (e: Exception) {
                                             if (e is kotlinx.coroutines.CancellationException) throw e
-                                            val errorMsg = buildErrorMessage(forumId, 0, e)
-                                            logger.e({ "Failed to index forum $forumId" }, e)
-                                            synchronized(failedForumMessages) {
-                                                failedForumMessages.add(errorMsg)
-                                            }
-                                            failedForums.incrementAndGet()
-                                            updateForumStatus(
-                                                forumId,
-                                                ForumState.FAILED,
-                                                errorMessage = errorMsg,
-                                            )
+                                            recordForumFailure(forumId, 0, e)
+                                            freshFailedForums.add(forumId)
                                         }
+                                    }
+                                }
+                            }.awaitAll()
+                    }
+
+                    // ---- Phase 2: BACKFILL — history from persisted cursors ----
+                    val backfillBudget = backfillPageBudget(daysWindow)
+                    coroutineScope {
+                        val forumSlots = Semaphore(MAX_CONCURRENT_FORUMS)
+                        forumIdList
+                            .map { forumId ->
+                                async(Dispatchers.IO) {
+                                    if (forumId in freshFailedForums) return@async
+                                    updateForumStatus(forumId, ForumState.IN_PROGRESS)
+                                    if (forumId in freshBoundaryForums) {
+                                        // Fresh pass proved this forum is up to date —
+                                        // nothing to backfill; drop any stale resume cursor.
+                                        runCatching { userPreferencesRepository.clearIndexingPageCursor(forumId) }
+                                        finishForum(forumId)
+                                        return@async
+                                    }
+                                    try {
+                                        val cursor = persistedCursors[forumId]?.coerceAtLeast(0) ?: 0
+                                        val startIndex = maxOf(cursor, freshStopPages[forumId] ?: 0)
+                                        val result =
+                                            indexForum(
+                                                forumId = forumId,
+                                                indexVersion = currentIndexVersion,
+                                                daysWindow = daysWindow,
+                                                phase = IndexProgress.PHASE_BACKFILL,
+                                                startPage = startIndex,
+                                                maxPages = backfillBudget,
+                                                persistCursor = { nextPage ->
+                                                    runCatching {
+                                                        if (nextPage == null) {
+                                                            userPreferencesRepository.clearIndexingPageCursor(forumId)
+                                                        } else {
+                                                            userPreferencesRepository.updateIndexingPageCursor(forumId, nextPage)
+                                                        }
+                                                    }
+                                                },
+                                            ) { page, topicsInForum ->
+                                                updateForumStatusPage(forumId, page)
+                                                if (page == 0 || page % 2 == 0 || topicsInForum < 50) {
+                                                    emitProgress(IndexProgress.PHASE_BACKFILL, forumId, page, topicsInForum)
+                                                }
+                                            }
+                                        forumTopicCounts.merge(forumId, result.topicsIndexed, Int::plus)
+                                        topicsIndexedAtomic.addAndGet(result.topicsIndexed)
+                                        finishForum(forumId)
+                                    } catch (e: Exception) {
+                                        if (e is kotlinx.coroutines.CancellationException) throw e
+                                        recordForumFailure(forumId, 0, e)
                                     }
                                 }
                             }.awaitAll()
@@ -423,10 +515,6 @@ public class ForumIndexer
                         }
                     }
 
-                    if (preloadCovers && coversToPreload.isNotEmpty()) {
-                        preloadCovers(coversToPreload)
-                    }
-
                     // Verify actual count
                     val actualCountInDb = getIndexSize()
 
@@ -458,14 +546,12 @@ public class ForumIndexer
          *
          * @param forumIds Comma-separated list of forum IDs to check
          * @param maxAgeMs Maximum age in milliseconds (topics older than this will be updated)
-         * @param preloadCovers Whether to preload cover images (default: true)
          * @param onProgress Progress callback
          * @return Number of topics updated
          */
         public suspend fun incrementalUpdate(
             forumIds: String,
             maxAgeMs: Long = MAX_AGE_FOR_UPDATE_MS,
-            preloadCovers: Boolean = true,
             onProgress: ((forumId: String, updated: Int, total: Int) -> Unit)? = null,
         ): Int =
             withContext(Dispatchers.IO) {
@@ -473,13 +559,12 @@ public class ForumIndexer
                 val forumIdList = forumIds.split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
                 var totalUpdated: Int = 0
-                val coversToPreload = mutableListOf<String>()
 
                 logger.i { "Starting incremental update (max age: ${maxAgeMs / (1000 * 60 * 60)} hours)" }
 
                 for (forumId in forumIdList) {
                     try {
-                        val (updated, covers) =
+                        val updated =
                             updateForumIncremental(
                                 forumId,
                                 maxAgeMs,
@@ -487,7 +572,6 @@ public class ForumIndexer
                                 onProgress,
                             )
                         totalUpdated += updated
-                        coversToPreload.addAll(covers)
                         logger.i { "Updated forum $forumId: $updated topics" }
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
@@ -500,35 +584,48 @@ public class ForumIndexer
             }
 
         /**
-         * Index a single forum by fetching all pages with batched DB writes.
+         * Index a single forum by fetching pages sequentially, flushing each
+         * page's topics to the DB before advancing (fresh page-0 topics become
+         * searchable within seconds).
          *
          * @param forumId Forum ID to index
          * @param indexVersion Current index version
          * @param daysWindow Depth window in days; > 0 enables the known-page early-exit
          *   (listings are sorted by recent activity, so a page whose topics are all
          *   already indexed marks the boundary — everything deeper is older).
+         * @param phase Crawl phase reported through progress (fresh/backfill)
+         * @param startPage First page to fetch (backfill resume point)
+         * @param maxPages Page budget for this crawl
+         * @param persistCursor Backfill resume-cursor sink: invoked with the next
+         *   page to crawl after every processed page, and with null once the
+         *   forum is fully crawled (boundary or listing end)
          * @param onProgress Progress callback with (page, topicsInForum)
-         * @return Pair of (number of topics indexed, list of cover URLs to preload)
+         * @return [ForumCrawlResult] with topics indexed, boundary flag and resume page
          */
         private suspend fun indexForum(
             forumId: String,
             indexVersion: Int,
             daysWindow: Int = 0,
+            phase: String? = null,
+            startPage: Int = 0,
+            maxPages: Int = MAX_PAGES_PER_FORUM,
+            persistCursor: (suspend (nextPage: Int?) -> Unit)? = null,
             onProgress: (suspend (page: Int, topicsInForum: Int) -> Unit)? = null,
-        ): Pair<Int, List<String>> {
+        ): ForumCrawlResult {
             var totalTopics: Int = 0
-            var page: Int = 0
+            var page: Int = startPage
             var hasMorePages: Boolean = true
-            val coversToPreload = mutableListOf<String>()
-            val entitiesBuffer = mutableListOf<CachedTopicEntity>() // Buffer for batched writes
+            var boundaryReached: Boolean = false
+            val entitiesBuffer = mutableListOf<CachedTopicEntity>() // Buffer for intra-page batching
             var lastPageSignature: String? = null
             var repeatedSignatureCount: Int = 0
+            val pageLimit = startPage + maxPages
 
             val forumStartTime = System.currentTimeMillis()
             val initialMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()
-            logger.i { "Starting indexing forum $forumId (version $indexVersion)" }
+            logger.i { "Starting indexing forum $forumId (version $indexVersion, phase $phase, pages $startPage..${pageLimit - 1})" }
 
-            while (hasMorePages && page < MAX_PAGES_PER_FORUM) {
+            while (hasMorePages && page < pageLimit) {
                 try {
                     val pageStartTime = System.currentTimeMillis()
                     val response = retryWithBackoff { api.getForumPage(forumId, start = page * TOPICS_PER_PAGE) }
@@ -575,6 +672,7 @@ public class ForumIndexer
                             "Forum $forumId page $page: no topics found, ending (fetch: ${fetchTime}ms, parse: ${parseTime}ms)"
                         }
                         hasMorePages = false
+                        persistCursor?.invoke(null) // listing exhausted — forum done
                     } else {
                         val pageSignature =
                             buildString {
@@ -592,6 +690,7 @@ public class ForumIndexer
                                         "stopping to prevent infinite pagination loop"
                                 }
                                 hasMorePages = false
+                                persistCursor?.invoke(null) // pagination loop — treat as done
                             }
                         } else {
                             repeatedSignatureCount = 0
@@ -611,7 +710,6 @@ public class ForumIndexer
                         // 1. Date: from page 1 on, a page whose topics are ALL
                         //    older than the window — deeper pages are older still.
                         // 2. Known: a page whose topics are all already indexed.
-                        var boundaryReached = false
                         var newTopics = validTopics
                         if (daysWindow > 0 && validTopics.isNotEmpty()) {
                             val cutoffMs = System.currentTimeMillis() - daysWindow * 86_400_000L
@@ -637,20 +735,26 @@ public class ForumIndexer
                                     hasMorePages = false
                                 }
                             }
+                            if (boundaryReached) {
+                                persistCursor?.invoke(null) // forum fully crawled — drop resume cursor
+                            }
                         }
 
                         if (newTopics.isNotEmpty()) {
-                            val newEntities = newTopics.map { it.toCachedTopicEntity(indexVersion) }
+                            val newEntities =
+                                newTopics.map { it.toCachedTopicEntity(indexVersion, it.registeredAtEpochSec) }
                             entitiesBuffer.addAll(newEntities)
                             totalTopics += newTopics.size
+                        }
 
-                            if (entitiesBuffer.size >= BATCH_SIZE_FOR_DB || !hasMorePages) {
-                                val dbWriteStartTime = System.currentTimeMillis()
-                                offlineSearchDao.upsertTopics(entitiesBuffer)
-                                val dbWriteTime = System.currentTimeMillis() - dbWriteStartTime
-                                logger.d { "Forum $forumId: wrote ${entitiesBuffer.size} topics to DB in ${dbWriteTime}ms" }
-                                entitiesBuffer.clear()
-                            }
+                        // Flush at the end of EVERY page — per-page visibility
+                        // beats the old 100-topic batch threshold.
+                        if (entitiesBuffer.isNotEmpty()) {
+                            val dbWriteStartTime = System.currentTimeMillis()
+                            offlineSearchDao.upsertTopics(entitiesBuffer)
+                            val dbWriteTime = System.currentTimeMillis() - dbWriteStartTime
+                            logger.d { "Forum $forumId: wrote ${entitiesBuffer.size} topics to DB in ${dbWriteTime}ms" }
+                            entitiesBuffer.clear()
                         }
 
                         // Only the window boundary skips page advancement; a page of
@@ -659,6 +763,9 @@ public class ForumIndexer
                             onProgress?.invoke(page, totalTopics)
                             politeDelay()
                             page++
+                            if (hasMorePages) {
+                                persistCursor?.invoke(page) // resume here if the run dies
+                            }
                         }
                     }
                 } catch (e: Exception) {
@@ -691,7 +798,11 @@ public class ForumIndexer
             val avgTimePerTopic = if (totalTopics > 0) forumDuration / totalTopics else 0
 
             logger.i { "Forum $forumId indexing completed: $totalTopics topics, duration: ${forumDuration}ms" }
-            return Pair(totalTopics, coversToPreload)
+            return ForumCrawlResult(
+                topicsIndexed = totalTopics,
+                boundaryHit = boundaryReached,
+                nextUncrawledPage = page,
+            )
         }
 
         /**
@@ -701,18 +812,17 @@ public class ForumIndexer
          * @param maxAgeMs Maximum age for topics to update
          * @param currentIndexVersion Current index version
          * @param onProgress Progress callback
-         * @return Pair of (number of topics updated, list of cover URLs to preload)
+         * @return Number of topics updated
          */
         private suspend fun updateForumIncremental(
             forumId: String,
             maxAgeMs: Long,
             currentIndexVersion: Int,
             onProgress: ((forumId: String, updated: Int, total: Int) -> Unit)?,
-        ): Pair<Int, List<String>> {
+        ): Int {
             var totalUpdated: Int = 0
             var page: Int = 0
             var hasMorePages: Boolean = true
-            val coversToPreload = mutableListOf<String>()
             val entitiesBuffer = mutableListOf<CachedTopicEntity>()
 
             // Track IDs of topics found in this update to avoid duplicates if pages shift
@@ -766,7 +876,8 @@ public class ForumIndexer
                         val uniqueTopics = topicsToUpdate.filter { !processedTopicIds.contains(it.topicId) }
                         uniqueTopics.forEach { processedTopicIds.add(it.topicId) }
 
-                        val newEntities = uniqueTopics.map { it.toCachedTopicEntity(currentIndexVersion) }
+                        val newEntities =
+                            uniqueTopics.map { it.toCachedTopicEntity(currentIndexVersion, it.registeredAtEpochSec) }
                         entitiesBuffer.addAll(newEntities)
                         totalUpdated += uniqueTopics.size
 
@@ -795,50 +906,8 @@ public class ForumIndexer
 
             val duration = System.currentTimeMillis() - forumStartTime
             logger.i { "Incremental update for $forumId completed: $totalUpdated topics updated in ${duration}ms" }
-            return Pair(totalUpdated, coversToPreload)
+            return totalUpdated
         }
-
-        /**
-         * Preload cover images to Coil cache for faster display.
-         *
-         * @param coverUrls List of cover URLs to preload
-         */
-        private suspend fun preloadCovers(coverUrls: List<String>) =
-            withContext(Dispatchers.IO) {
-                val imageLoader = SingletonImageLoader.get(context)
-                val uniqueUrls = coverUrls.distinct().take(500) // Limit to 500 covers per batch
-
-                logger.d { "Preloading ${uniqueUrls.size} cover images..." }
-
-                // Preload in batches to avoid overwhelming the system
-                uniqueUrls.chunked(PRELOAD_COVERS_BATCH_SIZE).forEach { batch ->
-                    batch
-                        .map { url ->
-                            async(Dispatchers.IO) {
-                                try {
-                                    val request =
-                                        ImageRequest
-                                            .Builder(context)
-                                            .data(url)
-                                            // Disk-warm only: constrain decode to cover size and
-                                            // skip the memory cache — a 500-URL bulk preload must
-                                            // not evict the UI's cached images.
-                                            .size(300, 450)
-                                            .memoryCachePolicy(CachePolicy.DISABLED)
-                                            .build()
-                                    imageLoader.enqueue(request)
-                                } catch (e: Exception) {
-                                    if (e is kotlinx.coroutines.CancellationException) throw e
-                                    // Silently fail - covers will load on demand
-                                }
-                            }
-                        }.awaitAll()
-
-                    delay(PRELOAD_COVERS_DELAY_MS)
-                }
-
-                logger.d { "Cover preloading completed" }
-            }
 
         /**
          * Get index statistics.
@@ -976,3 +1045,16 @@ public class ForumIndexer
  * Callers should treat this as a benign "nothing to do" condition — never a stuck worker.
  */
 public class IndexingInProgressException : Exception("Indexing already in progress; another index run owns the mutex")
+
+/**
+ * Outcome of a single [ForumIndexer.indexForum] crawl.
+ *
+ * @property topicsIndexed Number of new topics persisted
+ * @property boundaryHit Whether the depth-window boundary stopped the crawl
+ * @property nextUncrawledPage First page not processed (resume point)
+ */
+private data class ForumCrawlResult(
+    val topicsIndexed: Int,
+    val boundaryHit: Boolean,
+    val nextUncrawledPage: Int,
+)

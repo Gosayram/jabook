@@ -80,9 +80,34 @@ class OfflineSearchDaoRecentTopicsTest {
             assertEquals(listOf("a"), dao.getRecentTopics(limit = 2, offset = 2).map { it.topicId })
         }
 
+    @Test
+    fun `getRecentTopics orders by topic_date when present and timestamp when null`() =
+        runBlocking {
+            // Insert order is deliberately shuffled vs the expected result.
+            // "legacy" has NO topic_date (pre-v38 row) → falls back to its
+            // timestamp; the others are ordered by their own topic_date, even
+            // though "old" was indexed last (newest timestamp).
+            dao.upsertTopicsInternal(
+                listOf(
+                    topic(id = "old", timestamp = 9_000L, topicDate = 1_000L),
+                    topic(id = "new", timestamp = 2_000L, topicDate = 8_000L),
+                    topic(id = "legacy", timestamp = 5_000L, topicDate = null),
+                    topic(id = "mid", timestamp = 3_000L, topicDate = 4_000L),
+                ),
+            )
+
+            // topic_date DESC first: new (8k) > mid (4k) > old (1k);
+            // legacy (null) falls back to timestamp 5k, landing between them.
+            assertEquals(
+                listOf("new", "legacy", "mid", "old"),
+                dao.getRecentTopics(limit = 20, offset = 0).map { it.topicId },
+            )
+        }
+
     private fun topic(
         id: String,
         timestamp: Long,
+        topicDate: Long? = null,
     ): CachedTopicEntity =
         CachedTopicEntity(
             topicId = id,
@@ -93,5 +118,6 @@ class OfflineSearchDaoRecentTopicsTest {
             seeders = 1,
             leechers = 0,
             timestamp = timestamp,
+            topicDate = topicDate,
         )
 }

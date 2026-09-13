@@ -19,9 +19,11 @@ import androidx.work.workDataOf
 import com.jabook.app.jabook.compose.core.logger.Logger
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.indexing.ForumIndexer
+import com.jabook.app.jabook.compose.data.indexing.IndexProgress
 import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.worker.IndexingWorkScheduler
+import com.jabook.app.jabook.compose.data.worker.IndexingWorker
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
 import com.jabook.app.jabook.compose.domain.usecase.auth.WithAuthorisedCheckUseCase
 import kotlinx.coroutines.Dispatchers
@@ -137,5 +139,46 @@ class IndexingViewModelTest {
             assertFalse(progress.detail.hasDetailedProgress)
             assertEquals(0, progress.detail.currentForumPage)
             assertEquals(0, progress.detail.topicsFound)
+        }
+
+    @Test
+    fun `work manager progress maps crawl phase passthrough`() =
+        runTest(testDispatcher.scheduler) {
+            val workInfo: WorkInfo = mock()
+            whenever(workInfo.state).thenReturn(WorkInfo.State.RUNNING)
+            whenever(workInfo.progress).thenReturn(
+                workDataOf(
+                    "progress_message" to "Forum 574",
+                    IndexingWorker.KEY_PROGRESS_PHASE to IndexProgress.PHASE_FRESH,
+                ),
+            )
+            whenever(indexingWorkScheduler.observe()).thenReturn(kotlinx.coroutines.flow.flowOf(listOf(workInfo)))
+
+            IndexingViewModel::class.java
+                .getDeclaredMethod("startIndexingWorkMonitor")
+                .apply { isAccessible = true }
+                .invoke(viewModel)
+            runCurrent()
+
+            val progress = viewModel.indexingProgress.value as IndexingProgress.InProgress
+            assertEquals(IndexProgress.PHASE_FRESH, progress.detail.phase)
+        }
+
+    @Test
+    fun `work manager progress without phase keeps phase null`() =
+        runTest(testDispatcher.scheduler) {
+            val workInfo: WorkInfo = mock()
+            whenever(workInfo.state).thenReturn(WorkInfo.State.RUNNING)
+            whenever(workInfo.progress).thenReturn(workDataOf("progress_message" to "Forum 574"))
+            whenever(indexingWorkScheduler.observe()).thenReturn(kotlinx.coroutines.flow.flowOf(listOf(workInfo)))
+
+            IndexingViewModel::class.java
+                .getDeclaredMethod("startIndexingWorkMonitor")
+                .apply { isAccessible = true }
+                .invoke(viewModel)
+            runCurrent()
+
+            val progress = viewModel.indexingProgress.value as IndexingProgress.InProgress
+            assertEquals(null, progress.detail.phase)
         }
 }

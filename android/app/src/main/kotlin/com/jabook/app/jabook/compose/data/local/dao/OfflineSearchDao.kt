@@ -226,8 +226,9 @@ public interface OfflineSearchDao {
     /**
      * Most recently indexed topics ("Новые поступления").
      *
-     * ponytail: ORDER BY timestamp — это дата индексации, НЕ дата релиза.
-     * Реальные даты релиза из viewforum не парсятся (нужны миграция + индекс registered_date).
+     * Orders by the topic's own release date ([CachedTopicEntity.topicDate],
+     * epoch millis, parsed at index time); legacy rows without it fall back
+     * to the index timestamp via COALESCE.
      *
      * @param limit Maximum number of results
      * @param offset Pagination offset
@@ -235,7 +236,7 @@ public interface OfflineSearchDao {
     @Query(
         """
         SELECT * FROM cached_topics
-        ORDER BY timestamp DESC
+        ORDER BY COALESCE(topic_date, timestamp) DESC
         LIMIT :limit OFFSET :offset
     """,
     )

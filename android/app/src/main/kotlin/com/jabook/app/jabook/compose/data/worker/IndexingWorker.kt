@@ -74,9 +74,16 @@ public class IndexingWorker
             // Progress keys
             public const val KEY_PROGRESS_PERCENT: String = "progress_percent"
             public const val KEY_PROGRESS_MESSAGE: String = "progress_message"
+            public const val KEY_PROGRESS_PHASE: String = "progress_phase"
             public const val KEY_TOPICS_INDEXED: String = "topics_indexed"
             public const val KEY_FORUM_IDS: String = "forumIds"
             public const val KEY_USE_SELECTED_FORUM_IDS: String = "useSelectedForumIds"
+
+            /**
+             * Legacy input key: cover preloading was removed. Kept so older
+             * pending WorkManager jobs carrying it stay readable; the value
+             * is ignored.
+             */
             public const val KEY_PRELOAD_COVERS: String = "preloadCovers"
 
             // Quick indexing depth window in days (0 = All). Absent (-1) → read settings.
@@ -167,7 +174,9 @@ public class IndexingWorker
                             selectedForumIds = selectedForumIds,
                             useSelectedForumIds = useSelectedForumIds,
                         )
-                    val preloadCovers = inputData.getBoolean(KEY_PRELOAD_COVERS, false)
+                    if (inputData.getBoolean(KEY_PRELOAD_COVERS, false)) {
+                        logger.d { "Legacy preloadCovers input present; cover preloading was removed — ignored" }
+                    }
                     val inputDaysWindow = inputData.getInt(KEY_INDEXING_DAYS_WINDOW, DAYS_WINDOW_ABSENT)
                     val settingsDaysWindow =
                         if (inputDaysWindow == DAYS_WINDOW_ABSENT) {
@@ -194,7 +203,6 @@ public class IndexingWorker
 
                     forumIndexer.indexForums(
                         forumIds = forumIds,
-                        preloadCovers = preloadCovers,
                         daysWindow = daysWindow,
                     ) { progress ->
                         when (progress) {
@@ -211,6 +219,7 @@ public class IndexingWorker
                                             .Builder()
                                             .putInt(KEY_PROGRESS_PERCENT, percent)
                                             .putString(KEY_PROGRESS_MESSAGE, progress.detail.currentForumName)
+                                            .putString(KEY_PROGRESS_PHASE, progress.detail.phase)
                                             .build(),
                                     )
                                 }

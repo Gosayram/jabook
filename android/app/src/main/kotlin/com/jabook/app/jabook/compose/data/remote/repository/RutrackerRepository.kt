@@ -544,7 +544,7 @@ public class RutrackerRepository
             // DB Persistence for default/generic search scopes.
             if (SearchStaleWhileRevalidatePolicy.shouldPersistResults(forumIds)) {
                 try {
-                    val entities = results.map { it.toCachedTopicEntity() }
+                    val entities = results.map { it.toCachedTopicEntity(registeredAtEpochSec = it.registeredAtEpochSec) }
                     val dbSaveStartTime = System.currentTimeMillis()
                     offlineSearchDao.saveSearchResults(query, entities)
                     val dbSaveDuration = System.currentTimeMillis() - dbSaveStartTime
