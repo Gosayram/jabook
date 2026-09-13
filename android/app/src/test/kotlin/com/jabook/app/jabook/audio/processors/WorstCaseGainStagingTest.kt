@@ -16,6 +16,7 @@ package com.jabook.app.jabook.audio.processors
 
 import androidx.media3.common.C
 import androidx.media3.common.audio.AudioProcessor
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -141,10 +142,13 @@ class WorstCaseGainStagingTest {
                 autoVolumeLeveling = true,
             )
         val chain = AudioProcessorFactory.createProcessorChain(settings).processors
-        assertTrue("expected the three level stages in chain", chain.size == 3)
+        // Chain-head FloatToInt16PcmProcessor + the three level stages.
+        assertTrue("expected the converter and three level stages in chain", chain.size == 4)
+        assertEquals("FloatToInt16PcmProcessor", chain.first().javaClass.simpleName)
 
         val format = AudioProcessor.AudioFormat(sampleRate, 1, C.ENCODING_PCM_16BIT)
-        chain.forEach { it.configure(format) }
+        // The chain-head converter is inactive for int16 input; exercise the DSP stages.
+        chain.drop(1).forEach { it.configure(format) }
 
         val input =
             ByteBuffer

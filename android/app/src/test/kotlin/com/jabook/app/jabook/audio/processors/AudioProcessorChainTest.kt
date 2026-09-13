@@ -135,10 +135,14 @@ class AudioProcessorChainTest {
 
         assertNotNull("loudnessNormalizer should be provided", result.loudnessNormalizer)
         assertTrue(
-            "First processor should be LoudnessNormalizer",
-            result.processors.first() is LoudnessNormalizer,
+            "First processor should be the chain-head FloatToInt16PcmProcessor",
+            result.processors.first() is FloatToInt16PcmProcessor,
         )
-        assertSame(result.processors.first(), result.loudnessNormalizer)
+        assertTrue(
+            "LoudnessNormalizer should follow the converter",
+            result.processors[1] is LoudnessNormalizer,
+        )
+        assertSame(result.processors[1], result.loudnessNormalizer)
     }
 
     @Test
@@ -165,28 +169,30 @@ class AudioProcessorChainTest {
         val result = AudioProcessorFactory.createProcessorChain(settings)
 
         val names = result.processors.map { it.javaClass.simpleName }
-        assertEquals("Should have 6 processors", 6, names.size)
-        assertEquals("LoudnessNormalizer", names[0])
-        assertEquals("VolumeBoostProcessor", names[1])
-        assertEquals("DynamicRangeCompressor", names[2])
-        assertEquals("SpeechEnhancer", names[3])
-        assertEquals("AutoVolumeLeveler", names[4])
-        assertEquals("SkipSilenceAudioProcessor", names[5])
+        assertEquals("Should have 7 processors (incl. chain-head converter)", 7, names.size)
+        assertEquals("FloatToInt16PcmProcessor", names[0])
+        assertEquals("LoudnessNormalizer", names[1])
+        assertEquals("VolumeBoostProcessor", names[2])
+        assertEquals("DynamicRangeCompressor", names[3])
+        assertEquals("SpeechEnhancer", names[4])
+        assertEquals("AutoVolumeLeveler", names[5])
+        assertEquals("SkipSilenceAudioProcessor", names[6])
     }
 
     // --- Individual processor enablement ---
 
     @Test
-    fun `only normalizeVolume enabled creates single processor`() {
+    fun `only normalizeVolume enabled creates converter plus normalizer`() {
         val settings = AudioProcessingSettings(normalizeVolume = true)
         val result = AudioProcessorFactory.createProcessorChain(settings)
 
-        assertEquals(1, result.processors.size)
-        assertTrue(result.processors[0] is LoudnessNormalizer)
+        assertEquals(2, result.processors.size)
+        assertTrue(result.processors[0] is FloatToInt16PcmProcessor)
+        assertTrue(result.processors[1] is LoudnessNormalizer)
     }
 
     @Test
-    fun `only skipSilence enabled creates single processor`() {
+    fun `only skipSilence enabled creates converter plus skipper`() {
         val settings =
             AudioProcessingSettings(
                 normalizeVolume = false,
@@ -194,7 +200,8 @@ class AudioProcessorChainTest {
             )
         val result = AudioProcessorFactory.createProcessorChain(settings)
 
-        assertEquals(1, result.processors.size)
-        assertTrue(result.processors[0] is SkipSilenceAudioProcessor)
+        assertEquals(2, result.processors.size)
+        assertTrue(result.processors[0] is FloatToInt16PcmProcessor)
+        assertTrue(result.processors[1] is SkipSilenceAudioProcessor)
     }
 }
